@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speedometer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="speedo hidden" id="speedo">
+        <!-- RPM arc -->
+        <svg class="rpm-ring" viewBox="0 0 200 200">
+            <defs>
+                <linearGradient id="rpmGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#0096ff" />
+                    <stop offset="70%" stop-color="#00c8ff" />
+                    <stop offset="100%" stop-color="#ff2222" />
+                </linearGradient>
+            </defs>
+            <circle class="rpm-bg" cx="100" cy="100" r="88" />
+            <circle class="rpm-bar" id="rpmBar" cx="100" cy="100" r="88" />
+        </svg>
+
+        <!-- Speed display -->
+        <div class="speed-core">
+            <div class="speed-number" id="speedNum">0</div>
+            <div class="speed-unit" id="speedUnit">MPH</div>
+        </div>
+
+        <!-- Gear indicator -->
+        <div class="gear-box">
+            <span class="gear-label">GEAR</span>
+            <span class="gear-value" id="gearVal">N</span>
+        </div>
+
+        <!-- Engine health bar -->
+        <div class="health-bar-wrap">
+            <div class="health-bar" id="healthBar"></div>
+        </div>
+        <div class="health-label">ENG</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

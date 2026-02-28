@@ -1,0 +1,393 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    background: #000;
+    font-family: 'Rajdhani', sans-serif;
+    color: #fff;
+    width: 100vw;
+    height: 100vh;
+}
+
+.loading-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ========================
+   Background slideshow
+   ======================== */
+
+.bg-slideshow {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+}
+
+.bg-slide {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+    transform: scale(1.05);
+    animation: slideZoom 8s ease-in-out infinite alternate;
+}
+
+.bg-slide.active {
+    opacity: 1;
+}
+
+@keyframes slideZoom {
+    0% { transform: scale(1.0); }
+    100% { transform: scale(1.08); }
+}
+
+.bg-slideshow-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 1;
+}
+
+/* ========================
+   Background layers
+   ======================== */
+
+.bg-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.bg-gradient {
+    background: radial-gradient(ellipse at 30% 50%, rgba(10, 10, 26, 0.7) 0%, rgba(0, 0, 0, 0.5) 70%);
+}
+
+.bg-grid {
+    background-image:
+        linear-gradient(rgba(0, 150, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 150, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(60px); }
+}
+
+.bg-scanlines {
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 2px,
+        rgba(0, 0, 0, 0.15) 4px
+    );
+    opacity: 0.4;
+}
+
+/* ========================
+   Speed lines
+   ======================== */
+
+.speed-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.speed-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 150, 255, 0.4), transparent);
+    animation: speedLine var(--duration) linear infinite;
+    opacity: 0;
+}
+
+@keyframes speedLine {
+    0% { transform: translateX(-100%); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(200vw); opacity: 0; }
+}
+
+/* ========================
+   Particles
+   ======================== */
+
+.particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(0, 150, 255, 0.6);
+    border-radius: 50%;
+    animation: particleFloat var(--duration) ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(0, 150, 255, 0.3);
+}
+
+@keyframes particleFloat {
+    0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
+    50% { transform: translateY(var(--ty)) translateX(var(--tx)); opacity: 0.8; }
+}
+
+/* ========================
+   Content layout
+   ======================== */
+
+.content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+/* ========================
+   Logo
+   ======================== */
+
+.logo-section {
+    text-align: center;
+    margin-bottom: 80px;
+    position: relative;
+}
+
+.logo-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    height: 200px;
+    background: radial-gradient(ellipse, rgba(0, 120, 255, 0.15) 0%, transparent 70%);
+    filter: blur(40px);
+    animation: glowPulse 3s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+    0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.logo-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: 12px;
+    line-height: 1;
+    position: relative;
+    text-transform: uppercase;
+}
+
+.logo-black {
+    color: #fff;
+    text-shadow:
+        0 0 20px rgba(255, 255, 255, 0.3),
+        0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+.logo-list {
+    color: #0096ff;
+    text-shadow:
+        0 0 20px rgba(0, 150, 255, 0.5),
+        0 0 40px rgba(0, 150, 255, 0.3),
+        0 0 80px rgba(0, 150, 255, 0.1);
+}
+
+.logo-subtitle {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: 24px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 8px;
+    text-indent: 24px;
+}
+
+.logo-tagline {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 8px;
+    color: rgba(0, 150, 255, 0.6);
+    margin-top: 16px;
+    text-transform: uppercase;
+    text-indent: 8px;
+}
+
+/* ========================
+   Progress bar
+   ======================== */
+
+.loading-section {
+    width: 100%;
+    max-width: 500px;
+}
+
+.progress-container {
+    width: 100%;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0050aa, #0096ff, #00c8ff);
+    border-radius: 2px;
+    transition: width 0.5s ease-out;
+    position: relative;
+}
+
+.progress-glow {
+    position: absolute;
+    top: -4px;
+    right: 0;
+    width: 60px;
+    height: 11px;
+    background: radial-gradient(ellipse, rgba(0, 150, 255, 0.6) 0%, transparent 70%);
+    filter: blur(4px);
+    transition: left 0.5s ease-out;
+}
+
+.progress-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 16px;
+    text-align: center;
+}
+
+.loading-info {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.info-item {
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 2px;
+}
+
+/* ========================
+   Bottom section
+   ======================== */
+
+.bottom-section {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.discord-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.discord-icon {
+    opacity: 0.5;
+}
+
+.server-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.info-separator {
+    color: rgba(0, 150, 255, 0.3);
+}
+
+/* ========================
+   Entrance animation
+   ======================== */
+
+.content {
+    animation: fadeIn 2s ease-out;
+}
+
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.logo-text {
+    animation: logoReveal 1.5s ease-out 0.5s both;
+}
+
+@keyframes logoReveal {
+    0% { opacity: 0; letter-spacing: 40px; filter: blur(10px); }
+    100% { opacity: 1; letter-spacing: 12px; filter: blur(0); }
+}
+
+.logo-subtitle {
+    animation: subtitleReveal 1s ease-out 1.2s both;
+}
+
+@keyframes subtitleReveal {
+    0% { opacity: 0; letter-spacing: 40px; }
+    100% { opacity: 1; letter-spacing: 24px; }
+}
+
+.logo-tagline {
+    animation: fadeUp 0.8s ease-out 1.8s both;
+}
+
+.loading-section {
+    animation: fadeUp 0.8s ease-out 2.2s both;
+}
+
+@keyframes fadeUp {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}

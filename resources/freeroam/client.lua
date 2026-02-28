@@ -1,0 +1,411 @@
+local isInFreeRoam = false
+local isFreeroamMenuOpen = false
+
+-- ========================
+-- Full client-side freeroam entry
+-- ========================
+
+RegisterNetEvent('blacklist:enterFreeRoamClient')
+AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
+    local ped = PlayerPedId()
+    local x, y, z, heading = spawn.x, spawn.y, spawn.z, spawn.heading
+
+    -- 1. Fade out
+    DoScreenFadeOut(300)
+    Citizen.Wait(400)
+
+    -- 2. Freeze + place player at spawn
+    FreezeEntityPosition(ped, true)
+    SetEntityCoords(ped, x, y, z, false, false, false, true)
+    SetEntityHeading(ped, heading)
+
+    -- 3. Load collision at that exact spot
+    RequestCollisionAtCoord(x, y, z)
+    local timeout = GetGameTimer() + 10000
+    while not HasCollisionLoadedAroundEntity(ped) do
+        Citizen.Wait(50)
+        RequestCollisionAtCoord(x, y, z)
+        if GetGameTimer() > timeout then break end
+    end
+
+    -- 4. Find solid ground
+    local found, groundZ = false, z
+    for attempt = 1, 30 do
+        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 100.0, false)
+        if found then break end
+        Citizen.Wait(100)
+    end
+    if found then
+        z = groundZ + 1.0
+        SetEntityCoords(ped, x, y, z, false, false, false, true)
+    end
+
+    -- 5. Make visible, show HUD
+    SetEntityVisible(ped, true, false)
+    SetEntityInvincible(ped, false)
+    FreezeEntityPosition(ped, false)
+    DisplayHud(true)
+    DisplayRadar(true)
+
+    -- 6. Spawn player's saved vehicle (or default sultan)
+    local vehData = spawn.vehicle
+    local model = (vehData and vehData.model) or 'sultan'
+    local tuning = (vehData and vehData.tuning) or nil
+
+    local vehHash = GetHashKey(model)
+    RequestModel(vehHash)
+    local vehTimeout = GetGameTimer() + 10000
+    while not HasModelLoaded(vehHash) do
+        Citizen.Wait(50)
+        if GetGameTimer() > vehTimeout then
+            vehHash = GetHashKey('sultan')
+            RequestModel(vehHash)
+            while not HasModelLoaded(vehHash) do Citizen.Wait(50) end
+            break
+        end
+    end
+
+    local vehicle = CreateVehicle(vehHash, x, y, z, heading, true, false)
+    SetModelAsNoLongerNeeded(vehHash)
+    TaskWarpPedIntoVehicle(ped, vehicle, -1)
+
+    -- Apply saved tuning via vehicles resource, or max out if no tuning
+    SetVehicleModKit(vehicle, 0)
+    if tuning then
+        exports.vehicles:ApplyTuning(vehicle, tuning)
+    else
+        SetVehicleMod(vehicle, 11, GetNumVehicleMods(vehicle, 11) - 1, false)
+        SetVehicleMod(vehicle, 12, GetNumVehicleMods(vehicle, 12) - 1, false)
+        SetVehicleMod(vehicle, 13, GetNumVehicleMods(vehicle, 13) - 1, false)
+        SetVehicleMod(vehicle, 15, GetNumVehicleMods(vehicle, 15) - 1, false)
+        ToggleVehicleMod(vehicle, 18, true)
+    end
+    SetVehicleRadioEnabled(vehicle, false)
+    SetVehRadioStation(vehicle, 'OFF')
+
+    -- 7. Fade in
+    DoScreenFadeIn(500)
+
+    -- 8. Enable ghost mode
+    isInFreeRoam = true
+
+    -- 9. Show hint after a moment
+    Citizen.Wait(2000)
+    SendNUIMessage({ action = 'showHint', show = true })
+    Citizen.SetTimeout(5000, function()
+        SendNUIMessage({ action = 'showHint', show = false })
+    end)
+end)
+
+RegisterNetEvent('blacklist:enableGhostMode')
+AddEventHandler('blacklist:enableGhostMode', function(enable)
+    isInFreeRoam = enable
+end)
+
+-- ========================
+-- Remove peds, traffic, props every frame
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+
+        if isInFreeRoam then
+            -- Kill all ped spawning
+            SetPedDensityMultiplierThisFrame(0.0)
+            SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
+
+            -- Kill all vehicle traffic
+            SetVehicleDensityMultiplierThisFrame(0.0)
+            SetRandomVehicleDensityMultiplierThisFrame(0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+
+            -- Disable garbage trucks, ambulances, etc.
+            SetGarbageTrucks(false)
+            SetRandomBoats(false)
+            SetRandomTrains(false)
+
+            -- Disable dispatch services (cops, fire, ambulance)
+            for i = 1, 15 do
+                EnableDispatchService(i, false)
+            end
+        end
+    end
+end)
+
+-- Clean up existing peds and vehicles periodically
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(2000)
+
+        if isInFreeRoam then
+            local playerPed = PlayerPedId()
+
+            local handle, ped = FindFirstPed()
+            local success = true
+            while success do
+                if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) then
+                    DeleteEntity(ped)
+                end
+                success, ped = FindNextPed(handle)
+            end
+            EndFindPed(handle)
+
+            local myVeh = GetVehiclePedIsIn(playerPed, false)
+            local vHandle, veh = FindFirstVehicle()
+            success = true
+            while success do
+                if veh ~= myVeh and DoesEntityExist(veh) then
+                    local driver = GetPedInVehicleSeat(veh, -1)
+                    if driver == 0 or not IsPedAPlayer(driver) then
+                        DeleteEntity(veh)
+                    end
+                end
+                success, veh = FindNextVehicle(vHandle)
+            end
+            EndFindVehicle(vHandle)
+        end
+    end
+end)
+
+-- ========================
+-- Ghost mode (no collisions with other players)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+
+        if isInFreeRoam then
+            local myPed = PlayerPedId()
+            local myVehicle = GetVehiclePedIsIn(myPed, false)
+
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        SetEntityNoCollisionEntity(myPed, otherPed, false)
+
+                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
+                        if myVehicle ~= 0 and otherVehicle ~= 0 then
+                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, false)
+                        end
+
+                        SetEntityAlpha(otherPed, 100, false)
+                        if otherVehicle ~= 0 then
+                            SetEntityAlpha(otherVehicle, 100, false)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Disable wanted level + death handling
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        if isInFreeRoam then
+            ClearPlayerWantedLevel(PlayerId())
+            SetMaxWantedLevel(0)
+
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) then
+                -- Auto-respawn: revive in place
+                DoScreenFadeOut(300)
+                Citizen.Wait(500)
+
+                local coords = GetEntityCoords(ped)
+                NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z + 1.0, GetEntityHeading(ped), true, false)
+
+                local newPed = PlayerPedId()
+                ClearPedBloodDamage(newPed)
+                SetEntityHealth(newPed, 200)
+                SetEntityInvincible(newPed, false)
+
+                -- Respawn a vehicle
+                local vehHash = GetHashKey('sultan')
+                RequestModel(vehHash)
+                while not HasModelLoaded(vehHash) do Citizen.Wait(50) end
+
+                local vehicle = CreateVehicle(vehHash, coords.x, coords.y, coords.z + 1.0, GetEntityHeading(newPed), true, false)
+                SetModelAsNoLongerNeeded(vehHash)
+                TaskWarpPedIntoVehicle(newPed, vehicle, -1)
+                SetVehicleRadioEnabled(vehicle, false)
+                SetVehRadioStation(vehicle, 'OFF')
+
+                Citizen.Wait(300)
+                DoScreenFadeIn(500)
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Freeroam mini-menu (F1 key)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+
+        if isInFreeRoam and not isFreeroamMenuOpen then
+            if IsControlJustPressed(0, 288) then -- F1
+                openFreeroamMenu()
+            end
+        end
+    end
+end)
+
+function openFreeroamMenu()
+    isFreeroamMenuOpen = true
+    SetNuiFocus(true, true)
+
+    -- Send vehicle catalog to NUI
+    TriggerServerEvent('blacklist:requestVehiclesForFreeroam')
+
+    SendNUIMessage({ action = 'openFreeroamMenu' })
+end
+
+function closeFreeroamMenu()
+    isFreeroamMenuOpen = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'closeFreeroamMenu' })
+end
+
+-- Receive vehicle list for freeroam menu
+RegisterNetEvent('blacklist:receiveFreeroamVehicles')
+AddEventHandler('blacklist:receiveFreeroamVehicles', function(catalog)
+    SendNUIMessage({
+        action = 'vehicleList',
+        vehicles = catalog,
+    })
+end)
+
+-- ========================
+-- NUI Callbacks
+-- ========================
+
+RegisterNUICallback('closeFreeroamMenu', function(data, cb)
+    closeFreeroamMenu()
+    cb({})
+end)
+
+RegisterNUICallback('selectFreeroamCar', function(data, cb)
+    closeFreeroamMenu()
+
+    local model = data.model
+    if not model then cb({}) return end
+
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    -- Delete current vehicle
+    local currentVeh = GetVehiclePedIsIn(ped, false)
+    if currentVeh ~= 0 then
+        DeleteEntity(currentVeh)
+    end
+
+    -- Spawn new vehicle
+    local hash = GetHashKey(model)
+    RequestModel(hash)
+
+    local timeout = GetGameTimer() + 10000
+    while not HasModelLoaded(hash) do
+        Citizen.Wait(100)
+        if GetGameTimer() > timeout then
+            hash = GetHashKey('sultan')
+            RequestModel(hash)
+            while not HasModelLoaded(hash) do Citizen.Wait(100) end
+            break
+        end
+    end
+
+    local vehicle = CreateVehicle(hash, coords.x, coords.y, coords.z, heading, true, false)
+    SetModelAsNoLongerNeeded(hash)
+    TaskWarpPedIntoVehicle(ped, vehicle, -1)
+
+    -- Max performance upgrades
+    SetVehicleModKit(vehicle, 0)
+    SetVehicleMod(vehicle, 11, GetNumVehicleMods(vehicle, 11) - 1, false)
+    SetVehicleMod(vehicle, 12, GetNumVehicleMods(vehicle, 12) - 1, false)
+    SetVehicleMod(vehicle, 13, GetNumVehicleMods(vehicle, 13) - 1, false)
+    SetVehicleMod(vehicle, 15, GetNumVehicleMods(vehicle, 15) - 1, false)
+    ToggleVehicleMod(vehicle, 18, true)
+
+    -- Kill radio
+    SetVehicleRadioEnabled(vehicle, false)
+    SetVehRadioStation(vehicle, 'OFF')
+
+    cb({})
+end)
+
+RegisterNUICallback('teleportToWaypoint', function(data, cb)
+    closeFreeroamMenu()
+
+    local waypointBlip = GetFirstBlipInfoId(8)
+    if not DoesBlipExist(waypointBlip) then
+        cb({ success = false })
+        return
+    end
+
+    local coords = GetBlipInfoIdCoord(waypointBlip)
+    local x, y = coords.x, coords.y
+
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    local entity = vehicle ~= 0 and vehicle or ped
+
+    DoScreenFadeOut(300)
+    Citizen.Wait(400)
+
+    FreezeEntityPosition(entity, true)
+    SetEntityCoordsNoOffset(entity, x, y, 300.0, false, false, false)
+
+    -- Load collision at destination
+    RequestCollisionAtCoord(x, y, 300.0)
+    local timeout = GetGameTimer() + 10000
+    while not HasCollisionLoadedAroundEntity(entity) do
+        Citizen.Wait(50)
+        RequestCollisionAtCoord(x, y, 300.0)
+        if GetGameTimer() > timeout then break end
+    end
+
+    -- Find solid ground
+    local found, groundZ = false, 300.0
+    for attempt = 1, 40 do
+        found, groundZ = GetGroundZFor_3dCoord(x, y, 1000.0, false)
+        if found then break end
+        Citizen.Wait(100)
+    end
+
+    local finalZ = found and (groundZ + 1.0) or 300.0
+    SetEntityCoordsNoOffset(entity, x, y, finalZ, false, false, false)
+
+    FreezeEntityPosition(entity, false)
+    Citizen.Wait(300)
+    DoScreenFadeIn(500)
+
+    cb({ success = true })
+end)
+
+RegisterNUICallback('openMap', function(data, cb)
+    closeFreeroamMenu()
+    exports.base:AllowGTAMap()
+    cb({})
+end)
+
+RegisterNUICallback('backToMainMenu', function(data, cb)
+    closeFreeroamMenu()
+    isInFreeRoam = false
+    TriggerServerEvent('blacklist:leaveFreeRoam')
+    TriggerEvent('blacklist:returnToMenu')
+    cb({})
+end)
+
+print('[FreeRoam] ^2Client-side loaded^0')

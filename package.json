@@ -1,0 +1,16 @@
+{
+  "name": "fivem-racing-server",
+  "version": "1.0.0",
+  "description": "NFS Most Wanted inspired chase/run racing server for the Polish racing community.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "fengari": "^0.1.5"
+  }
+}

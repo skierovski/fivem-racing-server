@@ -1,0 +1,28 @@
+# Server secrets
+server.cfg
+
+# FiveM server binaries (downloaded, not project code)
+server/
+mariadb/
+cfx-server-data/
+
+# FiveM cache
+cache/
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Env files
+.env
+
+# Replxx history
+.replxx_history

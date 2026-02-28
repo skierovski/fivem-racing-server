@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackList Garage</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="garageApp" class="hidden">
+        <!-- Left: category list -->
+        <nav class="tuning-sidebar" id="tuningSidebar">
+            <div class="tuning-logo">
+                <span class="logo-b">BENNY'S</span>
+                <span class="logo-sub">MOTOR WORKS</span>
+            </div>
+            <div class="category-list" id="categoryList"></div>
+            <div class="tuning-actions">
+                <button class="btn-save" id="btnSave">SAVE & EXIT</button>
+                <button class="btn-cancel" id="btnCancel">CANCEL</button>
+            </div>
+            <div class="tuning-hint">
+                <span>Drag to rotate &middot; Scroll to zoom</span>
+            </div>
+        </nav>
+
+        <!-- Right: options panel -->
+        <div class="options-panel hidden" id="optionsPanel">
+            <div class="options-header" id="optionsHeader">OPTIONS</div>
+            <div class="options-list" id="optionsList"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

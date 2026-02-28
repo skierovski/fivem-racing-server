@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chase HUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Countdown overlay -->
+    <div class="countdown-overlay hidden" id="countdownOverlay">
+        <div class="countdown-number" id="countdownNumber">3</div>
+    </div>
+
+    <!-- Role announcement -->
+    <div class="role-announce hidden" id="roleAnnounce">
+        <div class="role-text" id="roleText">CHASER</div>
+        <div class="role-sub" id="roleSub">Catch the runner!</div>
+    </div>
+
+    <!-- Head start banner -->
+    <div class="headstart-banner hidden" id="headstartBanner">
+        <span id="headstartText">Runner head start: 5s</span>
+    </div>
+
+    <!-- Main HUD -->
+    <div class="chase-hud hidden" id="chaseHud">
+        <div class="hud-top">
+            <div class="hud-timer" id="hudTimer">5:00</div>
+            <div class="hud-role" id="hudRole">CHASER</div>
+        </div>
+        <div class="hud-distance" id="hudDistance">
+            <span class="distance-value" id="distanceValue">---</span>
+            <span class="distance-unit">m</span>
+        </div>
+    </div>
+
+    <!-- Warning popup -->
+    <div class="warning-popup hidden" id="warningPopup">
+        <span id="warningText"></span>
+    </div>
+
+    <!-- Match end overlay -->
+    <div class="match-end hidden" id="matchEnd">
+        <div class="end-result" id="endResult">ESCAPED!</div>
+        <div class="end-details" id="endDetails"></div>
+        <div class="end-returning">Returning to menu...</div>
+    </div>
+
+    <script src="hud.js"></script>
+</body>
+</html>
