@@ -96,10 +96,16 @@
     // ========================
     // Mode buttons
     // ========================
+    const crossTierToggle = document.getElementById('crossTierToggle');
+
     btnRanked.addEventListener('click', () => {
         if (isQueuing) return;
-        fetch('https://menu/joinRanked', { method: 'POST', body: '{}' });
-        showQueue('Finding ranked match...');
+        const crossTier = crossTierToggle ? crossTierToggle.checked : false;
+        fetch('https://menu/joinRanked', {
+            method: 'POST',
+            body: JSON.stringify({ crossTier })
+        });
+        showQueue(crossTier ? 'Finding cross-tier ranked match...' : 'Finding ranked match...');
     });
 
     btnNormalChase.addEventListener('click', () => {

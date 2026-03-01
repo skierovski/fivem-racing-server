@@ -36,8 +36,12 @@ local BANK_LOCATIONS = {
 -- Join / leave queue
 -- ========================
 
+local TIER_ORDER = { 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist' }
+local TIER_INDEX = {}
+for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
+
 RegisterNetEvent('blacklist:joinQueue')
-AddEventHandler('blacklist:joinQueue', function(mode)
+AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
     local source = source
     local identifier = getIdentifier(source)
     if not identifier then return end
@@ -62,6 +66,7 @@ AddEventHandler('blacklist:joinQueue', function(mode)
                     identifier = identifier,
                     mmr = player.mmr,
                     tier = player.tier,
+                    crossTier = crossTier == true,
                     chases = player.chases_played or 0,
                     escapes = player.escapes_played or 0,
                     joinedAt = GetGameTimer(),
@@ -70,9 +75,10 @@ AddEventHandler('blacklist:joinQueue', function(mode)
                 playerStates[source] = 'ranked_queue'
                 TriggerClientEvent('blacklist:queueUpdate', source, {
                     status = 'waiting',
-                    message = 'Searching for ranked opponent...'
+                    message = crossTier and 'Searching for cross-tier opponent...' or 'Searching for ranked opponent...'
                 })
-                print(('[Matchmaking] %s joined ranked queue (MMR: %d)'):format(GetPlayerName(source), player.mmr))
+                print(('[Matchmaking] %s joined ranked queue (MMR: %d, crossTier: %s)'):format(
+                    GetPlayerName(source), player.mmr, tostring(crossTier == true)))
 
             elseif mode == 'normal' then
                 -- Assign role based on lifetime balance (fewer escapes = runner)
@@ -165,9 +171,23 @@ function processRankedQueue()
 
             local mmrDiff = math.abs(a.mmr - b.mmr)
             local maxRange = math.max(a.searchRange, b.searchRange)
+            local sameTier = a.tier == b.tier
+            local isCrossTier = false
+
+            if not sameTier then
+                local aTierIdx = TIER_INDEX[a.tier] or 1
+                local bTierIdx = TIER_INDEX[b.tier] or 1
+                local tierGap = math.abs(aTierIdx - bTierIdx)
+
+                -- Cross-tier only allowed if gap is 1 and both players opted in
+                if tierGap == 1 and a.crossTier and b.crossTier then
+                    isCrossTier = true
+                else
+                    goto continue
+                end
+            end
 
             if mmrDiff <= maxRange then
-                -- Match found! Determine roles based on balance
                 local aIsChaser = (a.chases or 0) <= (a.escapes or 0)
 
                 local chaser, runner
@@ -186,10 +206,19 @@ function processRankedQueue()
                 playerStates[chaser.source] = 'in_match'
                 playerStates[runner.source] = 'in_match'
 
-                -- Start the match
-                startRankedMatch(chaser, runner)
-                return -- process one match per tick
+                -- Determine forced tier for cross-tier matches (use lower tier)
+                local forceTier = nil
+                if isCrossTier then
+                    local chaserIdx = TIER_INDEX[chaser.tier] or 1
+                    local runnerIdx = TIER_INDEX[runner.tier] or 1
+                    forceTier = chaserIdx < runnerIdx and chaser.tier or runner.tier
+                end
+
+                startRankedMatch(chaser, runner, isCrossTier, forceTier)
+                return
             end
+
+            ::continue::
         end
     end
 end
@@ -223,8 +252,7 @@ end
 -- Match starters
 -- ========================
 
-function startRankedMatch(chaser, runner)
-    -- Pick random LS intersection for start
+function startRankedMatch(chaser, runner, isCrossTier, forceTier)
     local locations = {
         { x = -130.0,  y = -1520.0, z = 33.5 },
         { x = -530.0,  y = -680.0,  z = 33.5 },
@@ -236,29 +264,36 @@ function startRankedMatch(chaser, runner)
 
     local matchData = {
         mode = 'ranked',
+        isCrossTier = isCrossTier or false,
+        forceTier = forceTier,
         chaser = {
             source = chaser.source,
             identifier = chaser.identifier,
             mmr = chaser.mmr,
+            tier = chaser.tier,
         },
         runner = {
             source = runner.source,
             identifier = runner.identifier,
             mmr = runner.mmr,
+            tier = runner.tier,
         },
         startX = loc.x,
         startY = loc.y,
         startZ = loc.z,
     }
 
-    -- Notify chase resource to begin
     TriggerEvent('blacklist:startChaseMatch', matchData)
 
-    TriggerClientEvent('blacklist:queueUpdate', chaser.source, { status = 'matched', message = 'Match found! You are the CHASER' })
-    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found! You are the RUNNER' })
+    local ctMsg = isCrossTier and ' (CROSS-TIER)' or ''
+    TriggerClientEvent('blacklist:queueUpdate', chaser.source, { status = 'matched', message = 'Match found! You are the CHASER' .. ctMsg })
+    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found! You are the RUNNER' .. ctMsg })
 
-    print(('[Matchmaking] Ranked match: %s (chaser, %d MMR) vs %s (runner, %d MMR)'):format(
-        GetPlayerName(chaser.source), chaser.mmr, GetPlayerName(runner.source), runner.mmr))
+    print(('[Matchmaking] Ranked match%s: %s (%s chaser, %d MMR) vs %s (%s runner, %d MMR)%s'):format(
+        isCrossTier and ' [CROSS-TIER]' or '',
+        GetPlayerName(chaser.source), chaser.tier, chaser.mmr,
+        GetPlayerName(runner.source), runner.tier, runner.mmr,
+        forceTier and (' | forced tier: ' .. forceTier) or ''))
 end
 
 function startNormalChaseMatch(runner, chasers)

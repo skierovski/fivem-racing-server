@@ -28,17 +28,56 @@ function GetPlayerVehicle(identifier, callback)
     )
 end
 
---- Spawn a vehicle for a player at given coords
+--- Spawn a vehicle for a player at given coords, optionally forcing a tier
 RegisterNetEvent('blacklist:spawnPlayerVehicle')
-AddEventHandler('blacklist:spawnPlayerVehicle', function(targetSource, x, y, z, heading)
+AddEventHandler('blacklist:spawnPlayerVehicle', function(targetSource, x, y, z, heading, forceTier)
     local source = source
     local identifier = getIdentifier(targetSource or source)
     if not identifier then return end
 
     GetPlayerVehicle(identifier, function(vehicleData)
-        TriggerClientEvent('blacklist:doSpawnVehicle', targetSource or source, vehicleData, x, y, z, heading)
+        if forceTier and vehicleData.tier ~= forceTier then
+            GetPlayerVehicleForTier(identifier, forceTier, function(tierVehicle)
+                TriggerClientEvent('blacklist:doSpawnVehicle', targetSource or source, tierVehicle, x, y, z, heading)
+            end)
+        else
+            TriggerClientEvent('blacklist:doSpawnVehicle', targetSource or source, vehicleData, x, y, z, heading)
+        end
     end)
 end)
+
+--- Get best vehicle a player owns from a specific tier (for cross-tier enforcement)
+function GetPlayerVehicleForTier(identifier, tier, callback)
+    exports.oxmysql:execute(
+        [[SELECT pv.model, pv.tuning, vc.label, vc.tier
+          FROM player_vehicles pv
+          JOIN vehicle_catalog vc ON vc.model = pv.model
+          WHERE pv.identifier = ? AND vc.tier = ?
+          LIMIT 1]],
+        { identifier, tier },
+        function(result)
+            if result and result[1] then
+                local data = result[1]
+                if data.tuning and type(data.tuning) == 'string' then
+                    data.tuning = json.decode(data.tuning)
+                end
+                callback(data)
+            else
+                -- Player has no vehicle in this tier: give default for tier
+                local defaults = {
+                    bronze = { model = 'sultan', label = 'Karin Sultan' },
+                    silver = { model = 'jester', label = 'Dinka Jester' },
+                    gold = { model = 'elegy2', label = 'Annis Elegy RH8' },
+                    platinum = { model = 'turismor', label = 'Grotti Turismo R' },
+                    diamond = { model = 'zentorno', label = 'Pegassi Zentorno' },
+                    blacklist = { model = 't20', label = 'Progen T20' },
+                }
+                local def = defaults[tier] or defaults.bronze
+                callback({ model = def.model, tuning = {}, label = def.label, tier = tier })
+            end
+        end
+    )
+end
 
 --- Ensure a player has at least the default vehicle
 RegisterNetEvent('blacklist:ensureDefaultVehicle')

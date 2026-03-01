@@ -33,13 +33,15 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
     local match = {
         id = matchId,
         mode = matchData.mode, -- 'ranked' or 'normal'
+        isCrossTier = matchData.isCrossTier or false,
+        forceTier = matchData.forceTier,
         state = 'countdown', -- countdown, headstart, active, finished
         startTime = 0,
         duration = ChaseConfig.ROUND_DURATION,
 
         runner = matchData.runner,
         chasers = matchData.mode == 'ranked'
-            and { { source = matchData.chaser.source, identifier = matchData.chaser.identifier, mmr = matchData.chaser.mmr } }
+            and { { source = matchData.chaser.source, identifier = matchData.chaser.identifier, mmr = matchData.chaser.mmr, tier = matchData.chaser.tier } }
             or matchData.chasers,
 
         startX = matchData.startX,
@@ -48,8 +50,8 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         startHeading = matchData.startHeading or 0.0,
 
         -- Tracking
-        catchTimer = 0, -- how long chaser has been within catch distance
-        warnings = {}, -- source -> warning count
+        catchTimer = 0,
+        warnings = {},
         result = nil,
     }
 
@@ -72,13 +74,13 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
 
     -- Runner spawns at the start location
     TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
-        match.startX, match.startY, match.startZ, match.startHeading)
+        match.startX, match.startY, match.startZ, match.startHeading, match.forceTier)
 
     -- Chasers spawn slightly behind
     for i, chaser in ipairs(match.chasers) do
         local offset = i * 8.0
         TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-            match.startX - offset, match.startY, match.startZ, match.startHeading)
+            match.startX - offset, match.startY, match.startZ, match.startHeading, match.forceTier)
     end
 
     Citizen.Wait(1000)
@@ -290,7 +292,7 @@ function endMatch(matchId, winnerRole, reason)
             winnerId = match.chasers[1].identifier
             loserId = match.runner.identifier
         end
-        exports.ranked:ProcessRankedResult(winnerId, loserId, winnerRole, elapsed)
+        exports.ranked:ProcessRankedResult(winnerId, loserId, winnerRole, elapsed, match.isCrossTier)
     end
 
     -- Return players to menu after delay

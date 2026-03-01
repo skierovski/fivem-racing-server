@@ -12,15 +12,14 @@
     let tuningData = null;
     let activeCategory = null;
 
-    const COLOR_PRESETS = [
-        '#1a1a1a', '#333333', '#666666', '#999999', '#cccccc', '#ffffff', '#ff0000', '#cc0000',
-        '#990000', '#ff4444', '#ff6600', '#ff9900', '#ffcc00', '#ffff00', '#ccff00', '#66ff00',
-        '#00ff00', '#00ff66', '#00ffcc', '#00ffff', '#00ccff', '#0099ff', '#0066ff', '#0033ff',
-        '#0000ff', '#3300ff', '#6600ff', '#9900ff', '#cc00ff', '#ff00ff', '#ff0099', '#ff0066',
-        '#8b4513', '#a0522d', '#cd853f', '#d2691e', '#deb887', '#f5deb3', '#2f4f4f', '#556b2f',
-        '#808000', '#483d8b', '#191970', '#000080', '#4b0082', '#800080', '#c71585', '#dc143c',
-        '#b22222', '#8b0000', '#ff1493', '#ff69b4', '#ffc0cb', '#f0e68c', '#e6e6fa', '#708090',
-    ];
+    let COLOR_PRESETS = [];
+    let WHEEL_COLORS = [];
+
+    // Load color data from JSON
+    fetch('../data/colors.json').then(r => r.json()).then(data => {
+        COLOR_PRESETS = data.colorPresets || [];
+        WHEEL_COLORS = data.wheelColors || [];
+    }).catch(() => {});
 
     const CATEGORY_ICONS = {
         color1: '\u{1F3A8}', color2: '\u{1F3A8}',
@@ -32,53 +31,7 @@
         engine: '\u{1F527}', brakes: '\u{1F6D1}', transmission: '\u{2699}', suspension: '\u{1F4CF}',
     };
 
-    const WHEEL_COLORS = [
-        // Metallic
-        { idx: 0, label: 'Metallic Black', hex: '#0d1116' },
-        { idx: 1, label: 'Metallic Graphite', hex: '#1c1d21' },
-        { idx: 2, label: 'Metallic Black Steel', hex: '#32383d' },
-        { idx: 3, label: 'Metallic Dark Steel', hex: '#454b4f' },
-        { idx: 4, label: 'Metallic Silver', hex: '#999da0' },
-        { idx: 5, label: 'Metallic Blue Silver', hex: '#c2c4c6' },
-        { idx: 111, label: 'Ice White', hex: '#f0f0f0' },
-        { idx: 27, label: 'Metallic Red', hex: '#c00e1a' },
-        { idx: 29, label: 'Formula Red', hex: '#b6111b' },
-        { idx: 35, label: 'Candy Red', hex: '#8f1f21' },
-        { idx: 143, label: 'Wine Red', hex: '#5c0a15' },
-        { idx: 150, label: 'Lava Red', hex: '#d44217' },
-        { idx: 36, label: 'Sunrise Orange', hex: '#d46a17' },
-        { idx: 38, label: 'Metallic Orange', hex: '#f78616' },
-        { idx: 138, label: 'Bright Orange', hex: '#ff6600' },
-        { idx: 88, label: 'Metallic Yellow', hex: '#daaf0f' },
-        { idx: 89, label: 'Race Yellow', hex: '#edef00' },
-        { idx: 92, label: 'Lime Green', hex: '#9aef00' },
-        { idx: 49, label: 'Dark Green', hex: '#0a4c28' },
-        { idx: 50, label: 'Racing Green', hex: '#1b6a3c' },
-        { idx: 53, label: 'Bright Green', hex: '#00ff44' },
-        { idx: 61, label: 'Galaxy Blue', hex: '#091c5e' },
-        { idx: 62, label: 'Dark Blue', hex: '#0c0d18' },
-        { idx: 64, label: 'Metallic Blue', hex: '#2354a1' },
-        { idx: 70, label: 'Ultra Blue', hex: '#1b1fc7' },
-        { idx: 141, label: 'Midnight Blue', hex: '#0c0c3b' },
-        { idx: 71, label: 'Schafter Purple', hex: '#4a0654' },
-        { idx: 145, label: 'Bright Purple', hex: '#6b1f7b' },
-        { idx: 142, label: 'Midnight Purple', hex: '#1f0038' },
-        { idx: 135, label: 'Hot Pink', hex: '#ff3399' },
-        { idx: 90, label: 'Bronze', hex: '#6b5840' },
-        { idx: 158, label: 'Pure Gold', hex: '#c2a557' },
-        { idx: 117, label: 'Brushed Steel', hex: '#8c8c8c' },
-        // Matte
-        { idx: 12, label: 'Matte Black', hex: '#151515' },
-        { idx: 13, label: 'Matte Gray', hex: '#3b3b3b' },
-        { idx: 131, label: 'Matte White', hex: '#e8e8e8' },
-        { idx: 39, label: 'Matte Red', hex: '#800000' },
-        { idx: 41, label: 'Matte Orange', hex: '#b04500' },
-        { idx: 42, label: 'Matte Yellow', hex: '#c4a000' },
-        { idx: 55, label: 'Matte Lime', hex: '#418c1e' },
-        { idx: 128, label: 'Matte Green', hex: '#2d5a26' },
-        { idx: 82, label: 'Matte Dark Blue', hex: '#1a3060' },
-        { idx: 83, label: 'Matte Blue', hex: '#253aa7' },
-    ];
+    // WHEEL_COLORS is loaded from data/colors.json above
 
     // ========================
     // Message handler

@@ -1,0 +1,7 @@
+[
+    { "typeIndex": 0,  "label": "Sport" },
+    { "typeIndex": 1,  "label": "Muscle" },
+    { "typeIndex": 4,  "label": "Offroad" },
+    { "typeIndex": 7,  "label": "High End" },
+    { "typeIndex": 11, "label": "Street" }
+]

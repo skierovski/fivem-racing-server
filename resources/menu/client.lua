@@ -90,7 +90,7 @@ RegisterNUICallback('closeMenu', function(data, cb)
 end)
 
 RegisterNUICallback('joinRanked', function(data, cb)
-    TriggerServerEvent('blacklist:joinQueue', 'ranked')
+    TriggerServerEvent('blacklist:joinQueue', 'ranked', data.crossTier == true)
     cb({})
 end)
 

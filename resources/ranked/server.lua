@@ -71,13 +71,20 @@ end
 -- Process match result
 -- ========================
 
+local CROSS_TIER_CONFIG = {
+    UNDERDOG_WIN_BONUS = 1.3,
+    FAVORED_LOSE_PENALTY = 1.3,
+    FAVORED_WIN_REDUCTION = 0.8,
+    UNDERDOG_LOSE_REDUCTION = 0.8,
+}
+
 --- Call this after a ranked match ends
 --- @param winnerId string - player identifier
 --- @param loserId string - player identifier
 --- @param winnerRole string - 'chaser' or 'runner'
 --- @param durationSeconds number
-function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds)
-    -- Get both players' current MMR
+--- @param isCrossTier boolean|nil
+function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isCrossTier)
     exports.oxmysql:execute(
         'SELECT identifier, mmr, tier, wins, losses, chases_played, escapes_played FROM players WHERE identifier IN (?, ?)',
         { winnerId, loserId },
@@ -97,6 +104,19 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds)
             if not winner or not loser then return end
 
             local gain, loss = CalculateMMRChange(winner.mmr, loser.mmr)
+
+            if isCrossTier then
+                local winnerIsLowerTier = (winner.mmr < loser.mmr)
+                if winnerIsLowerTier then
+                    gain = math.floor(gain * CROSS_TIER_CONFIG.UNDERDOG_WIN_BONUS + 0.5)
+                    loss = math.floor(loss * CROSS_TIER_CONFIG.FAVORED_LOSE_PENALTY + 0.5)
+                else
+                    gain = math.floor(gain * CROSS_TIER_CONFIG.FAVORED_WIN_REDUCTION + 0.5)
+                    loss = math.floor(loss * CROSS_TIER_CONFIG.UNDERDOG_LOSE_REDUCTION + 0.5)
+                end
+                if gain < 5 then gain = 5 end
+                if loss > -5 then loss = -5 end
+            end
 
             local newWinnerMMR = math.max(winner.mmr + gain, RankedConfig.MIN_MMR)
             local newLoserMMR = math.max(loser.mmr + loss, RankedConfig.MIN_MMR)
@@ -182,7 +202,8 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds)
                 })
             end
 
-            print(('[Ranked] Match result: %s (+%d -> %d %s) beat %s (%d -> %d %s)'):format(
+            print(('[Ranked]%s Match result: %s (+%d -> %d %s) beat %s (%d -> %d %s)'):format(
+                isCrossTier and ' [CROSS-TIER]' or '',
                 winnerId, gain, newWinnerMMR, newWinnerTier,
                 loserId, loss, newLoserMMR, newLoserTier
             ))

@@ -14,6 +14,8 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'data/colors.json',
+    'data/wheel_types.json',
 }
 
 dependency 'oxmysql'

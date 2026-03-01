@@ -47,12 +47,17 @@ local WINDOW_TINT_LABELS = {
     [3] = 'Light Smoke', [4] = 'Stock', [5] = 'Limo', [6] = 'Green',
 }
 
-local WHEEL_TYPE_LABELS = {
-    [0] = 'Sport', [1] = 'Muscle', [2] = 'Lowrider', [3] = 'SUV',
-    [4] = 'Offroad', [5] = 'Tuner', [6] = 'Biker', [7] = 'High End',
-    [8] = 'Benny\'s Original', [9] = 'Benny\'s Bespoke',
-    [10] = 'Open Wheel', [11] = 'Street', [12] = 'Track',
-}
+-- Load allowed wheel types from JSON
+local ALLOWED_WHEEL_TYPES = {}
+local WHEEL_TYPE_LABELS = {}
+local wheelTypesRaw = LoadResourceFile(GetCurrentResourceName(), 'data/wheel_types.json')
+if wheelTypesRaw then
+    local parsed = json.decode(wheelTypesRaw)
+    for _, wt in ipairs(parsed) do
+        WHEEL_TYPE_LABELS[wt.typeIndex] = wt.label
+        ALLOWED_WHEEL_TYPES[#ALLOWED_WHEEL_TYPES + 1] = wt.typeIndex
+    end
+end
 
 -- ========================
 -- Enter garage
@@ -182,9 +187,9 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
         }
     end
 
-    -- Wheel info
+    -- Wheel info (only allowed types)
     local wheelData = {}
-    for typeIdx = 0, 12 do
+    for _, typeIdx in ipairs(ALLOWED_WHEEL_TYPES) do
         SetVehicleWheelType(garageVehicle, typeIdx)
         local count = GetNumVehicleMods(garageVehicle, 23)
         wheelData[#wheelData + 1] = {
