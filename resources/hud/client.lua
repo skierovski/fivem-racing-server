@@ -1,11 +1,5 @@
 local hudVisible = false
-
--- Show/hide HUD based on player state
-RegisterNetEvent('blacklist:setHudVisible')
-AddEventHandler('blacklist:setHudVisible', function(show)
-    hudVisible = show
-    SendNUIMessage({ action = 'showHud', show = show })
-end)
+local chatOpen = false
 
 -- Auto-show when entering freeroam or match, auto-hide when in menu
 Citizen.CreateThread(function()
@@ -31,28 +25,56 @@ Citizen.CreateThread(function()
             local veh = GetVehiclePedIsIn(ped, false)
 
             if veh ~= 0 then
-                local speed = GetEntitySpeed(veh) * 3.6
-                local gear = GetVehicleCurrentGear(veh)
-                local rpm = GetVehicleCurrentRpm(veh)
-
                 SendNUIMessage({
                     action = 'updateHud',
-                    speed = math.floor(speed),
-                    gear = gear,
-                    rpm = rpm,
+                    speed = math.floor(GetEntitySpeed(veh) * 3.6),
+                    gear = GetVehicleCurrentGear(veh),
+                    rpm = GetVehicleCurrentRpm(veh),
                     inVehicle = true,
                 })
             else
-                SendNUIMessage({
-                    action = 'updateHud',
-                    inVehicle = false,
-                })
+                SendNUIMessage({ action = 'updateHud', inVehicle = false })
             end
         end
     end
 end)
 
--- Receive tier updates from other resources
+-- T key opens chat (control 245 = INPUT_MP_TEXT_CHAT_ALL)
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if hudVisible and not chatOpen then
+            if IsControlJustPressed(0, 245) then
+                chatOpen = true
+                SetNuiFocus(true, false)
+                SendNUIMessage({ action = 'openChat' })
+            end
+        end
+    end
+end)
+
+-- NUI callback: close chat
+RegisterNUICallback('closeChat', function(data, cb)
+    chatOpen = false
+    SetNuiFocus(false, false)
+    cb({})
+end)
+
+-- NUI callback: send chat message
+RegisterNUICallback('sendChat', function(data, cb)
+    if data.message and #data.message > 0 then
+        TriggerServerEvent('blacklist:sendChat', data.message)
+    end
+    cb({})
+end)
+
+-- Receive chat messages and forward to NUI
+RegisterNetEvent('blacklist:chatMessage')
+AddEventHandler('blacklist:chatMessage', function(data)
+    SendNUIMessage({ action = 'chatMessage', message = data })
+end)
+
+-- Receive tier from player data
 RegisterNetEvent('blacklist:receivePlayerData')
 AddEventHandler('blacklist:receivePlayerData', function(data)
     if data and data.tier then
@@ -60,10 +82,11 @@ AddEventHandler('blacklist:receivePlayerData', function(data)
     end
 end)
 
--- Also grab tier on resource start
+-- Request tier + chat history on start
 Citizen.CreateThread(function()
     Citizen.Wait(3000)
     TriggerServerEvent('blacklist:requestPlayerData')
+    TriggerServerEvent('blacklist:requestChatHistory')
 end)
 
-print('[HUD] ^2Custom HUD loaded^0')
+print('[HUD] ^2Custom HUD + Chat loaded^0')

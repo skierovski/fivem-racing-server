@@ -7,11 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Always visible: covers that hide default GTA health/armor bars -->
-    <div class="bar-cover bar-cover-left"></div>
-    <div class="bar-cover bar-cover-bottom"></div>
-
-    <!-- HUD data: only visible in freeroam/match -->
+    <!-- HUD: only visible in freeroam/match -->
     <div id="hud" class="hidden">
         <!-- Styled frame around the minimap -->
         <div class="minimap-frame">
@@ -39,6 +35,15 @@
         <!-- Tier badge (top-left of minimap) -->
         <div class="hud-tier" id="hudTier">
             <span class="hud-tier-letter" id="hudTierLetter">B</span>
+        </div>
+
+        <!-- Chat overlay (top-left) -->
+        <div class="chat-overlay" id="chatOverlay">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-wrap hidden" id="chatInputWrap">
+                <span class="chat-input-label">CHAT</span>
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." maxlength="256" autocomplete="off">
+            </div>
         </div>
     </div>
 

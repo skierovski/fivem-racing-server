@@ -29,30 +29,6 @@ body {
     z-index: 100;
 }
 
-/* Opaque covers that hide the default GTA health/armor bars */
-.bar-cover {
-    position: fixed;
-    background: #000;
-    pointer-events: none;
-    z-index: 99;
-}
-
-/* Health bar runs along the LEFT edge of the minimap */
-.bar-cover-left {
-    left: 0;
-    bottom: 0;
-    width: 28px;
-    height: 230px;
-}
-
-/* Armor bar runs along the BOTTOM edge of the minimap */
-.bar-cover-bottom {
-    left: 0;
-    bottom: 0;
-    width: 280px;
-    height: 24px;
-}
-
 /* Styled frame around the minimap */
 .minimap-frame {
     position: fixed;
@@ -224,3 +200,119 @@ body {
 .hud-tier-letter.platinum { background: #e5e4e2; }
 .hud-tier-letter.diamond { background: #b9f2ff; }
 .hud-tier-letter.blacklist { background: #ff2222; color: #fff; }
+
+/* ========================
+   Chat overlay (top-left)
+   ======================== */
+
+.chat-overlay {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    width: 380px;
+    pointer-events: none;
+    z-index: 200;
+}
+
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 260px;
+    overflow: hidden;
+    padding-bottom: 8px;
+}
+
+.chat-msg {
+    padding: 5px 12px;
+    background: var(--bg);
+    border-left: 3px solid var(--border);
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    line-height: 1.4;
+    animation: chatFadeIn 0.2s ease-out;
+    transition: opacity 0.5s ease;
+}
+
+.chat-msg.fading {
+    opacity: 0;
+}
+
+@keyframes chatFadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.chat-msg-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.chat-msg-badge.bronze  { background: #cd7f32; color: #000; }
+.chat-msg-badge.silver  { background: #c0c0c0; color: #000; }
+.chat-msg-badge.gold    { background: #ffd700; color: #000; }
+.chat-msg-badge.platinum { background: #e5e4e2; color: #000; }
+.chat-msg-badge.diamond { background: #b9f2ff; color: #000; }
+.chat-msg-badge.blacklist { background: #ff2222; color: #fff; }
+
+.chat-msg-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--accent);
+    margin-right: 6px;
+}
+
+.chat-msg-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Chat input */
+.chat-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-solid);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    pointer-events: auto;
+}
+
+.chat-input-wrap.active {
+    border-color: var(--accent);
+}
+
+.chat-input-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.chat-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.chat-input::placeholder {
+    color: var(--text-dim);
+}
