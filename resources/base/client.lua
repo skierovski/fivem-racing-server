@@ -69,9 +69,17 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
 
+        HideHudComponentThisFrame(1)  -- WANTED_STARS
+        HideHudComponentThisFrame(2)  -- WEAPON_ICON
+        HideHudComponentThisFrame(3)  -- CASH
+        HideHudComponentThisFrame(4)  -- MP_CASH
+        HideHudComponentThisFrame(6)  -- VEHICLE_NAME
         HideHudComponentThisFrame(7)  -- AREA_NAME
         HideHudComponentThisFrame(9)  -- STREET_NAME
-        HideHudComponentThisFrame(6)  -- VEHICLE_NAME
+        HideHudComponentThisFrame(13) -- CASH_CHANGE
+        HideHudComponentThisFrame(19) -- WEAPON_WHEEL
+        HideHudComponentThisFrame(20) -- WEAPON_WHEEL_STATS
+        HideHudComponentThisFrame(22) -- HUD_WEAPONS
 
         DisableControlAction(0, 37, true)
 
@@ -105,12 +113,26 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Disable wanted level
+-- /coords command (always available regardless of dev resource)
+RegisterCommand('coords', function()
+    local ped = PlayerPedId()
+    local pos = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+    print(('^3[coords]^0 x=%.2f  y=%.2f  z=%.2f  heading=%.2f'):format(pos.x, pos.y, pos.z, heading))
+    print(('^3[coords]^0 vector4(%.2f, %.2f, %.2f, %.2f)'):format(pos.x, pos.y, pos.z, heading))
+end, false)
+
+-- Disable wanted level + keep health/armor bars hidden
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(1000)
         ClearPlayerWantedLevel(PlayerId())
         SetMaxWantedLevel(0)
+
+        local ped = PlayerPedId()
+        SetEntityHealth(ped, GetEntityMaxHealth(ped))
+        SetPedArmour(ped, 0)
+        RemoveAllPedWeapons(ped, true)
     end
 end)
 

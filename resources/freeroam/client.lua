@@ -47,43 +47,7 @@ AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
     DisplayHud(true)
     DisplayRadar(true)
 
-    -- 6. Spawn player's saved vehicle (or default sultan)
-    local vehData = spawn.vehicle
-    local model = (vehData and vehData.model) or 'sultan'
-    local tuning = (vehData and vehData.tuning) or nil
-
-    local vehHash = GetHashKey(model)
-    RequestModel(vehHash)
-    local vehTimeout = GetGameTimer() + 10000
-    while not HasModelLoaded(vehHash) do
-        Citizen.Wait(50)
-        if GetGameTimer() > vehTimeout then
-            vehHash = GetHashKey('sultan')
-            RequestModel(vehHash)
-            while not HasModelLoaded(vehHash) do Citizen.Wait(50) end
-            break
-        end
-    end
-
-    local vehicle = CreateVehicle(vehHash, x, y, z, heading, true, false)
-    SetModelAsNoLongerNeeded(vehHash)
-    TaskWarpPedIntoVehicle(ped, vehicle, -1)
-
-    -- Apply saved tuning via vehicles resource, or max out if no tuning
-    SetVehicleModKit(vehicle, 0)
-    if tuning then
-        exports.vehicles:ApplyTuning(vehicle, tuning)
-    else
-        SetVehicleMod(vehicle, 11, GetNumVehicleMods(vehicle, 11) - 1, false)
-        SetVehicleMod(vehicle, 12, GetNumVehicleMods(vehicle, 12) - 1, false)
-        SetVehicleMod(vehicle, 13, GetNumVehicleMods(vehicle, 13) - 1, false)
-        SetVehicleMod(vehicle, 15, GetNumVehicleMods(vehicle, 15) - 1, false)
-        ToggleVehicleMod(vehicle, 18, true)
-    end
-    SetVehicleRadioEnabled(vehicle, false)
-    SetVehRadioStation(vehicle, 'OFF')
-
-    -- 7. Fade in
+    -- 6. Fade in (player spawns on foot, uses F1 to pick a car)
     DoScreenFadeIn(500)
 
     -- 8. Enable ghost mode

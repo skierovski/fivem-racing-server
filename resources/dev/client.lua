@@ -12,12 +12,4 @@ AddEventHandler('dev:refreshDone', function(name)
     print('^2[dev]^0 Refreshed ^5' .. name .. '^0')
 end)
 
-RegisterCommand('coords', function()
-    local ped = PlayerPedId()
-    local pos = GetEntityCoords(ped)
-    local heading = GetEntityHeading(ped)
-    print(('^3[coords]^0 x=%.2f  y=%.2f  z=%.2f  heading=%.2f'):format(pos.x, pos.y, pos.z, heading))
-    print(('^3[coords]^0 vector4(%.2f, %.2f, %.2f, %.2f)'):format(pos.x, pos.y, pos.z, heading))
-end, false)
-
-print('[dev] ^2/refresh and /coords commands ready (F8)^0')
+print('[dev] ^2/refresh command ready (F8)^0')
