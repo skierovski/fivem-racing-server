@@ -1,0 +1,301 @@
+===============================================================
+  BLACKLIST RACING - VEHICLE HANDLING TUNING GUIDE
+===============================================================
+
+HOW TO EDIT:
+  1. Open the .meta file for the car you want to change
+     Example: resources/handling/bronze/sultan.meta
+  2. Change the values you want (see guide below)
+  3. Save the file
+  4. In F8 console type:  /refresh handling
+  5. Respawn your car (pick it again from F1 menu)
+  6. Test the changes
+
+FILES ARE ORGANIZED BY TIER:
+  bronze/    - Street cars (slowest)
+  silver/    - Sports cars
+  gold/      - Sports+ cars
+  platinum/  - Super cars
+  diamond/   - Super+ cars
+  blacklist/ - Fastest / most exotic
+
+
+===============================================================
+  SPEED & ACCELERATION
+===============================================================
+
+fInitialDriveForce
+  What: How fast the car accelerates (engine power)
+  Range: 0.15 (very slow) to 0.50 (rocket launch)
+  Tips: Bronze cars should be 0.24-0.30, BlackList 0.40-0.46
+        Small changes (0.02) make a noticeable difference
+
+fInitialDriveMaxFlatVel
+  What: Top speed of the car in game units (roughly km/h)
+  Range: 100.0 (slow) to 200.0 (extremely fast)
+  Tips: This is the absolute speed cap. Keep tiers separated:
+        Bronze ~120-132, Silver ~140-145, Gold ~150-158
+        Platinum ~160-168, Diamond ~171-176, BlackList ~183-190
+
+nInitialDriveGears
+  What: Number of gears in the transmission
+  Range: 4 to 8
+  Tips: Street cars 5, sports 6, supers 6-7. More gears =
+        smoother acceleration curve but slower per-gear kick
+
+fDriveInertia
+  What: How "responsive" the engine feels to throttle input
+  Range: 0.5 (sluggish) to 2.0 (instant response)
+  Tips: Keep at 1.0 for most cars. Lower = boat-like, higher = snappy
+
+fClutchChangeRateScaleUpShift
+  What: How fast gears shift up
+  Range: 1.0 (slow shifts) to 5.0 (instant)
+  Tips: 2.0-3.0 feels realistic, higher for race-tuned cars
+
+fClutchChangeRateScaleDownShift
+  What: How fast gears shift down
+  Range: 1.0 (slow) to 5.0 (instant)
+  Tips: Usually same as upshift or slightly higher
+
+
+===============================================================
+  DRIVETRAIN
+===============================================================
+
+fDriveBiasFront
+  What: Which wheels get engine power
+  Values:
+    0.0  = Rear Wheel Drive (RWD) - slidey, fun, skill-based
+    0.5  = All Wheel Drive (AWD) - stable, good traction
+    1.0  = Front Wheel Drive (FWD) - understeer, safe
+    0.2-0.3 = Mostly RWD with some front grip (like Subaru AWD)
+  Tips: Most sports/super cars are RWD (0.0)
+        Rally-style cars (Sultan, Kuruma) work well at 0.2-0.3
+
+
+===============================================================
+  BRAKING
+===============================================================
+
+fBrakeForce
+  What: How strong the brakes are
+  Range: 0.4 (weak) to 1.2 (locks up instantly)
+  Tips: Bronze ~0.65-0.75, BlackList ~0.98-1.05
+        Too high = car stops unnaturally fast
+
+fBrakeBiasFront
+  What: How much braking goes to the front wheels
+  Range: 0.0 (all rear) to 1.0 (all front)
+  Tips: 0.5-0.6 is realistic. Higher = more stable braking,
+        lower = rear can step out under braking (drift-friendly)
+
+fHandBrakeForce
+  What: Handbrake (spacebar) strength
+  Range: 0.3 (weak) to 1.5 (instant lock)
+  Tips: 0.5-0.8 for most cars. Higher = easier to initiate drifts
+
+
+===============================================================
+  STEERING
+===============================================================
+
+fSteeringLock
+  What: Maximum steering angle in degrees
+  Range: 25.0 (barely turns) to 45.0 (very tight turns)
+  Tips: Lower = more stable at speed but wider turns
+        Higher = more agile but twitchy at speed
+        Supercars 29-32, sports 33-35, street 35-38
+
+
+===============================================================
+  TRACTION / GRIP
+===============================================================
+
+fTractionCurveMax
+  What: Maximum tire grip (how much the car sticks to the road)
+  Range: 1.5 (ice) to 3.0 (glued to road)
+  Tips: THIS IS THE MOST IMPORTANT VALUE FOR FEEL
+        Bronze ~2.0-2.2, Silver ~2.25-2.35, Gold ~2.35-2.45
+        Platinum ~2.46-2.58, Diamond ~2.58-2.68, BlackList ~2.72-2.82
+        Lower = more slides, higher = more grip
+
+fTractionCurveMin
+  What: Tire grip when wheels are spinning/sliding
+  Range: 1.0 to fTractionCurveMax
+  Tips: Usually 0.2-0.3 lower than Max. The gap between Max and
+        Min determines how "progressive" the slide is.
+        Small gap = sudden grip loss, big gap = gradual slide
+
+fTractionCurveLateral
+  What: How the tires grip when sliding sideways
+  Range: 15.0 (mushy) to 30.0 (sharp response)
+  Tips: 22.5 is a good default. Higher = snappier turn-in
+
+fTractionBiasFront
+  What: How grip is split between front and rear tires
+  Range: 0.3 (rear-biased) to 0.7 (front-biased)
+  Tips: 0.485 is balanced. Lower = oversteer tendency,
+        higher = understeer tendency
+
+fLowSpeedTractionLossMult
+  What: Extra grip loss at low speeds (burnouts/launches)
+  Range: 0.0 (no loss) to 2.0 (lots of wheelspin)
+  Tips: 1.0 is default. Higher = more wheelspin from standstill
+
+fTractionLossMult
+  What: General traction loss multiplier
+  Range: 0.5 (very grippy) to 2.0 (slidey)
+  Tips: 1.0 is default. Only change if car feels too grippy/slidey overall
+
+fTractionSpringDeltaMax
+  What: How much the suspension travel affects grip
+  Range: 0.05 (stiff = consistent grip) to 0.3 (soft = variable grip)
+  Tips: 0.15 is good default. Lower = more predictable
+
+
+===============================================================
+  SUSPENSION
+===============================================================
+
+fSuspensionForce
+  What: How stiff the springs are
+  Range: 1.0 (very soft, boat-like) to 4.0 (go-kart stiff)
+  Tips: Soft = more body roll but forgiving, stiff = flat but punishing
+        Street 1.8-2.2, sports 2.2-2.5, super 2.5-2.9
+
+fSuspensionCompDamp
+  What: Damping on compression (hitting a bump)
+  Range: 0.8 (soft, bouncy) to 3.0 (firm, controlled)
+  Tips: Should be about 60-70% of SuspensionForce
+
+fSuspensionReboundDamp
+  What: Damping on rebound (after a bump, coming back up)
+  Range: 1.0 (soft) to 4.0 (very firm)
+  Tips: Usually higher than CompDamp. ~110% of SuspensionForce
+
+fSuspensionUpperLimit
+  What: Maximum upward suspension travel (meters)
+  Range: 0.05 (very stiff) to 0.20 (soft, lots of travel)
+  Tips: 0.08-0.10 for most cars. Higher = more body roll
+
+fSuspensionLowerLimit
+  What: Maximum downward suspension travel (meters, negative!)
+  Range: -0.05 (stiff) to -0.20 (lots of droop)
+  Tips: -0.10 to -0.15 for most cars
+
+fSuspensionBiasFront
+  What: Front/rear stiffness balance
+  Range: 0.3 (softer front) to 0.7 (stiffer front)
+  Tips: 0.5 is even. Higher = more front stiffness = more understeer
+        Lower = more oversteer. 0.48-0.52 is typical
+
+fSuspensionRaise
+  What: How much the car rides higher/lower than default
+  Range: -0.10 (slammed) to 0.10 (lifted)
+  Tips: 0.0 is stock height. -0.03 to -0.05 for a sporty look
+
+
+===============================================================
+  ANTI-ROLL / BODY ROLL
+===============================================================
+
+fAntiRollBarForce
+  What: Resistance to body roll in corners
+  Range: 0.3 (lots of lean) to 1.5 (perfectly flat)
+  Tips: Higher = flatter in corners but harsher over bumps
+        Street 0.6-0.8, sports 0.8-0.95, super 0.95-1.10
+
+fAntiRollBarBiasFront
+  What: Front/rear anti-roll balance
+  Range: 0.3 (more rear stiffness) to 0.7 (more front stiffness)
+  Tips: 0.65 is slightly front-biased which reduces oversteer
+
+
+===============================================================
+  WEIGHT / PHYSICS
+===============================================================
+
+fMass
+  What: Weight of the car in kilograms
+  Range: 800.0 (light hatchback) to 2000.0 (heavy sedan)
+  Tips: Lighter = faster acceleration, quicker direction changes
+        Heavier = more stable, harder to stop, more momentum
+        Light sports car ~1200, heavy sedan ~1600
+
+vecCentreOfMassOffset (x, y, z)
+  What: Where the center of gravity sits
+  Tips:
+    x: Left/right. Keep at 0.0 unless car is asymmetric
+    y: Front/back. Negative = toward rear. -0.05 is slightly rear
+    z: Up/down. Negative = lower. Lower = more stable but less responsive
+       -0.09 is a good sporty default, -0.15 for go-kart feel
+
+fInitialDragCoeff
+  What: Air resistance / drag
+  Range: 5.0 (slippery) to 20.0 (barn door)
+  Tips: 11.0-12.0 for most cars. Affects top speed in practice
+
+
+===============================================================
+  ROLL CENTRE
+===============================================================
+
+fRollCentreHeightFront / fRollCentreHeightRear
+  What: Height of the roll pivot point
+  Range: 0.2 (low) to 0.5 (high)
+  Tips: 0.36 is good default. Lower = less weight transfer in corners
+        Keep front and rear similar unless you want specific behavior
+
+
+===============================================================
+  FLAGS (ADVANCED - usually don't change)
+===============================================================
+
+strModelFlags
+  What: Physics model behavior flags (bitmask)
+  Tips: 440010 is a safe default for most cars. Don't change
+        unless you know what specific flags do.
+
+strHandlingFlags
+  What: Additional handling behavior flags
+  Tips: 0 is default. Some useful flags:
+        0x1 = smooth compressor (better acceleration curve)
+        Don't change unless needed.
+
+
+===============================================================
+  QUICK REFERENCE - TIER TARGETS
+===============================================================
+
+  Tier       | TopSpeed | DriveForce | Traction | BrakeForce
+  -----------|----------|------------|----------|----------
+  Bronze     | 120-132  | 0.24-0.30  | 2.0-2.2  | 0.64-0.75
+  Silver     | 140-145  | 0.32-0.35  | 2.25-2.35| 0.78-0.82
+  Gold       | 150-158  | 0.34-0.38  | 2.35-2.45| 0.82-0.88
+  Platinum   | 160-168  | 0.36-0.40  | 2.46-2.58| 0.87-0.95
+  Diamond    | 171-176  | 0.40-0.43  | 2.58-2.68| 0.92-0.96
+  BlackList  | 183-190  | 0.42-0.46  | 2.72-2.82| 0.98-1.05
+
+  IMPORTANT: Within each tier, cars should be BALANCED.
+  No car should be clearly faster/better than others in the same tier.
+  Use /refresh handling after each change and test in freeroam.
+
+
+===============================================================
+  ADDING A NEW CAR
+===============================================================
+
+  1. Create a new .meta file in the appropriate tier folder
+     Copy an existing file and change the <handlingName> to match
+     the car's model name IN UPPERCASE (e.g. SULTAN, T20, KRIEGER)
+
+  2. Add this line to fxmanifest.lua:
+     data_file 'HANDLING_FILE' 'tier/modelname.meta'
+
+  3. Add the car to the database:
+     INSERT INTO vehicle_catalog (model, label, tier, class, top_speed)
+     VALUES ('modelname', 'Display Name', 'tier', 'class', topspeed);
+
+  4. /refresh handling   (to load the handling)
+  5. /refresh vehicles   (to make it available in menus)
