@@ -8,13 +8,14 @@
 </head>
 <body>
     <div id="hud" class="hidden">
-        <!-- Frame that wraps around the minimap -->
+        <!-- Opaque covers that hide the default GTA health/armor bars -->
+        <div class="bar-cover bar-cover-left"></div>
+        <div class="bar-cover bar-cover-bottom"></div>
+
+        <!-- Styled frame around the minimap -->
         <div class="minimap-frame">
-            <!-- Left edge (covers health bar) -->
             <div class="frame-left"></div>
-            <!-- Bottom edge (covers armor bar) -->
             <div class="frame-bottom"></div>
-            <!-- Corner accent -->
             <div class="frame-corner-bl"></div>
             <div class="frame-corner-tl"></div>
             <div class="frame-corner-br"></div>

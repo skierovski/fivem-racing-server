@@ -29,43 +29,67 @@ body {
     z-index: 100;
 }
 
-/* Frame around the GTA minimap -- covers default health/armor bars */
+/* Opaque covers that hide the default GTA health/armor bars */
+.bar-cover {
+    position: fixed;
+    background: #000;
+    pointer-events: none;
+    z-index: 99;
+}
+
+/* Health bar runs along the LEFT edge of the minimap */
+.bar-cover-left {
+    left: 0;
+    bottom: 0;
+    width: 28px;
+    height: 230px;
+}
+
+/* Armor bar runs along the BOTTOM edge of the minimap */
+.bar-cover-bottom {
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    height: 24px;
+}
+
+/* Styled frame around the minimap */
 .minimap-frame {
     position: fixed;
-    /* Minimap position in GTA V (approximate, safe-zone dependent) */
     left: 0px;
     bottom: 0px;
     width: 270px;
     height: 210px;
     pointer-events: none;
+    z-index: 100;
 }
 
 .frame-left {
     position: absolute;
-    left: 22px;
-    top: 16px;
-    width: 4px;
-    bottom: 24px;
+    left: 27px;
+    top: 10px;
+    width: 3px;
+    bottom: 22px;
     background: linear-gradient(to bottom, transparent, var(--accent), transparent);
-    opacity: 0.6;
+    opacity: 0.7;
     border-radius: 2px;
 }
 
 .frame-bottom {
     position: absolute;
-    left: 22px;
-    bottom: 24px;
+    left: 27px;
+    bottom: 23px;
     right: 10px;
-    height: 4px;
+    height: 3px;
     background: linear-gradient(to right, var(--accent), transparent);
-    opacity: 0.6;
+    opacity: 0.7;
     border-radius: 2px;
 }
 
 .frame-corner-bl {
     position: absolute;
-    left: 18px;
-    bottom: 20px;
+    left: 23px;
+    bottom: 19px;
     width: 10px;
     height: 10px;
     border-left: 3px solid var(--accent);
@@ -75,8 +99,8 @@ body {
 
 .frame-corner-tl {
     position: absolute;
-    left: 18px;
-    top: 12px;
+    left: 23px;
+    top: 6px;
     width: 10px;
     height: 10px;
     border-left: 3px solid var(--accent);
@@ -87,7 +111,7 @@ body {
 .frame-corner-br {
     position: absolute;
     right: 6px;
-    bottom: 20px;
+    bottom: 19px;
     width: 10px;
     height: 10px;
     border-right: 3px solid var(--accent);
@@ -98,14 +122,15 @@ body {
 /* Speed panel below minimap */
 .speed-panel {
     position: fixed;
-    left: 26px;
-    bottom: -5px;
-    width: 230px;
-    padding: 8px 14px 10px;
+    left: 28px;
+    bottom: 0px;
+    width: 240px;
+    padding: 6px 14px 8px;
     background: var(--bg-solid);
     border: 1px solid var(--border);
-    border-radius: 0 0 10px 10px;
     border-top: 2px solid var(--accent);
+    border-radius: 0;
+    z-index: 101;
 }
 
 .speed-row {
