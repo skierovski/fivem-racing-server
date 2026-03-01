@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --accent: #0096ff;
+    --accent-dim: rgba(0, 150, 255, 0.25);
+    --bg: rgba(5, 5, 15, 0.75);
+    --bg-solid: rgba(5, 5, 15, 0.92);
+    --border: rgba(0, 150, 255, 0.15);
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    user-select: none;
+    pointer-events: none;
+}
+
+.hidden { display: none !important; }
+
+#hud {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+}
+
+/* Frame around the GTA minimap -- covers default health/armor bars */
+.minimap-frame {
+    position: fixed;
+    /* Minimap position in GTA V (approximate, safe-zone dependent) */
+    left: 0px;
+    bottom: 0px;
+    width: 270px;
+    height: 210px;
+    pointer-events: none;
+}
+
+.frame-left {
+    position: absolute;
+    left: 22px;
+    top: 16px;
+    width: 4px;
+    bottom: 24px;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    opacity: 0.6;
+    border-radius: 2px;
+}
+
+.frame-bottom {
+    position: absolute;
+    left: 22px;
+    bottom: 24px;
+    right: 10px;
+    height: 4px;
+    background: linear-gradient(to right, var(--accent), transparent);
+    opacity: 0.6;
+    border-radius: 2px;
+}
+
+.frame-corner-bl {
+    position: absolute;
+    left: 18px;
+    bottom: 20px;
+    width: 10px;
+    height: 10px;
+    border-left: 3px solid var(--accent);
+    border-bottom: 3px solid var(--accent);
+    opacity: 0.8;
+}
+
+.frame-corner-tl {
+    position: absolute;
+    left: 18px;
+    top: 12px;
+    width: 10px;
+    height: 10px;
+    border-left: 3px solid var(--accent);
+    border-top: 3px solid var(--accent);
+    opacity: 0.4;
+}
+
+.frame-corner-br {
+    position: absolute;
+    right: 6px;
+    bottom: 20px;
+    width: 10px;
+    height: 10px;
+    border-right: 3px solid var(--accent);
+    border-bottom: 3px solid var(--accent);
+    opacity: 0.4;
+}
+
+/* Speed panel below minimap */
+.speed-panel {
+    position: fixed;
+    left: 26px;
+    bottom: -5px;
+    width: 230px;
+    padding: 8px 14px 10px;
+    background: var(--bg-solid);
+    border: 1px solid var(--border);
+    border-radius: 0 0 10px 10px;
+    border-top: 2px solid var(--accent);
+}
+
+.speed-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.speed-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 2px;
+    line-height: 1;
+}
+
+.speed-unit {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+}
+
+.gear-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rpm-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.rpm-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), #00ddff);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+
+.rpm-fill.redline {
+    background: linear-gradient(90deg, var(--accent), #ff4444);
+}
+
+.gear-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 20px;
+    text-align: right;
+    letter-spacing: 1px;
+}
+
+/* Tier badge above minimap */
+.hud-tier {
+    position: fixed;
+    left: 30px;
+    bottom: 218px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hud-tier-letter {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    background: var(--accent);
+    color: #000;
+}
+
+/* Tier color variants */
+.hud-tier-letter.bronze  { background: #cd7f32; }
+.hud-tier-letter.silver  { background: #c0c0c0; }
+.hud-tier-letter.gold    { background: #ffd700; }
+.hud-tier-letter.platinum { background: #e5e4e2; }
+.hud-tier-letter.diamond { background: #b9f2ff; }
+.hud-tier-letter.blacklist { background: #ff2222; color: #fff; }

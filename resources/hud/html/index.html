@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlackList HUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="hud" class="hidden">
+        <!-- Frame that wraps around the minimap -->
+        <div class="minimap-frame">
+            <!-- Left edge (covers health bar) -->
+            <div class="frame-left"></div>
+            <!-- Bottom edge (covers armor bar) -->
+            <div class="frame-bottom"></div>
+            <!-- Corner accent -->
+            <div class="frame-corner-bl"></div>
+            <div class="frame-corner-tl"></div>
+            <div class="frame-corner-br"></div>
+        </div>
+
+        <!-- Speed panel below minimap -->
+        <div class="speed-panel">
+            <div class="speed-row">
+                <span class="speed-value" id="speedValue">0</span>
+                <span class="speed-unit">KM/H</span>
+            </div>
+            <div class="gear-row">
+                <div class="rpm-bar">
+                    <div class="rpm-fill" id="rpmFill"></div>
+                </div>
+                <span class="gear-value" id="gearValue">N</span>
+            </div>
+        </div>
+
+        <!-- Tier badge (top-left of minimap) -->
+        <div class="hud-tier" id="hudTier">
+            <span class="hud-tier-letter" id="hudTierLetter">B</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -81,6 +81,12 @@ Citizen.CreateThread(function()
         HideHudComponentThisFrame(20) -- WEAPON_WHEEL_STATS
         HideHudComponentThisFrame(22) -- HUD_WEAPONS
 
+        -- Paint over default health/armor bars around the minimap
+        -- Left bar (health) - thin black strip along minimap's left edge
+        DrawRect(0.025, 0.928, 0.005, 0.16, 0, 0, 0, 255)
+        -- Bottom bar (armor) - thin black strip along minimap's bottom edge
+        DrawRect(0.09, 0.995, 0.13, 0.005, 0, 0, 0, 255)
+
         DisableControlAction(0, 37, true)
 
         DisableControlAction(0, 85, true)

@@ -9,8 +9,7 @@ AddEventHandler('blacklist:enterFreeRoam', function(targetSource)
     local source = targetSource or source
     freeroamPlayers[source] = true
 
-    -- Fleeca Bank, Legion Square
-    local spawn = { x = 150.3, y = -1040.2, z = 29.4, heading = 340.0 }
+    local spawn = { x = 152.47, y = 1033.83, z = 29.34, heading = 333.42 }
 
     -- Fetch player's selected vehicle + tuning from DB
     local identifier = getIdentifier(source)

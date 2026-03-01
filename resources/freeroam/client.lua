@@ -179,28 +179,15 @@ Citizen.CreateThread(function()
 
             local ped = PlayerPedId()
             if IsEntityDead(ped) then
-                -- Auto-respawn: revive in place
                 DoScreenFadeOut(300)
                 Citizen.Wait(500)
 
-                local coords = GetEntityCoords(ped)
-                NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z + 1.0, GetEntityHeading(ped), true, false)
+                NetworkResurrectLocalPlayer(152.47, 1033.83, 29.34, 333.42, true, false)
 
                 local newPed = PlayerPedId()
                 ClearPedBloodDamage(newPed)
-                SetEntityHealth(newPed, 200)
+                SetEntityHealth(newPed, GetEntityMaxHealth(newPed))
                 SetEntityInvincible(newPed, false)
-
-                -- Respawn a vehicle
-                local vehHash = GetHashKey('sultan')
-                RequestModel(vehHash)
-                while not HasModelLoaded(vehHash) do Citizen.Wait(50) end
-
-                local vehicle = CreateVehicle(vehHash, coords.x, coords.y, coords.z + 1.0, GetEntityHeading(newPed), true, false)
-                SetModelAsNoLongerNeeded(vehHash)
-                TaskWarpPedIntoVehicle(newPed, vehicle, -1)
-                SetVehicleRadioEnabled(vehicle, false)
-                SetVehRadioStation(vehicle, 'OFF')
 
                 Citizen.Wait(300)
                 DoScreenFadeIn(500)
