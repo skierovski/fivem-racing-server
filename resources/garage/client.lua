@@ -67,6 +67,18 @@ AddEventHandler('blacklist:enterGarage', function(model)
     -- Hide the player
     SetEntityVisible(ped, false, false)
     FreezeEntityPosition(ped, true)
+
+    -- Pre-stream the Benny's area so textures are ready (critical after freeroam)
+    SetFocusPosAndVel(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 0.0, 0.0, 0.0)
+    NewLoadSceneStart(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 50.0, 0)
+
+    local sceneTimeout = GetGameTimer() + 10000
+    while not IsNewLoadSceneLoaded() do
+        Citizen.Wait(50)
+        if GetGameTimer() > sceneTimeout then break end
+    end
+    NewLoadSceneStop()
+
     SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 5.0, false, false, false, true)
 
     -- Ensure Benny's IPL is streamed in (may have been unloaded while in freeroam)
@@ -132,6 +144,9 @@ AddEventHandler('blacklist:enterGarage', function(model)
     updateCameraPosition()
     SetCamActive(garageCam, true)
     RenderScriptCams(true, true, 500, true, true)
+
+    -- Streaming focus is no longer needed; the scripted camera drives it now
+    ClearFocus()
 
     -- Request tuning data from server
     TriggerServerEvent('blacklist:requestTuningData', model)
@@ -480,6 +495,7 @@ function exitGarage()
     end
 
     -- Restore player
+    ClearFocus()
     local ped = PlayerPedId()
     SetEntityVisible(ped, true, false)
     FreezeEntityPosition(ped, false)
