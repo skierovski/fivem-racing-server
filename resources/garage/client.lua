@@ -59,6 +59,9 @@ AddEventHandler('blacklist:enterGarage', function(model)
     isInGarage = true
     garageModel = model
 
+    -- Stop freeroam cleanup threads so they don't delete our garage vehicle
+    TriggerEvent('blacklist:enableGhostMode', false)
+
     local ped = PlayerPedId()
 
     DoScreenFadeOut(400)
