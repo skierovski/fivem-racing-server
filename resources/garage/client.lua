@@ -69,13 +69,31 @@ AddEventHandler('blacklist:enterGarage', function(model)
     FreezeEntityPosition(ped, true)
     SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 5.0, false, false, false, true)
 
-    -- Ensure Benny's IPL is active (background thread keeps it loaded, but double-check)
+    -- Ensure Benny's IPL is streamed in (may have been unloaded while in freeroam)
     RequestIpl(BENNYS_IPL)
-    Citizen.Wait(100)
+    local iplTimeout = GetGameTimer() + 10000
+    while not IsIplActive(BENNYS_IPL) do
+        Citizen.Wait(50)
+        RequestIpl(BENNYS_IPL)
+        if GetGameTimer() > iplTimeout then break end
+    end
+
+    -- Force the interior to load fully before we spawn anything inside it
+    local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
+    if IsValidInterior(interior) then
+        LoadInterior(interior)
+        local intTimeout = GetGameTimer() + 10000
+        while not IsInteriorReady(interior) do
+            Citizen.Wait(50)
+            if GetGameTimer() > intTimeout then break end
+        end
+        PinInteriorInMemory(interior)
+        RefreshInterior(interior)
+    end
 
     -- Load collision
     RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
-    timeout = GetGameTimer() + 8000
+    local timeout = GetGameTimer() + 8000
     while not HasCollisionLoadedAroundEntity(ped) do
         Citizen.Wait(50)
         RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
@@ -536,6 +554,9 @@ Citizen.CreateThread(function()
         end
         local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
         if IsValidInterior(interior) then
+            if not IsInteriorReady(interior) then
+                LoadInterior(interior)
+            end
             PinInteriorInMemory(interior)
         end
         Citizen.Wait(10000)
