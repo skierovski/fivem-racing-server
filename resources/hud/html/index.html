@@ -7,11 +7,12 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="hud" class="hidden">
-        <!-- Opaque covers that hide the default GTA health/armor bars -->
-        <div class="bar-cover bar-cover-left"></div>
-        <div class="bar-cover bar-cover-bottom"></div>
+    <!-- Always visible: covers that hide default GTA health/armor bars -->
+    <div class="bar-cover bar-cover-left"></div>
+    <div class="bar-cover bar-cover-bottom"></div>
 
+    <!-- HUD data: only visible in freeroam/match -->
+    <div id="hud" class="hidden">
         <!-- Styled frame around the minimap -->
         <div class="minimap-frame">
             <div class="frame-left"></div>

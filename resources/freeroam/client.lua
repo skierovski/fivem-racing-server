@@ -14,14 +14,16 @@ AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
     DoScreenFadeOut(300)
     Citizen.Wait(400)
 
-    -- 2. Freeze + place player at spawn
+    -- 2. Freeze + place player HIGH above spawn so collision can load
     FreezeEntityPosition(ped, true)
-    SetEntityCoords(ped, x, y, z, false, false, false, true)
+    SetEntityCoords(ped, x, y, z + 50.0, false, false, false, true)
     SetEntityHeading(ped, heading)
 
-    -- 3. Load collision at that exact spot
+    -- 3. Stream the area and load collision
+    SetFocusPosAndVel(x, y, z + 50.0, 0.0, 0.0, 0.0)
     RequestCollisionAtCoord(x, y, z)
-    local timeout = GetGameTimer() + 10000
+
+    local timeout = GetGameTimer() + 8000
     while not HasCollisionLoadedAroundEntity(ped) do
         Citizen.Wait(50)
         RequestCollisionAtCoord(x, y, z)
@@ -30,15 +32,15 @@ AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
 
     -- 4. Find solid ground
     local found, groundZ = false, z
-    for attempt = 1, 30 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 100.0, false)
+    for attempt = 1, 50 do
+        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 200.0, false)
         if found then break end
         Citizen.Wait(100)
     end
-    if found then
-        z = groundZ + 1.0
-        SetEntityCoords(ped, x, y, z, false, false, false, true)
-    end
+
+    local finalZ = found and (groundZ + 1.0) or z
+    SetEntityCoords(ped, x, y, finalZ, false, false, false, true)
+    ClearFocus()
 
     -- 5. Make visible, show HUD
     SetEntityVisible(ped, true, false)
