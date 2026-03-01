@@ -7,6 +7,11 @@ local garageVehicle = nil
 local garageCam = nil
 local garageModel = nil
 
+-- Tracked state (reading these back from natives is unreliable)
+local trackedNeonEnabled = false
+local trackedNeonColor = { r = 0, g = 150, b = 255 }
+local trackedWheelColor = 0
+
 -- Benny's Original Motor Works interior
 local BENNYS_IPL = 'bkr_biker_interior_placement_interior_intb_intb_dlc_int_02'
 local BENNYS_INTERIOR_COORDS = vector3(-222.0, -1320.0, 30.0)
@@ -214,12 +219,18 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
     -- Turbo state
     local hasTurbo = IsToggleModOn(garageVehicle, 18)
 
-    -- Neon state
-    local hasNeon = IsVehicleNeonLightEnabled(garageVehicle, 0)
-    local nr, ng, nb = GetVehicleNeonLightsColour(garageVehicle)
-
-    -- Wheel/rim color
-    local _, wheelColorIdx = GetVehicleExtraColours(garageVehicle)
+    -- Initialize tracked state from saved tuning (natives are unreliable right after apply)
+    if savedTuning then
+        trackedNeonEnabled = savedTuning.neon == true
+        if savedTuning.neonColor then
+            trackedNeonColor = { r = savedTuning.neonColor.r or 0, g = savedTuning.neonColor.g or 150, b = savedTuning.neonColor.b or 255 }
+        end
+        trackedWheelColor = savedTuning.wheelColor or 0
+    else
+        trackedNeonEnabled = false
+        trackedNeonColor = { r = 0, g = 150, b = 255 }
+        trackedWheelColor = 0
+    end
 
     SetNuiFocus(true, true)
     SendNUIMessage({
@@ -235,13 +246,13 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
             secondary = { r = sr or 30, g = sg or 30, b = sb or 30 },
         },
         turbo = hasTurbo,
-        neon = hasNeon,
-        neonColor = { r = nr or 0, g = ng or 150, b = nb or 255 },
+        neon = trackedNeonEnabled,
+        neonColor = trackedNeonColor,
         currentWheelType = curWheelType,
         currentWheelIndex = GetVehicleMod(garageVehicle, 23),
         currentWindowTint = GetVehicleWindowTint(garageVehicle),
         currentLivery = GetVehicleLivery(garageVehicle),
-        currentWheelColor = wheelColorIdx or 0,
+        currentWheelColor = trackedWheelColor,
     })
 end)
 
@@ -370,15 +381,17 @@ end)
 RegisterNUICallback('applyNeon', function(data, cb)
     if not garageVehicle then cb({}) return end
     local enabled = data.enabled == true
+    trackedNeonEnabled = enabled
     for i = 0, 3 do
         SetVehicleNeonLightEnabled(garageVehicle, i, enabled)
     end
     if enabled and data.color then
-        SetVehicleNeonLightsColour(garageVehicle,
-            tonumber(data.color.r) or 0,
-            tonumber(data.color.g) or 150,
-            tonumber(data.color.b) or 255
-        )
+        trackedNeonColor = {
+            r = tonumber(data.color.r) or 0,
+            g = tonumber(data.color.g) or 150,
+            b = tonumber(data.color.b) or 255,
+        }
+        SetVehicleNeonLightsColour(garageVehicle, trackedNeonColor.r, trackedNeonColor.g, trackedNeonColor.b)
     end
     cb({})
 end)
@@ -386,6 +399,7 @@ end)
 RegisterNUICallback('applyWheelColor', function(data, cb)
     if not garageVehicle then cb({}) return end
     local colorIdx = tonumber(data.value) or 0
+    trackedWheelColor = colorIdx
     local pearl, _ = GetVehicleExtraColours(garageVehicle)
     SetVehicleExtraColours(garageVehicle, pearl, colorIdx)
     cb({})
@@ -393,11 +407,12 @@ end)
 
 RegisterNUICallback('applyNeonColor', function(data, cb)
     if not garageVehicle then cb({}) return end
-    SetVehicleNeonLightsColour(garageVehicle,
-        tonumber(data.r) or 0,
-        tonumber(data.g) or 150,
-        tonumber(data.b) or 255
-    )
+    trackedNeonColor = {
+        r = tonumber(data.r) or 0,
+        g = tonumber(data.g) or 150,
+        b = tonumber(data.b) or 255,
+    }
+    SetVehicleNeonLightsColour(garageVehicle, trackedNeonColor.r, trackedNeonColor.g, trackedNeonColor.b)
     cb({})
 end)
 
@@ -449,8 +464,7 @@ function collectTuningFromVehicle()
     -- Wheels
     t.wheelType = GetVehicleWheelType(garageVehicle)
     t.wheelIndex = GetVehicleMod(garageVehicle, 23)
-    local _, wc = GetVehicleExtraColours(garageVehicle)
-    t.wheelColor = wc
+    t.wheelColor = trackedWheelColor
 
     -- Livery
     t.livery = GetVehicleLivery(garageVehicle)
@@ -458,11 +472,10 @@ function collectTuningFromVehicle()
     -- Window tint
     t.windowTint = GetVehicleWindowTint(garageVehicle)
 
-    -- Neon
-    t.neon = IsVehicleNeonLightEnabled(garageVehicle, 0)
+    -- Neon (use tracked values -- GetVehicleNeonLightsColour can return wrong data)
+    t.neon = trackedNeonEnabled
     if t.neon then
-        local nr, ng, nb = GetVehicleNeonLightsColour(garageVehicle)
-        t.neonColor = { r = nr, g = ng, b = nb }
+        t.neonColor = { r = trackedNeonColor.r, g = trackedNeonColor.g, b = trackedNeonColor.b }
     end
 
     return t
