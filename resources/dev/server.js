@@ -85,6 +85,8 @@ RegisterCommand('refresh_resource', (_source, args) => {
 
 onNet('dev:refreshResource', (name) => {
     if (!name) return;
-    console.log(`^3[dev]^0 Refresh requested by player ${GetPlayerName(source)}: ^5${name}^0`);
+    const playerSource = source;
+    console.log(`^3[dev]^0 Refresh requested by player ${GetPlayerName(playerSource)}: ^5${name}^0`);
     doRefresh(name);
+    emitNet('dev:refreshDone', playerSource, name);
 });
