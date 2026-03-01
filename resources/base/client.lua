@@ -119,6 +119,21 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- /refresh command (always available, handled by base server)
+RegisterCommand('refresh', function(source, args)
+    local name = args[1]
+    if not name then
+        print('^3[refresh]^0 Usage: /refresh <resource>  |  /refresh all')
+        return
+    end
+    TriggerServerEvent('blacklist:refreshResource', name)
+end, false)
+
+RegisterNetEvent('blacklist:refreshDone')
+AddEventHandler('blacklist:refreshDone', function(name)
+    print('^2[refresh]^0 Refreshed ^5' .. name .. '^0')
+end)
+
 -- /coords command (always available regardless of dev resource)
 RegisterCommand('coords', function()
     local ped = PlayerPedId()
