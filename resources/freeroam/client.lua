@@ -184,7 +184,7 @@ Citizen.CreateThread(function()
                 DoScreenFadeOut(300)
                 Citizen.Wait(500)
 
-                NetworkResurrectLocalPlayer(152.47, 1033.83, 29.34, 333.42, true, false)
+                NetworkResurrectLocalPlayer(152.79, -1034.03, 29.34, 331.69, true, false)
 
                 local newPed = PlayerPedId()
                 ClearPedBloodDamage(newPed)

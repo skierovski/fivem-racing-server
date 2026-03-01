@@ -9,7 +9,7 @@ AddEventHandler('blacklist:enterFreeRoam', function(targetSource)
     local source = targetSource or source
     freeroamPlayers[source] = true
 
-    local spawn = { x = 152.47, y = 1033.83, z = 29.34, heading = 333.42 }
+    local spawn = { x = 152.79, y = -1034.03, z = 29.34, heading = 331.69 }
 
     -- Fetch player's selected vehicle + tuning from DB
     local identifier = getIdentifier(source)
