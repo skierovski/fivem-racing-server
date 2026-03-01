@@ -58,19 +58,9 @@ function startWatching() {
 
 startWatching();
 
-// --- Manual /refresh command -----------------------------------------------
+// --- Manual refresh (server console + F8 client command) -------------------
 
-RegisterCommand('refresh_resource', (source, args) => {
-    // Only allow from server console (source 0) or add ace perms for players
-    if (source !== 0) {
-        console.log(`^1[dev]^0 /refresh_resource can only be used from the server console`);
-        return;
-    }
-    const name = args[0];
-    if (!name) {
-        console.log('^3[dev]^0 Usage: refresh_resource <name>  |  refresh_resource all');
-        return;
-    }
+function doRefresh(name) {
     if (name === 'all') {
         let dirs;
         try { dirs = fs.readdirSync(RESOURCES_DIR); } catch { return; }
@@ -85,4 +75,16 @@ RegisterCommand('refresh_resource', (source, args) => {
         ExecuteCommand(`ensure ${name}`);
         console.log(`^2[dev]^0 Restarted ^5${name}^0`);
     }
+}
+
+RegisterCommand('refresh_resource', (_source, args) => {
+    const name = args[0];
+    if (!name) { console.log('^3[dev]^0 Usage: refresh_resource <name> | refresh_resource all'); return; }
+    doRefresh(name);
 }, true);
+
+onNet('dev:refreshResource', (name) => {
+    if (!name) return;
+    console.log(`^3[dev]^0 Refresh requested by player ${GetPlayerName(source)}: ^5${name}^0`);
+    doRefresh(name);
+});

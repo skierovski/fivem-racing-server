@@ -74,6 +74,28 @@ AddEventHandler('blacklist:requestVehiclesForFreeroam', function()
     )
 end)
 
+RegisterNetEvent('blacklist:requestFreeroamTuning')
+AddEventHandler('blacklist:requestFreeroamTuning', function(model)
+    local source = source
+    local identifier = getIdentifier(source)
+    if not identifier then
+        TriggerClientEvent('blacklist:receiveFreeroamTuning', source, model, nil)
+        return
+    end
+
+    exports.oxmysql:execute(
+        'SELECT tuning FROM player_vehicles WHERE identifier = ? AND model = ?',
+        { identifier, model },
+        function(result)
+            local tuning = nil
+            if result and result[1] and result[1].tuning then
+                tuning = json.decode(result[1].tuning)
+            end
+            TriggerClientEvent('blacklist:receiveFreeroamTuning', source, model, tuning)
+        end
+    )
+end)
+
 AddEventHandler('playerDropped', function()
     local source = source
     freeroamPlayers[source] = nil

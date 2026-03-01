@@ -67,52 +67,43 @@ AddEventHandler('blacklist:enterGarage', function(model)
     DoScreenFadeOut(400)
     Citizen.Wait(500)
 
-    -- Hide the player
+    -- Hide the player and move near Benny's so streaming kicks in immediately
     SetEntityVisible(ped, false, false)
     FreezeEntityPosition(ped, true)
+    SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 5.0, false, false, false, true)
 
-    -- Pre-stream the Benny's area so textures are ready (critical after freeroam)
+    -- Kick off IPL + scene pre-stream + collision all at once (parallel requests)
+    RequestIpl(BENNYS_IPL)
+    RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
     SetFocusPosAndVel(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 0.0, 0.0, 0.0)
     NewLoadSceneStart(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 50.0, 0)
 
-    local sceneTimeout = GetGameTimer() + 10000
-    while not IsNewLoadSceneLoaded() do
+    -- Wait for scene + IPL together (they load in parallel)
+    local deadline = GetGameTimer() + 5000
+    while GetGameTimer() < deadline do
+        if IsNewLoadSceneLoaded() and IsIplActive(BENNYS_IPL) then break end
+        RequestIpl(BENNYS_IPL)
         Citizen.Wait(50)
-        if GetGameTimer() > sceneTimeout then break end
     end
     NewLoadSceneStop()
 
-    SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 5.0, false, false, false, true)
-
-    -- Ensure Benny's IPL is streamed in (may have been unloaded while in freeroam)
-    RequestIpl(BENNYS_IPL)
-    local iplTimeout = GetGameTimer() + 10000
-    while not IsIplActive(BENNYS_IPL) do
-        Citizen.Wait(50)
-        RequestIpl(BENNYS_IPL)
-        if GetGameTimer() > iplTimeout then break end
-    end
-
-    -- Force the interior to load fully before we spawn anything inside it
+    -- Load interior (usually instant once IPL is active)
     local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
     if IsValidInterior(interior) then
         LoadInterior(interior)
-        local intTimeout = GetGameTimer() + 10000
-        while not IsInteriorReady(interior) do
+        deadline = GetGameTimer() + 3000
+        while not IsInteriorReady(interior) and GetGameTimer() < deadline do
             Citizen.Wait(50)
-            if GetGameTimer() > intTimeout then break end
         end
         PinInteriorInMemory(interior)
         RefreshInterior(interior)
     end
 
-    -- Load collision
-    RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
-    local timeout = GetGameTimer() + 8000
-    while not HasCollisionLoadedAroundEntity(ped) do
-        Citizen.Wait(50)
+    -- Collision (often already loaded from parallel request above)
+    deadline = GetGameTimer() + 3000
+    while not HasCollisionLoadedAroundEntity(ped) and GetGameTimer() < deadline do
         RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
-        if GetGameTimer() > timeout then break end
+        Citizen.Wait(50)
     end
 
     -- Spawn the vehicle

@@ -301,17 +301,25 @@ RegisterNUICallback('selectFreeroamCar', function(data, cb)
     local model = data.model
     if not model then cb({}) return end
 
+    -- Ask server for saved tuning, then spawn with it
+    freeroamPendingModel = model
+    TriggerServerEvent('blacklist:requestFreeroamTuning', model)
+    cb({})
+end)
+
+RegisterNetEvent('blacklist:receiveFreeroamTuning')
+AddEventHandler('blacklist:receiveFreeroamTuning', function(model, tuning)
+    if not isInFreeRoam then return end
+
     local ped = PlayerPedId()
     local coords = GetEntityCoords(ped)
     local heading = GetEntityHeading(ped)
 
-    -- Delete current vehicle
     local currentVeh = GetVehiclePedIsIn(ped, false)
     if currentVeh ~= 0 then
         DeleteEntity(currentVeh)
     end
 
-    -- Spawn new vehicle
     local hash = GetHashKey(model)
     RequestModel(hash)
 
@@ -330,19 +338,19 @@ RegisterNUICallback('selectFreeroamCar', function(data, cb)
     SetModelAsNoLongerNeeded(hash)
     TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
-    -- Max performance upgrades
     SetVehicleModKit(vehicle, 0)
-    SetVehicleMod(vehicle, 11, GetNumVehicleMods(vehicle, 11) - 1, false)
-    SetVehicleMod(vehicle, 12, GetNumVehicleMods(vehicle, 12) - 1, false)
-    SetVehicleMod(vehicle, 13, GetNumVehicleMods(vehicle, 13) - 1, false)
-    SetVehicleMod(vehicle, 15, GetNumVehicleMods(vehicle, 15) - 1, false)
-    ToggleVehicleMod(vehicle, 18, true)
+    if tuning then
+        exports.vehicles:ApplyTuning(vehicle, tuning)
+    else
+        SetVehicleMod(vehicle, 11, GetNumVehicleMods(vehicle, 11) - 1, false)
+        SetVehicleMod(vehicle, 12, GetNumVehicleMods(vehicle, 12) - 1, false)
+        SetVehicleMod(vehicle, 13, GetNumVehicleMods(vehicle, 13) - 1, false)
+        SetVehicleMod(vehicle, 15, GetNumVehicleMods(vehicle, 15) - 1, false)
+        ToggleVehicleMod(vehicle, 18, true)
+    end
 
-    -- Kill radio
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
-
-    cb({})
 end)
 
 RegisterNUICallback('teleportToWaypoint', function(data, cb)

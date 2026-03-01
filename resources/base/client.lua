@@ -20,8 +20,6 @@ end)
 exports.spawnmanager:forceRespawn()
 
 function onSessionReady()
-    ShutdownLoadingScreenNui()
-
     local ped = PlayerPedId()
 
     FreezeEntityPosition(ped, true)
@@ -31,6 +29,11 @@ function onSessionReady()
     DisplayHud(false)
     DisplayRadar(false)
 
+    -- Force screen black BEFORE killing the loading screen so the world is never visible
+    DoScreenFadeOut(0)
+    Citizen.Wait(0)
+    ShutdownLoadingScreenNui()
+
     Citizen.CreateThread(function()
         local timeout = GetGameTimer() + 3000
         while GetGameTimer() < timeout do
@@ -39,6 +42,7 @@ function onSessionReady()
         end
     end)
 
+    Citizen.Wait(200)
     DoScreenFadeIn(1000)
 
     Citizen.Wait(500)
