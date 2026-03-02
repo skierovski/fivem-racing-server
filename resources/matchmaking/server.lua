@@ -341,6 +341,14 @@ end
 -- Free roam
 -- ========================
 
+RegisterNetEvent('blacklist:leaveFreeRoam')
+AddEventHandler('blacklist:leaveFreeRoam', function()
+    local source = source
+    if playerStates[source] == 'freeroam' then
+        playerStates[source] = 'menu'
+    end
+end)
+
 RegisterNetEvent('blacklist:joinFreeRoam')
 AddEventHandler('blacklist:joinFreeRoam', function()
     local source = source

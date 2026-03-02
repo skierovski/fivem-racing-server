@@ -39,6 +39,10 @@
         const data = event.data;
 
         switch (data.action) {
+            case 'hideAll': {
+                hideAll();
+                break;
+            }
             case 'countdown': {
                 hideAll();
                 countdownOverlay.classList.remove('hidden');
@@ -145,6 +149,12 @@
                         break;
                     case 'all_chasers_disconnected':
                         detail = 'All chasers disconnected.';
+                        break;
+                    case 'escaped':
+                        detail = 'Runner escaped! Too far away.';
+                        break;
+                    case 'forfeit':
+                        detail = 'Opponent forfeited the match.';
                         break;
                     default:
                         detail = 'Match ended.';

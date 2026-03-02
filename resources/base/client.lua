@@ -46,6 +46,7 @@ function onSessionReady()
     DoScreenFadeIn(1000)
 
     Citizen.Wait(500)
+    TriggerServerEvent('blacklist:ensureDefaultVehicle')
     TriggerEvent('blacklist:openMenu')
 end
 
@@ -104,10 +105,11 @@ Citizen.CreateThread(function()
             SetPauseMenuActive(false)
         end
 
-        -- ESC toggles the main menu in freeroam
         if IsDisabledControlJustPressed(0, 200) then
             if PlayerState == 'freeroam' then
                 TriggerEvent('blacklist:toggleMenu')
+            elseif PlayerState == 'in_match' then
+                TriggerServerEvent('blacklist:forfeitMatch')
             end
         end
     end

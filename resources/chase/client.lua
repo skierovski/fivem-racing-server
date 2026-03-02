@@ -7,7 +7,6 @@ local myRole = nil -- 'chaser' or 'runner'
 local matchTimer = 0
 local matchStartTime = 0
 local isFrozen = false
-local runnerBlip = nil
 local airborneTimer = 0.0
 
 -- ========================
@@ -32,6 +31,7 @@ end)
 RegisterNetEvent('blacklist:chaseCountdown')
 AddEventHandler('blacklist:chaseCountdown', function(seconds)
     isInMatch = true
+    exports.base:SetPlayerState('in_match')
     SendNUIMessage({ action = 'countdown', seconds = seconds })
 end)
 
@@ -74,7 +74,6 @@ AddEventHandler('blacklist:chaseHUD', function(data)
     elseif data.action == 'end' then
         isInMatch = false
         myRole = nil
-        cleanupBlips()
         SendNUIMessage({
             action = 'matchEnd',
             won = data.won,
@@ -86,7 +85,18 @@ AddEventHandler('blacklist:chaseHUD', function(data)
 end)
 
 -- ========================
--- Distance tracking + blip (chaser only)
+-- Chase HUD cleanup on return to menu
+-- ========================
+
+RegisterNetEvent('blacklist:returnToMenu')
+AddEventHandler('blacklist:returnToMenu', function()
+    isInMatch = false
+    myRole = nil
+    SendNUIMessage({ action = 'hideAll' })
+end)
+
+-- ========================
+-- Distance tracking (chaser only, NO blip)
 -- ========================
 
 Citizen.CreateThread(function()
@@ -94,12 +104,10 @@ Citizen.CreateThread(function()
         Citizen.Wait(500)
 
         if isInMatch and myRole == 'chaser' then
-            -- Find the runner (closest player that isn't us)
             local myPed = PlayerPedId()
             local myCoords = GetEntityCoords(myPed)
 
             local closestDist = 99999.0
-            local runnerPed = nil
 
             for _, playerId in ipairs(GetActivePlayers()) do
                 if playerId ~= PlayerId() then
@@ -109,42 +117,17 @@ Citizen.CreateThread(function()
                         local dist = #(myCoords - otherCoords)
                         if dist < closestDist then
                             closestDist = dist
-                            runnerPed = otherPed
                         end
                     end
                 end
             end
 
-            if runnerPed then
+            if closestDist < 99999.0 then
                 TriggerServerEvent('blacklist:reportDistance', closestDist)
-
-                -- Update blip
-                updateRunnerBlip(runnerPed)
             end
         end
     end
 end)
-
-function updateRunnerBlip(ped)
-    if runnerBlip then
-        RemoveBlip(runnerBlip)
-    end
-    runnerBlip = AddBlipForEntity(ped)
-    SetBlipSprite(runnerBlip, 1)
-    SetBlipColour(runnerBlip, 1) -- red
-    SetBlipScale(runnerBlip, 1.0)
-    SetBlipAsShortRange(runnerBlip, false)
-    BeginTextCommandSetBlipName('STRING')
-    AddTextComponentSubstringPlayerName('RUNNER')
-    EndTextCommandSetBlipName(runnerBlip)
-end
-
-function cleanupBlips()
-    if runnerBlip then
-        RemoveBlip(runnerBlip)
-        runnerBlip = nil
-    end
-end
 
 -- ========================
 -- Timer display update
@@ -161,6 +144,109 @@ Citizen.CreateThread(function()
                 action = 'timer',
                 remaining = math.floor(remaining),
             })
+        end
+    end
+end)
+
+-- ========================
+-- Traffic suppression + vehicle exit block + ghost mode reset
+-- Runs every frame during match
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+
+        if isInMatch then
+            SetPedDensityMultiplierThisFrame(0.0)
+            SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
+            SetVehicleDensityMultiplierThisFrame(0.0)
+            SetRandomVehicleDensityMultiplierThisFrame(0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+            SetGarbageTrucks(false)
+            SetRandomBoats(false)
+            SetRandomTrains(false)
+
+            for i = 1, 15 do
+                EnableDispatchService(i, false)
+            end
+
+            DisableControlAction(0, 75, true)  -- F (exit vehicle)
+            DisableControlAction(0, 23, true)  -- F (enter vehicle)
+        end
+    end
+end)
+
+-- ========================
+-- Ghost mode reset: restore alpha + collision for all players during match
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(1000)
+
+        if isInMatch then
+            local myPed = PlayerPedId()
+            local myVehicle = GetVehiclePedIsIn(myPed, false)
+
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        ResetEntityAlpha(otherPed)
+                        SetEntityCollision(otherPed, true, true)
+
+                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
+                        if otherVehicle ~= 0 then
+                            ResetEntityAlpha(otherVehicle)
+                            SetEntityCollision(otherVehicle, true, true)
+                        end
+
+                        if myVehicle ~= 0 and otherVehicle ~= 0 then
+                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, false)
+                            -- re-enable by NOT calling the disable version
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Periodic NPC cleanup during match
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(3000)
+
+        if isInMatch then
+            local playerPed = PlayerPedId()
+
+            local handle, ped = FindFirstPed()
+            local success = true
+            while success do
+                if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) then
+                    DeleteEntity(ped)
+                end
+                success, ped = FindNextPed(handle)
+            end
+            EndFindPed(handle)
+
+            local myVeh = GetVehiclePedIsIn(playerPed, false)
+            local vHandle, veh = FindFirstVehicle()
+            success = true
+            while success do
+                if veh ~= myVeh and DoesEntityExist(veh) then
+                    local driver = GetPedInVehicleSeat(veh, -1)
+                    if driver == 0 or not IsPedAPlayer(driver) then
+                        DeleteEntity(veh)
+                    end
+                end
+                success, veh = FindNextVehicle(vHandle)
+            end
+            EndFindVehicle(vHandle)
         end
     end
 end)
@@ -184,7 +270,7 @@ Citizen.CreateThread(function()
                     airborneTimer = airborneTimer + 0.1
                     if airborneTimer >= 2.0 then
                         TriggerServerEvent('blacklist:reportViolation', 'jump')
-                        airborneTimer = 0.0 -- reset after report
+                        airborneTimer = 0.0
                     end
                 else
                     airborneTimer = 0.0
@@ -212,11 +298,8 @@ Citizen.CreateThread(function()
                 local hasCollided = HasEntityCollidedWithAnything(vehicle)
 
                 if hasCollided then
-                    local speed = GetEntitySpeed(vehicle) -- m/s
+                    local speed = GetEntitySpeed(vehicle)
                     if speed > 30.0 then
-                        -- High-speed collision detected
-                        -- Check if it was with another vehicle (potential ram)
-                        -- Simple heuristic: if speed > threshold during collision, it's a ram
                         TriggerServerEvent('blacklist:reportViolation', 'ram')
                     end
                 end
@@ -230,7 +313,6 @@ end)
 -- ========================
 
 Citizen.CreateThread(function()
-    -- NUI is always available but hidden
     SetNuiFocus(false, false)
 end)
 
