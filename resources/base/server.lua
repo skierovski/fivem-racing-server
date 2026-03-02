@@ -21,7 +21,15 @@ end)
 
 AddEventHandler('playerDropped', function(reason)
     local source = source
+    SetPlayerRoutingBucket(source, 0)
     print(('[Base] Player dropped: %s (reason: %s)'):format(GetPlayerName(source), reason))
+end)
+
+-- Safety: ensure player is in bucket 0 when returning to menu
+RegisterNetEvent('blacklist:resetBucket')
+AddEventHandler('blacklist:resetBucket', function()
+    local source = source
+    SetPlayerRoutingBucket(source, 0)
 end)
 
 -- /refresh command: restart resources from F8 console

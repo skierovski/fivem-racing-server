@@ -183,11 +183,16 @@ end)
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(1000)
+        Citizen.Wait(500)
 
         if isInMatch then
             local myPed = PlayerPedId()
             local myVehicle = GetVehiclePedIsIn(myPed, false)
+
+            SetEntityCollision(myPed, true, true)
+            if myVehicle ~= 0 then
+                SetEntityCollision(myVehicle, true, true)
+            end
 
             for _, playerId in ipairs(GetActivePlayers()) do
                 if playerId ~= PlayerId() then
@@ -200,11 +205,6 @@ Citizen.CreateThread(function()
                         if otherVehicle ~= 0 then
                             ResetEntityAlpha(otherVehicle)
                             SetEntityCollision(otherVehicle, true, true)
-                        end
-
-                        if myVehicle ~= 0 and otherVehicle ~= 0 then
-                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, false)
-                            -- re-enable by NOT calling the disable version
                         end
                     end
                 end
@@ -252,9 +252,47 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Anti-jump detection
+-- Tester diagnostic logging: airborne + collision detection
 -- ========================
 
+local wasAirborne = false
+local airborneStartTime = 0
+local airborneStartSpeed = 0
+local lastEnvCrash = nil -- { time = ms, speed = km/h }
+local lastCollisionTime = 0
+
+local function logChase(msg)
+    local prefix = ('[CHASE LOG] role=%s | %s'):format(myRole or 'unknown', msg)
+    print(prefix)
+    TriggerServerEvent('blacklist:chaseLog', { message = msg })
+end
+
+local function getClosestPlayerInfo()
+    local myPed = PlayerPedId()
+    local myCoords = GetEntityCoords(myPed)
+    local closestDist = 99999.0
+    local closestSpeed = 0.0
+    local closestPed = 0
+
+    for _, playerId in ipairs(GetActivePlayers()) do
+        if playerId ~= PlayerId() then
+            local otherPed = GetPlayerPed(playerId)
+            if otherPed ~= 0 then
+                local dist = #(myCoords - GetEntityCoords(otherPed))
+                if dist < closestDist then
+                    closestDist = dist
+                    closestPed = otherPed
+                    local otherVeh = GetVehiclePedIsIn(otherPed, false)
+                    closestSpeed = otherVeh ~= 0 and math.floor(GetEntitySpeed(otherVeh) * 3.6) or 0
+                end
+            end
+        end
+    end
+
+    return closestDist, closestSpeed
+end
+
+-- Airborne tracking
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(100)
@@ -264,47 +302,97 @@ Citizen.CreateThread(function()
             local vehicle = GetVehiclePedIsIn(ped, false)
 
             if vehicle ~= 0 then
-                local isAirborne = IsEntityInAir(vehicle)
+                local isAir = IsEntityInAir(vehicle)
+                local speed = math.floor(GetEntitySpeed(vehicle) * 3.6)
+                local height = GetEntityHeightAboveGround(vehicle)
 
-                if isAirborne then
-                    airborneTimer = airborneTimer + 0.1
-                    if airborneTimer >= 2.0 then
+                if isAir and not wasAirborne then
+                    wasAirborne = true
+                    airborneStartTime = GetGameTimer()
+                    airborneStartSpeed = speed
+                    logChase(('AIRBORNE START | speed=%d km/h | height=%.1fm'):format(speed, height))
+                elseif not isAir and wasAirborne then
+                    local duration = (GetGameTimer() - airborneStartTime) / 1000.0
+                    wasAirborne = false
+                    logChase(('AIRBORNE END | duration=%.1fs | launch_speed=%d km/h | landing_speed=%d km/h'):format(
+                        duration, airborneStartSpeed, speed))
+
+                    if duration >= 2.0 then
                         TriggerServerEvent('blacklist:reportViolation', 'jump')
-                        airborneTimer = 0.0
                     end
-                else
                     airborneTimer = 0.0
                 end
+            else
+                wasAirborne = false
             end
         else
+            wasAirborne = false
             airborneTimer = 0.0
         end
     end
 end)
 
--- ========================
--- Anti-ram detection (for chasers only)
--- ========================
-
+-- Collision tracking (both runner and chaser)
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(200)
+        Citizen.Wait(100)
 
-        if isInMatch and myRole == 'chaser' then
+        if isInMatch then
             local ped = PlayerPedId()
             local vehicle = GetVehiclePedIsIn(ped, false)
 
-            if vehicle ~= 0 then
-                local hasCollided = HasEntityCollidedWithAnything(vehicle)
+            if vehicle ~= 0 and HasEntityCollidedWithAnything(vehicle) then
+                local now = GetGameTimer()
+                if now - lastCollisionTime < 2000 then goto skipCollision end
+                lastCollisionTime = now
 
-                if hasCollided then
-                    local speed = GetEntitySpeed(vehicle)
-                    if speed > 30.0 then
+                local speed = math.floor(GetEntitySpeed(vehicle) * 3.6)
+                local oppDist, oppSpeed = getClosestPlayerInfo()
+
+                local isPlayerContact = oppDist < 8.0
+                local contactType = isPlayerContact and 'PLAYER_CONTACT' or 'ENVIRONMENT'
+
+                if isPlayerContact then
+                    local subType = 'INTENTIONAL'
+                    local extraInfo = ''
+
+                    if lastEnvCrash and (now - lastEnvCrash.time) < 2000 and myRole == 'chaser' then
+                        subType = 'FOLLOW_UP'
+                        local gap = now - lastEnvCrash.time
+                        extraInfo = (' | sub=FOLLOW_UP | gap=%dms | runner_crashed_at=%d km/h'):format(gap, lastEnvCrash.speed)
+                    else
+                        extraInfo = ' | sub=INTENTIONAL'
+                    end
+
+                    logChase(('COLLISION | type=%s%s | my_speed=%d km/h | opponent_speed=%d km/h | dist=%.1fm'):format(
+                        contactType, extraInfo, speed, oppSpeed, oppDist))
+
+                    if myRole == 'chaser' and speed > 30.0 then
                         TriggerServerEvent('blacklist:reportViolation', 'ram')
+                    end
+                else
+                    logChase(('COLLISION | type=ENVIRONMENT | my_speed=%d km/h | opponent_dist=%.1fm'):format(speed, oppDist))
+
+                    -- Track environment crash for follow-up detection
+                    if myRole == 'runner' then
+                        lastEnvCrash = { time = now, speed = speed }
+                        TriggerServerEvent('blacklist:chaseLog', {
+                            message = ('RUNNER_ENV_CRASH | speed=%d km/h'):format(speed),
+                        })
                     end
                 end
             end
+
+            ::skipCollision::
         end
+    end
+end)
+
+-- Broadcast runner's env crash time to chasers for follow-up detection
+RegisterNetEvent('blacklist:runnerCrashInfo')
+AddEventHandler('blacklist:runnerCrashInfo', function(data)
+    if myRole == 'chaser' then
+        lastEnvCrash = { time = GetGameTimer(), speed = data.speed or 0 }
     end
 end)
 

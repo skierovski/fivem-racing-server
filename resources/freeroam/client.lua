@@ -135,12 +135,12 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Ghost mode (no collisions with other players)
+-- Ghost mode: collision (per-frame, thisFrameOnly=true so it stops naturally)
 -- ========================
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(500)
+        Citizen.Wait(0)
 
         if isInFreeRoam then
             local myPed = PlayerPedId()
@@ -150,20 +150,99 @@ Citizen.CreateThread(function()
                 if playerId ~= PlayerId() then
                     local otherPed = GetPlayerPed(playerId)
                     if otherPed ~= 0 then
-                        SetEntityNoCollisionEntity(myPed, otherPed, false)
+                        SetEntityNoCollisionEntity(myPed, otherPed, true)
 
                         local otherVehicle = GetVehiclePedIsIn(otherPed, false)
                         if myVehicle ~= 0 and otherVehicle ~= 0 then
-                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, false)
+                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, true)
                         end
+                    end
+                end
+            end
+        end
+    end
+end)
 
+-- ========================
+-- Ghost mode: transparency (periodic, less performance-critical)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+
+        if isInFreeRoam then
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
                         SetEntityAlpha(otherPed, 100, false)
+                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
                         if otherVehicle ~= 0 then
                             SetEntityAlpha(otherVehicle, 100, false)
                         end
                     end
                 end
             end
+        else
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        ResetEntityAlpha(otherPed)
+                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
+                        if otherVehicle ~= 0 then
+                            ResetEntityAlpha(otherVehicle)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Player name tags above heads
+-- ========================
+
+local gamerTags = {}
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+
+        if isInFreeRoam then
+            local activePlayers = {}
+
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local serverId = GetPlayerServerId(playerId)
+                    activePlayers[serverId] = true
+
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        if not gamerTags[serverId] or not IsMpGamerTagActive(gamerTags[serverId]) then
+                            local name = GetPlayerName(playerId)
+                            gamerTags[serverId] = CreateMpGamerTagWithCrewColor(otherPed, name or 'Player', false, false, '', 0, 0, 0, 0)
+                        end
+                        SetMpGamerTagVisibility(gamerTags[serverId], 0, true)
+                    end
+                end
+            end
+
+            -- Clean up tags for players who left
+            for serverId, tag in pairs(gamerTags) do
+                if not activePlayers[serverId] then
+                    RemoveMpGamerTag(tag)
+                    gamerTags[serverId] = nil
+                end
+            end
+        else
+            -- Clean up all tags when not in freeroam
+            for serverId, tag in pairs(gamerTags) do
+                RemoveMpGamerTag(tag)
+            end
+            gamerTags = {}
         end
     end
 end)

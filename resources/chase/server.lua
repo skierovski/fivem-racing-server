@@ -4,7 +4,6 @@
 
 local ChaseConfig = {
     ROUND_DURATION = 300,
-    RUNNER_HEAD_START = 5,
     CATCH_DISTANCE = 10.0,
     CATCH_TIME = 9.0,
     COUNTDOWN_DURATION = 3,
@@ -45,10 +44,10 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
             and { { source = matchData.chaser.source, identifier = matchData.chaser.identifier, mmr = matchData.chaser.mmr, tier = matchData.chaser.tier } }
             or matchData.chasers,
 
-        startX = matchData.startX,
-        startY = matchData.startY,
-        startZ = matchData.startZ,
-        startHeading = matchData.startHeading or 0.0,
+        runnerX = matchData.runnerX, runnerY = matchData.runnerY,
+        runnerZ = matchData.runnerZ, runnerHeading = matchData.runnerHeading,
+        chaserX = matchData.chaserX, chaserY = matchData.chaserY,
+        chaserZ = matchData.chaserZ, chaserHeading = matchData.chaserHeading,
 
         catchTimer = 0,
         escapeTimer = 0,
@@ -63,6 +62,13 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         playerMatchMap[chaser.source] = matchId
     end
 
+    -- Move all players into a private routing bucket for this match
+    local matchBucket = 1000 + matchId
+    SetPlayerRoutingBucket(match.runner.source, matchBucket)
+    for _, chaser in ipairs(match.chasers) do
+        SetPlayerRoutingBucket(chaser.source, matchBucket)
+    end
+
     TriggerClientEvent('blacklist:closeMenu', match.runner.source)
     for _, chaser in ipairs(match.chasers) do
         TriggerClientEvent('blacklist:closeMenu', chaser.source)
@@ -70,47 +76,35 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
 
     Citizen.Wait(500)
 
+    -- Spawn runner at runner coords, chasers at chaser coords
     TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
-        match.startX, match.startY, match.startZ, match.startHeading, match.forceTier)
+        match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading, match.forceTier)
 
-    for i, chaser in ipairs(match.chasers) do
-        local offset = i * 8.0
+    for _, chaser in ipairs(match.chasers) do
         TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-            match.startX - offset, match.startY, match.startZ, match.startHeading, match.forceTier)
+            match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, match.forceTier)
     end
 
     Citizen.Wait(1000)
 
-    TriggerClientEvent('blacklist:chaseFreeze', match.runner.source, true)
-    for _, chaser in ipairs(match.chasers) do
-        TriggerClientEvent('blacklist:chaseFreeze', chaser.source, true)
+    -- Freeze everyone during countdown
+    local allSources = getAllMatchSources(match)
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseFreeze', src, true)
     end
 
-    local allSources = getAllMatchSources(match)
     for _, src in ipairs(allSources) do
         TriggerClientEvent('blacklist:chaseCountdown', src, ChaseConfig.COUNTDOWN_DURATION)
     end
 
     Citizen.Wait(ChaseConfig.COUNTDOWN_DURATION * 1000)
 
-    match.state = 'headstart'
-    TriggerClientEvent('blacklist:chaseFreeze', match.runner.source, false)
-
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseHUD', src, {
-            action = 'headstart',
-            duration = ChaseConfig.RUNNER_HEAD_START,
-            role = src == match.runner.source and 'runner' or 'chaser',
-        })
-    end
-
-    Citizen.Wait(ChaseConfig.RUNNER_HEAD_START * 1000)
-
+    -- No headstart: unfreeze everyone simultaneously
     match.state = 'active'
     match.startTime = GetGameTimer()
 
-    for _, chaser in ipairs(match.chasers) do
-        TriggerClientEvent('blacklist:chaseFreeze', chaser.source, false)
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseFreeze', src, false)
     end
 
     for _, src in ipairs(allSources) do
@@ -121,7 +115,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         })
     end
 
-    print(('[Chase] Match #%d started (%s mode)'):format(matchId, match.mode))
+    print(('[Chase] Match #%d started (%s mode) at %s'):format(matchId, match.mode, matchData.locationName or 'unknown'))
 
     monitorMatch(matchId)
 end)
@@ -308,6 +302,7 @@ function endMatch(matchId, winnerRole, reason)
 
     Citizen.SetTimeout(8000, function()
         for _, src in ipairs(allSources) do
+            SetPlayerRoutingBucket(src, 0)
             TriggerClientEvent('blacklist:returnToMenu', src)
             playerMatchMap[src] = nil
         end
@@ -358,5 +353,28 @@ function getAllMatchSources(match)
     end
     return sources
 end
+
+-- ========================
+-- Tester diagnostic logs from client
+-- ========================
+
+RegisterNetEvent('blacklist:chaseLog')
+AddEventHandler('blacklist:chaseLog', function(logData)
+    local source = source
+    local name = GetPlayerName(source) or 'Unknown'
+    local matchId = playerMatchMap[source] or 0
+    print(('[CHASE LOG] Match#%d | %s | %s'):format(matchId, name, logData.message or ''))
+
+    -- If runner crashed into environment, relay timing to chasers
+    if logData.message and string.find(logData.message, 'RUNNER_ENV_CRASH') then
+        local match = activeMatches[matchId]
+        if match then
+            local speed = tonumber(string.match(logData.message, 'speed=(%d+)')) or 0
+            for _, chaser in ipairs(match.chasers) do
+                TriggerClientEvent('blacklist:runnerCrashInfo', chaser.source, { speed = speed })
+            end
+        end
+    end
+end)
 
 print('[Chase] ^2Game mode loaded^0')

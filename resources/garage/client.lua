@@ -71,6 +71,8 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     -- Stop freeroam cleanup threads so they don't delete our garage vehicle
     TriggerEvent('blacklist:enableGhostMode', false)
+    -- Move to private routing bucket so nobody can see us
+    TriggerServerEvent('blacklist:enterGarageBucket')
 
     local ped = PlayerPedId()
 
@@ -514,6 +516,9 @@ function exitGarage()
     FreezeEntityPosition(ped, false)
 
     isInGarage = false
+
+    -- Return to default routing bucket
+    TriggerServerEvent('blacklist:leaveGarageBucket')
 
     Citizen.Wait(300)
 

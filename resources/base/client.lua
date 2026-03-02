@@ -153,6 +153,38 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- ========================
+-- Proximity voice chat with distance-based fade
+-- ========================
+
+local VOICE_MAX_RANGE = 25.0
+local VOICE_FULL_RANGE = 10.0
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(200)
+
+        NetworkSetTalkerProximity(VOICE_MAX_RANGE)
+
+        local myCoords = GetEntityCoords(PlayerPedId())
+        for _, playerId in ipairs(GetActivePlayers()) do
+            if playerId ~= PlayerId() then
+                local otherPed = GetPlayerPed(playerId)
+                if otherPed ~= 0 then
+                    local dist = #(myCoords - GetEntityCoords(otherPed))
+                    local vol = 0.0
+                    if dist <= VOICE_FULL_RANGE then
+                        vol = 1.0
+                    elseif dist < VOICE_MAX_RANGE then
+                        vol = 1.0 - ((dist - VOICE_FULL_RANGE) / (VOICE_MAX_RANGE - VOICE_FULL_RANGE))
+                    end
+                    MumbleSetVolumeOverrideByServerId(GetPlayerServerId(playerId), vol)
+                end
+            end
+        end
+    end
+end)
+
 -- Disable radio globally on resource start and for any new vehicle
 Citizen.CreateThread(function()
     SetRadioToStationName('OFF')
@@ -240,5 +272,6 @@ AddEventHandler('blacklist:returnToMenu', function()
     DisplayRadar(false)
 
     PlayerState = 'menu'
+    TriggerServerEvent('blacklist:resetBucket')
     TriggerEvent('blacklist:openMenu')
 end)

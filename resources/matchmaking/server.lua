@@ -22,14 +22,48 @@ local normalChaserQueue = {} -- { source, identifier, mmr, tier }
 -- Player states
 local playerStates = {} -- [source] = 'menu' | 'ranked_queue' | 'normal_runner_queue' | 'normal_chaser_queue' | 'in_match' | 'freeroam'
 
--- Bank spawn locations for normal mode
-local BANK_LOCATIONS = {
-    { x = 150.26,   y = -1040.20, z = 29.37,  heading = 340.0, name = 'Fleeca Bank - Legion Square' },
-    { x = -1212.98, y = -330.52,  z = 37.78,  heading = 27.0,  name = 'Fleeca Bank - Rockford Hills' },
-    { x = -2962.58, y = 482.63,   z = 15.70,  heading = 87.0,  name = 'Fleeca Bank - Banham Canyon' },
-    { x = 314.19,   y = -278.73,  z = 54.17,  heading = 340.0, name = 'Fleeca Bank - Alta' },
-    { x = -351.53,  y = -49.53,   z = 49.04,  heading = 340.0, name = 'Fleeca Bank - Burton' },
-    { x = 253.36,   y = 228.15,   z = 101.68, heading = 160.0, name = 'Pacific Standard Bank' },
+-- Shared chase locations for both ranked and normal mode (tester-provided coords)
+local CHASE_LOCATIONS = {
+    {
+        name = 'j1',
+        runner = { x = -851.27, y = -156.47, z = 37.39, h = 70.00 },
+        chaser = { x = -843.19, y = -159.52, z = 37.27, h = 74.52 },
+    },
+    {
+        name = 'Bank Kwadraciak',
+        runner = { x = 150.23, y = -1032.16, z = 28.66, h = 342.54 },
+        chaser = { x = 154.02, y = -1034.46, z = 28.56, h = 346.60 },
+    },
+    {
+        name = 'Bank Beta',
+        runner = { x = -1212.03, y = -311.69, z = 37.29, h = 298.01 },
+        chaser = { x = -1220.45, y = -316.44, z = 37.16, h = 298.91 },
+    },
+    {
+        name = 'Pacyfik',
+        runner = { x = 219.27, y = 206.40, z = 104.97, h = 124.73 },
+        chaser = { x = 226.61, y = 211.55, z = 105.06, h = 124.77 },
+    },
+    {
+        name = 'Bobcat',
+        runner = { x = 920.72, y = -2114.48, z = 29.79, h = 314.45 },
+        chaser = { x = 920.74, y = -2119.19, z = 29.75, h = 307.74 },
+    },
+    {
+        name = 'Kasyno',
+        runner = { x = 914.91, y = 42.08, z = 80.42, h = 127.38 },
+        chaser = { x = 927.25, y = 45.18, z = 80.63, h = 95.52 },
+    },
+    {
+        name = 'Fleeca Urzednicza',
+        runner = { x = 326.85, y = -264.21, z = 53.48, h = 312.89 },
+        chaser = { x = 318.57, y = -272.21, z = 53.44, h = 325.30 },
+    },
+    {
+        name = 'Dolar Pills',
+        runner = { x = 44.35, y = -1557.10, z = 28.82, h = 50.93 },
+        chaser = { x = 56.41, y = -1567.20, z = 28.98, h = 50.08 },
+    },
 }
 
 -- ========================
@@ -253,19 +287,13 @@ end
 -- ========================
 
 function startRankedMatch(chaser, runner, isCrossTier, forceTier)
-    local locations = {
-        { x = -130.0,  y = -1520.0, z = 33.5 },
-        { x = -530.0,  y = -680.0,  z = 33.5 },
-        { x = 120.0,   y = -220.0,  z = 54.0 },
-        { x = -820.0,  y = -1100.0, z = 11.0 },
-        { x = 350.0,   y = -1050.0, z = 29.3 },
-    }
-    local loc = locations[math.random(#locations)]
+    local loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
 
     local matchData = {
         mode = 'ranked',
         isCrossTier = isCrossTier or false,
         forceTier = forceTier,
+        locationName = loc.name,
         chaser = {
             source = chaser.source,
             identifier = chaser.identifier,
@@ -278,9 +306,8 @@ function startRankedMatch(chaser, runner, isCrossTier, forceTier)
             mmr = runner.mmr,
             tier = runner.tier,
         },
-        startX = loc.x,
-        startY = loc.y,
-        startZ = loc.z,
+        runnerX = loc.runner.x, runnerY = loc.runner.y, runnerZ = loc.runner.z, runnerHeading = loc.runner.h,
+        chaserX = loc.chaser.x, chaserY = loc.chaser.y, chaserZ = loc.chaser.z, chaserHeading = loc.chaser.h,
     }
 
     TriggerEvent('blacklist:startChaseMatch', matchData)
@@ -289,22 +316,15 @@ function startRankedMatch(chaser, runner, isCrossTier, forceTier)
     TriggerClientEvent('blacklist:queueUpdate', chaser.source, { status = 'matched', message = 'Match found! You are the CHASER' .. ctMsg })
     TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found! You are the RUNNER' .. ctMsg })
 
-    print(('[Matchmaking] Ranked match%s: %s (%s chaser, %d MMR) vs %s (%s runner, %d MMR)%s'):format(
-        isCrossTier and ' [CROSS-TIER]' or '',
+    print(('[Matchmaking] Ranked match%s at %s: %s (%s chaser, %d MMR) vs %s (%s runner, %d MMR)%s'):format(
+        isCrossTier and ' [CROSS-TIER]' or '', loc.name,
         GetPlayerName(chaser.source), chaser.tier, chaser.mmr,
         GetPlayerName(runner.source), runner.tier, runner.mmr,
         forceTier and (' | forced tier: ' .. forceTier) or ''))
 end
 
 function startNormalChaseMatch(runner, chasers)
-    local bank = BANK_LOCATIONS[math.random(#BANK_LOCATIONS)]
-
-    local chaserSources = {}
-    local chaserIdentifiers = {}
-    for _, c in ipairs(chasers) do
-        table.insert(chaserSources, c.source)
-        table.insert(chaserIdentifiers, c.identifier)
-    end
+    local loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
 
     local matchData = {
         mode = 'normal',
@@ -313,11 +333,9 @@ function startNormalChaseMatch(runner, chasers)
             source = runner.source,
             identifier = runner.identifier,
         },
-        startX = bank.x,
-        startY = bank.y,
-        startZ = bank.z,
-        startHeading = bank.heading,
-        locationName = bank.name,
+        locationName = loc.name,
+        runnerX = loc.runner.x, runnerY = loc.runner.y, runnerZ = loc.runner.z, runnerHeading = loc.runner.h,
+        chaserX = loc.chaser.x, chaserY = loc.chaser.y, chaserZ = loc.chaser.z, chaserHeading = loc.chaser.h,
     }
 
     for _, c in ipairs(chasers) do
@@ -329,12 +347,12 @@ function startNormalChaseMatch(runner, chasers)
 
     TriggerEvent('blacklist:startChaseMatch', matchData)
 
-    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Bank heist at ' .. bank.name .. '! You are the RUNNER' })
+    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Chase at ' .. loc.name .. '! You are the RUNNER' })
     for _, c in ipairs(chasers) do
-        TriggerClientEvent('blacklist:queueUpdate', c.source, { status = 'matched', message = 'Bank heist at ' .. bank.name .. '! You are a CHASER' })
+        TriggerClientEvent('blacklist:queueUpdate', c.source, { status = 'matched', message = 'Chase at ' .. loc.name .. '! You are a CHASER' })
     end
 
-    print(('[Matchmaking] Normal chase at %s: 1 runner vs %d chasers'):format(bank.name, #chasers))
+    print(('[Matchmaking] Normal chase at %s: 1 runner vs %d chasers'):format(loc.name, #chasers))
 end
 
 -- ========================

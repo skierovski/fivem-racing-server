@@ -9,7 +9,6 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     local model = vehicleData.model
     local tuning = vehicleData.tuning or {}
 
-    -- Delete previous vehicle if exists
     if currentVehicle and DoesEntityExist(currentVehicle) then
         DeleteEntity(currentVehicle)
         currentVehicle = nil
@@ -23,7 +22,6 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         Citizen.Wait(100)
         if GetGameTimer() > timeout then
             print('[Vehicles] ^1Failed to load model: ' .. model .. '^0')
-            -- Fall back to sultan
             hash = GetHashKey('sultan')
             RequestModel(hash)
             while not HasModelLoaded(hash) do
@@ -34,27 +32,49 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     end
 
     local ped = PlayerPedId()
+    local spawnZ = z + 50.0
 
-    -- Make player visible
     SetEntityVisible(ped, true, false)
-    FreezeEntityPosition(ped, false)
     SetEntityInvincible(ped, false)
 
-    -- Spawn vehicle
-    local vehicle = CreateVehicle(hash, x, y, z, heading or 0.0, true, false)
+    -- Spawn vehicle high above target, freeze it while collision loads
+    local vehicle = CreateVehicle(hash, x, y, spawnZ, heading or 0.0, true, false)
     SetModelAsNoLongerNeeded(hash)
-
-    -- Place player in driver seat
+    FreezeEntityPosition(vehicle, true)
     TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
-    -- Apply tuning
+    -- Stream the area and load collision
+    SetFocusPosAndVel(x, y, spawnZ, 0.0, 0.0, 0.0)
+    RequestCollisionAtCoord(x, y, z)
+
+    timeout = GetGameTimer() + 8000
+    while not HasCollisionLoadedAroundEntity(vehicle) do
+        Citizen.Wait(50)
+        RequestCollisionAtCoord(x, y, z)
+        if GetGameTimer() > timeout then break end
+    end
+
+    -- Find solid ground
+    local found, groundZ = false, z
+    for attempt = 1, 50 do
+        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 200.0, false)
+        if found then break end
+        Citizen.Wait(100)
+    end
+
+    local finalZ = found and (groundZ + 1.0) or z
+    SetEntityCoords(vehicle, x, y, finalZ, false, false, false, true)
+    SetEntityHeading(vehicle, heading or 0.0)
+    ClearFocus()
+
     applyTuning(vehicle, tuning)
-
     SetVehicleCanBeVisiblyDamaged(vehicle, false)
-
-    -- Kill radio immediately on spawn
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
+
+    -- Keep frozen -- chase countdown will unfreeze
+    FreezeEntityPosition(vehicle, true)
+    FreezeEntityPosition(ped, true)
 
     currentVehicle = vehicle
 

@@ -78,4 +78,20 @@ AddEventHandler('blacklist:saveTuning', function(model, tuning)
     print(('[Garage] %s saved tuning for %s'):format(GetPlayerName(source), model))
 end)
 
+-- ========================
+-- Routing bucket isolation for garage
+-- ========================
+
+RegisterNetEvent('blacklist:enterGarageBucket')
+AddEventHandler('blacklist:enterGarageBucket', function()
+    local source = source
+    SetPlayerRoutingBucket(source, 500 + source)
+end)
+
+RegisterNetEvent('blacklist:leaveGarageBucket')
+AddEventHandler('blacklist:leaveGarageBucket', function()
+    local source = source
+    SetPlayerRoutingBucket(source, 0)
+end)
+
 print('[Garage] ^2Server-side loaded^0')

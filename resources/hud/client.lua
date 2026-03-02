@@ -6,7 +6,7 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(500)
         local state = exports.base:GetPlayerState()
-        local shouldShow = (state == 'freeroam' or state == 'in_match')
+        local shouldShow = (state == 'freeroam' or state == 'in_match' or state == 'menu')
 
         if shouldShow ~= hudVisible then
             hudVisible = shouldShow
