@@ -9,7 +9,7 @@ local ChaseConfig = {
     COUNTDOWN_DURATION = 3,
 
     ESCAPE_DISTANCE = 400.0,
-    ESCAPE_TIME = 15.0,
+    ESCAPE_TIME = 3.0,
 
     MAX_AIRBORNE_TIME = 2.0,
     RAM_SPEED_THRESHOLD = 30.0,
