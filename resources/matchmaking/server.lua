@@ -49,11 +49,12 @@ local CHASE_LOCATIONS = {
         runner = { x = 920.72, y = -2114.48, z = 29.79, h = 314.45 },
         chaser = { x = 920.74, y = -2119.19, z = 29.75, h = 307.74 },
     },
-    {
-        name = 'Kasyno',
-        runner = { x = 914.91, y = 42.08, z = 80.42, h = 127.38 },
-        chaser = { x = 927.25, y = 45.18, z = 80.63, h = 95.52 },
-    },
+    -- Kasyno disabled: coords are on casino roof, need street-level coords
+    -- {
+    --     name = 'Kasyno',
+    --     runner = { x = 914.91, y = 42.08, z = 80.42, h = 127.38 },
+    --     chaser = { x = 927.25, y = 45.18, z = 80.63, h = 95.52 },
+    -- },
     {
         name = 'Fleeca Urzednicza',
         runner = { x = 326.85, y = -264.21, z = 53.48, h = 312.89 },

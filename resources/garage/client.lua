@@ -134,10 +134,14 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
-    FreezeEntityPosition(garageVehicle, true)
     SetEntityInvincible(garageVehicle, true)
-    SetEntityCoords(garageVehicle, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z, false, false, false, false)
+
+    -- Let vehicle settle on the interior floor
+    SetVehicleOnGroundProperly(garageVehicle)
+    Citizen.Wait(100)
+    SetEntityCoords(garageVehicle, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, false, false, false, false)
     SetEntityHeading(garageVehicle, GARAGE_POS.w)
+    FreezeEntityPosition(garageVehicle, true)
     SetVehicleDoorsLocked(garageVehicle, 2)
     SetVehicleLights(garageVehicle, 2)
     SetVehicleModKit(garageVehicle, 0)
