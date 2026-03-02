@@ -72,6 +72,14 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
 
+    -- Ensure full visibility and collision (clean slate after freeroam ghost)
+    ResetEntityAlpha(vehicle)
+    ResetEntityAlpha(ped)
+    SetEntityAlpha(vehicle, 255, false)
+    SetEntityAlpha(ped, 255, false)
+    SetEntityCollision(vehicle, true, true)
+    SetEntityCollision(ped, true, true)
+
     -- Keep frozen -- chase countdown will unfreeze
     FreezeEntityPosition(vehicle, true)
     FreezeEntityPosition(ped, true)

@@ -33,6 +33,36 @@ AddEventHandler('blacklist:chaseCountdown', function(seconds)
     isInMatch = true
     exports.base:SetPlayerState('in_match')
     SendNUIMessage({ action = 'countdown', seconds = seconds })
+
+    -- Aggressive one-time ghost cleanup on match start
+    local myPed = PlayerPedId()
+    local myVehicle = GetVehiclePedIsIn(myPed, false)
+
+    ResetEntityAlpha(myPed)
+    SetEntityCollision(myPed, true, true)
+    if myVehicle ~= 0 then
+        ResetEntityAlpha(myVehicle)
+        SetEntityCollision(myVehicle, true, true)
+        SetEntityAlpha(myVehicle, 255, false)
+    end
+
+    for _, playerId in ipairs(GetActivePlayers()) do
+        if playerId ~= PlayerId() then
+            local otherPed = GetPlayerPed(playerId)
+            if otherPed ~= 0 then
+                ResetEntityAlpha(otherPed)
+                SetEntityCollision(otherPed, true, true)
+                SetEntityAlpha(otherPed, 255, false)
+
+                local otherVehicle = GetVehiclePedIsIn(otherPed, false)
+                if otherVehicle ~= 0 then
+                    ResetEntityAlpha(otherVehicle)
+                    SetEntityCollision(otherVehicle, true, true)
+                    SetEntityAlpha(otherVehicle, 255, false)
+                end
+            end
+        end
+    end
 end)
 
 -- ========================
@@ -122,9 +152,13 @@ Citizen.CreateThread(function()
                 end
             end
 
-            if closestDist < 99999.0 then
-                TriggerServerEvent('blacklist:reportDistance', closestDist)
+            -- If opponent is beyond streaming range (~400m), GTA stops tracking them.
+            -- Report 999m so the server triggers the escape win.
+            if closestDist >= 99999.0 then
+                closestDist = 999.0
             end
+
+            TriggerServerEvent('blacklist:reportDistance', closestDist)
         end
     end
 end)
