@@ -15,7 +15,11 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
-            cd /opt/fivem/server-data
+            cd /opt/fxserver/server-data
             git fetch origin main
             git reset --hard origin/main
-            bash /opt/fivem/scripts/restart.sh
+            npm install
+            node tests/run.js
+            systemctl restart fxserver
+            sleep 5
+            systemctl is-active fxserver && echo "Deploy OK - server running" || echo "ERROR - server failed to start"
