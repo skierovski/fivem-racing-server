@@ -152,13 +152,12 @@ Citizen.CreateThread(function()
                 end
             end
 
-            -- If opponent is beyond streaming range (~400m), GTA stops tracking them.
-            -- Report 999m so the server triggers the escape win.
+            -- If opponent is beyond streaming range (~400m), GTA can't track them.
             if closestDist >= 99999.0 then
                 closestDist = 999.0
             end
 
-            TriggerServerEvent('blacklist:reportDistance', closestDist)
+            TriggerServerEvent('blacklist:reportDistance', closestDist, math.min(closestDist, 400.0))
         end
     end
 end)

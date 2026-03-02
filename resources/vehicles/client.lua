@@ -32,19 +32,19 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     end
 
     local ped = PlayerPedId()
-    local spawnZ = z + 50.0
+    local spawnZ = z + 15.0
 
     SetEntityVisible(ped, true, false)
     SetEntityInvincible(ped, false)
 
-    -- Spawn vehicle high above target, freeze it while collision loads
+    -- Spawn vehicle above target, freeze it while collision loads
     local vehicle = CreateVehicle(hash, x, y, spawnZ, heading or 0.0, true, false)
     SetModelAsNoLongerNeeded(hash)
     FreezeEntityPosition(vehicle, true)
     TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
     -- Stream the area and load collision
-    SetFocusPosAndVel(x, y, spawnZ, 0.0, 0.0, 0.0)
+    SetFocusPosAndVel(x, y, z, 0.0, 0.0, 0.0)
     RequestCollisionAtCoord(x, y, z)
 
     timeout = GetGameTimer() + 8000
@@ -54,15 +54,16 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         if GetGameTimer() > timeout then break end
     end
 
-    -- Find solid ground
+    -- Find solid ground (probe from z+5 to avoid finding rooftops)
     local found, groundZ = false, z
-    for attempt = 1, 50 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 200.0, false)
-        if found then break end
+    for attempt = 1, 30 do
+        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 5.0, false)
+        if found and math.abs(groundZ - z) < 10.0 then break end
+        found = false
         Citizen.Wait(100)
     end
 
-    local finalZ = found and (groundZ + 1.0) or z
+    local finalZ = found and (groundZ + 0.5) or z
     SetEntityCoords(vehicle, x, y, finalZ, false, false, false, true)
     SetEntityHeading(vehicle, heading or 0.0)
     ClearFocus()

@@ -9,7 +9,7 @@ local ChaseConfig = {
     COUNTDOWN_DURATION = 3,
 
     ESCAPE_DISTANCE = 400.0,
-    ESCAPE_TIME = 3.0,
+    ESCAPE_TIME = 5.0,
 
     MAX_AIRBORNE_TIME = 2.0,
     RAM_SPEED_THRESHOLD = 30.0,
@@ -149,7 +149,7 @@ end
 -- ========================
 
 RegisterNetEvent('blacklist:reportDistance')
-AddEventHandler('blacklist:reportDistance', function(distance)
+AddEventHandler('blacklist:reportDistance', function(distance, displayDistance)
     local source = source
     local matchId = playerMatchMap[source]
     if not matchId then return end
@@ -163,11 +163,12 @@ AddEventHandler('blacklist:reportDistance', function(distance)
     end
     if not isChaser then return end
 
+    -- Show capped distance (max 400m) on HUD
     local allSources = getAllMatchSources(match)
     for _, src in ipairs(allSources) do
         TriggerClientEvent('blacklist:chaseHUD', src, {
             action = 'distance',
-            distance = distance,
+            distance = displayDistance or math.min(distance, 400),
         })
     end
 
