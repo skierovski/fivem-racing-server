@@ -90,11 +90,13 @@ RegisterNUICallback('closeMenu', function(data, cb)
 end)
 
 RegisterNUICallback('joinRanked', function(data, cb)
+    TriggerEvent('blacklist:enableGhostMode', false)
     TriggerServerEvent('blacklist:joinQueue', 'ranked', data.crossTier == true)
     cb({})
 end)
 
 RegisterNUICallback('joinNormalChase', function(data, cb)
+    TriggerEvent('blacklist:enableGhostMode', false)
     TriggerServerEvent('blacklist:joinQueue', 'normal')
     cb({})
 end)

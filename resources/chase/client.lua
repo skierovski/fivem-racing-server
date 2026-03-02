@@ -34,6 +34,9 @@ AddEventHandler('blacklist:chaseCountdown', function(seconds)
     exports.base:SetPlayerState('in_match')
     SendNUIMessage({ action = 'countdown', seconds = seconds })
 
+    -- Kill the freeroam ghost threads (root cause of blinking ghost)
+    TriggerEvent('blacklist:enableGhostMode', false)
+
     -- Aggressive one-time ghost cleanup on match start
     local myPed = PlayerPedId()
     local myVehicle = GetVehiclePedIsIn(myPed, false)
