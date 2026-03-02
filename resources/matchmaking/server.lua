@@ -223,10 +223,8 @@ function processRankedQueue()
             end
 
             if mmrDiff <= maxRange then
-                local aIsChaser = (a.chases or 0) <= (a.escapes or 0)
-
                 local chaser, runner
-                if aIsChaser then
+                if math.random(2) == 1 then
                     chaser = a
                     runner = b
                 else
@@ -241,8 +239,8 @@ function processRankedQueue()
                 playerStates[chaser.source] = 'in_match'
                 playerStates[runner.source] = 'in_match'
 
-                -- Determine forced tier for cross-tier matches (use lower tier)
-                local forceTier = nil
+                -- Force tier-locked vehicles: same tier uses own tier, cross-tier uses lower
+                local forceTier = chaser.tier
                 if isCrossTier then
                     local chaserIdx = TIER_INDEX[chaser.tier] or 1
                     local runnerIdx = TIER_INDEX[runner.tier] or 1

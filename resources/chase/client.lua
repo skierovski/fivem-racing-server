@@ -182,7 +182,7 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Traffic suppression + vehicle exit block + ghost mode reset
+-- Traffic suppression + vehicle exit block + ghost nuke
 -- Runs every frame during match
 -- ========================
 
@@ -206,24 +206,15 @@ Citizen.CreateThread(function()
 
             DisableControlAction(0, 75, true)  -- F (exit vehicle)
             DisableControlAction(0, 23, true)  -- F (enter vehicle)
-        end
-    end
-end)
 
--- ========================
--- Ghost mode reset: restore alpha + collision for all players during match
--- ========================
-
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(500)
-
-        if isInMatch then
+            -- Per-frame ghost nuke: force full visibility + collision on ALL entities
             local myPed = PlayerPedId()
             local myVehicle = GetVehiclePedIsIn(myPed, false)
 
+            SetEntityAlpha(myPed, 255, false)
             SetEntityCollision(myPed, true, true)
             if myVehicle ~= 0 then
+                SetEntityAlpha(myVehicle, 255, false)
                 SetEntityCollision(myVehicle, true, true)
             end
 
@@ -231,12 +222,12 @@ Citizen.CreateThread(function()
                 if playerId ~= PlayerId() then
                     local otherPed = GetPlayerPed(playerId)
                     if otherPed ~= 0 then
-                        ResetEntityAlpha(otherPed)
+                        SetEntityAlpha(otherPed, 255, false)
                         SetEntityCollision(otherPed, true, true)
 
                         local otherVehicle = GetVehiclePedIsIn(otherPed, false)
                         if otherVehicle ~= 0 then
-                            ResetEntityAlpha(otherVehicle)
+                            SetEntityAlpha(otherVehicle, 255, false)
                             SetEntityCollision(otherVehicle, true, true)
                         end
                     end
