@@ -14,13 +14,12 @@ local Config = {
     MATCH_CHECK_INTERVAL = 3000, -- ms between queue checks
 }
 
--- Queue storage
-local rankedQueue = {} -- { source, identifier, mmr, tier, joinedAt, searchRange }
-local normalRunnerQueue = {} -- { source, identifier, mmr, tier }
-local normalChaserQueue = {} -- { source, identifier, mmr, tier }
+-- Queue storage (unified: no separate runner/chaser queues)
+local rankedQueue = {} -- { source, identifier, mmr, tier, crossTier, chases, escapes, joinedAt, searchRange }
+local normalQueue = {}  -- { source, identifier, mmr, tier, chases, escapes }
 
 -- Player states
-local playerStates = {} -- [source] = 'menu' | 'ranked_queue' | 'normal_runner_queue' | 'normal_chaser_queue' | 'in_match' | 'freeroam'
+local playerStates = {} -- [source] = 'menu' | 'ranked_queue' | 'normal_queue' | 'in_match' | 'freeroam'
 
 -- Shared chase locations for both ranked and normal mode (tester-provided coords)
 local CHASE_LOCATIONS = {
@@ -126,13 +125,11 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
-    -- Prevent double-queue
     if playerStates[source] and playerStates[source] ~= 'menu' then
         TriggerClientEvent('blacklist:queueUpdate', source, { status = 'error', message = 'Already in queue or match' })
         return
     end
 
-    -- Get player data from DB
     exports.oxmysql:execute(
         'SELECT mmr, tier, chases_played, escapes_played FROM players WHERE identifier = ?',
         { identifier },
@@ -155,47 +152,26 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
                 playerStates[source] = 'ranked_queue'
                 TriggerClientEvent('blacklist:queueUpdate', source, {
                     status = 'waiting',
-                    message = crossTier and 'Searching for cross-tier opponent...' or 'Searching for ranked opponent...'
+                    message = 'Searching for match...'
                 })
-                print(('[Matchmaking] %s joined ranked queue (MMR: %d, crossTier: %s)'):format(
-                    GetPlayerName(source), player.mmr, tostring(crossTier == true)))
+                print(('[Matchmaking] %s joined ranked queue (MMR: %d, tier: %s, crossTier: %s)'):format(
+                    GetPlayerName(source), player.mmr, player.tier, tostring(crossTier == true)))
 
             elseif mode == 'normal' then
-                -- Assign role based on lifetime balance (fewer escapes = runner)
-                local isRunner = (player.escapes_played or 0) <= (player.chases_played or 0)
-
-                -- If no runners in queue, force runner
-                if #normalRunnerQueue == 0 then
-                    isRunner = true
-                end
-
-                if isRunner then
-                    table.insert(normalRunnerQueue, {
-                        source = source,
-                        identifier = identifier,
-                        mmr = player.mmr,
-                        tier = player.tier,
-                    })
-                    playerStates[source] = 'normal_runner_queue'
-                    TriggerClientEvent('blacklist:queueUpdate', source, {
-                        status = 'waiting',
-                        message = 'Waiting as runner... need chasers'
-                    })
-                else
-                    table.insert(normalChaserQueue, {
-                        source = source,
-                        identifier = identifier,
-                        mmr = player.mmr,
-                        tier = player.tier,
-                    })
-                    playerStates[source] = 'normal_chaser_queue'
-                    TriggerClientEvent('blacklist:queueUpdate', source, {
-                        status = 'waiting',
-                        message = 'Waiting as chaser... need runner'
-                    })
-                end
-                print(('[Matchmaking] %s joined normal queue as %s'):format(
-                    GetPlayerName(source), isRunner and 'runner' or 'chaser'))
+                table.insert(normalQueue, {
+                    source = source,
+                    identifier = identifier,
+                    mmr = player.mmr,
+                    tier = player.tier,
+                    chases = player.chases_played or 0,
+                    escapes = player.escapes_played or 0,
+                })
+                playerStates[source] = 'normal_queue'
+                TriggerClientEvent('blacklist:queueUpdate', source, {
+                    status = 'waiting',
+                    message = 'Searching for match...'
+                })
+                print(('[Matchmaking] %s joined normal queue'):format(GetPlayerName(source)))
             end
         end
     )
@@ -228,12 +204,37 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- ========================
+-- Role assignment: scaled 50/50 balance
+-- ========================
+
+function assignRoles(a, b)
+    local aTotal = (a.chases or 0) + (a.escapes or 0)
+    local bTotal = (b.chases or 0) + (b.escapes or 0)
+
+    local aEscRatio = aTotal > 0 and (a.escapes / aTotal) or 0.5
+    local bEscRatio = bTotal > 0 and (b.escapes / bTotal) or 0.5
+
+    -- diff > 0 means A has escaped more → A should chase
+    local diff = aEscRatio - bEscRatio
+    local chanceAChases = math.max(0.10, math.min(0.90, 0.5 + diff * 0.8))
+
+    if math.random() < chanceAChases then
+        return a, b  -- a = chaser, b = runner
+    else
+        return b, a  -- b = chaser, a = runner
+    end
+end
+
+-- ========================
+-- Queue processing
+-- ========================
+
 function processRankedQueue()
     if #rankedQueue < 2 then return end
 
     local now = GetGameTimer()
 
-    -- Expand search range for players waiting long
     for _, entry in ipairs(rankedQueue) do
         local waitTime = now - entry.joinedAt
         local expansions = math.floor(waitTime / Config.RANKED_EXPAND_INTERVAL)
@@ -243,7 +244,10 @@ function processRankedQueue()
         )
     end
 
-    -- Try to find a match
+    -- Score all valid pairs, pick the best one
+    local bestPair = nil
+    local bestScore = math.huge
+
     for i = 1, #rankedQueue do
         for j = i + 1, #rankedQueue do
             local a = rankedQueue[i]
@@ -251,71 +255,80 @@ function processRankedQueue()
 
             local mmrDiff = math.abs(a.mmr - b.mmr)
             local maxRange = math.max(a.searchRange, b.searchRange)
+
+            if mmrDiff > maxRange then goto continue end
+
             local sameTier = a.tier == b.tier
             local isCrossTier = false
 
             if not sameTier then
-                local aTierIdx = TIER_INDEX[a.tier] or 1
-                local bTierIdx = TIER_INDEX[b.tier] or 1
-                local tierGap = math.abs(aTierIdx - bTierIdx)
-
-                -- Cross-tier only allowed if gap is 1 and both players opted in
-                if tierGap == 1 and a.crossTier and b.crossTier then
+                if a.crossTier and b.crossTier then
                     isCrossTier = true
                 else
                     goto continue
                 end
             end
 
-            if mmrDiff <= maxRange then
-                local chaser, runner
-                if math.random(2) == 1 then
-                    chaser = a
-                    runner = b
-                else
-                    chaser = b
-                    runner = a
-                end
+            -- Lower score = better match; same-tier strongly preferred
+            local score = mmrDiff + (isCrossTier and 1000 or 0)
 
-                -- Remove from queue
-                table.remove(rankedQueue, math.max(i, j))
-                table.remove(rankedQueue, math.min(i, j))
-
-                playerStates[chaser.source] = 'in_match'
-                playerStates[runner.source] = 'in_match'
-
-                -- Force tier-locked vehicles: same tier uses own tier, cross-tier uses lower
-                local forceTier = chaser.tier
-                if isCrossTier then
-                    local chaserIdx = TIER_INDEX[chaser.tier] or 1
-                    local runnerIdx = TIER_INDEX[runner.tier] or 1
-                    forceTier = chaserIdx < runnerIdx and chaser.tier or runner.tier
-                end
-
-                startRankedMatch(chaser, runner, isCrossTier, forceTier)
-                return
+            if score < bestScore then
+                bestScore = score
+                bestPair = { i = i, j = j, a = a, b = b, isCrossTier = isCrossTier }
             end
 
             ::continue::
         end
     end
+
+    if not bestPair then return end
+
+    local chaser, runner = assignRoles(bestPair.a, bestPair.b)
+
+    table.remove(rankedQueue, math.max(bestPair.i, bestPair.j))
+    table.remove(rankedQueue, math.min(bestPair.i, bestPair.j))
+
+    playerStates[chaser.source] = 'in_match'
+    playerStates[runner.source] = 'in_match'
+
+    local forceTier = chaser.tier
+    if bestPair.isCrossTier then
+        local chaserIdx = TIER_INDEX[chaser.tier] or 1
+        local runnerIdx = TIER_INDEX[runner.tier] or 1
+        forceTier = chaserIdx < runnerIdx and chaser.tier or runner.tier
+    end
+
+    startRankedMatch(chaser, runner, bestPair.isCrossTier, forceTier)
 end
 
 function processNormalQueue()
-    if #normalRunnerQueue == 0 or #normalChaserQueue == 0 then return end
+    local minPlayers = Config.NORMAL_MIN_CHASERS + 1
+    if #normalQueue < minPlayers then return end
 
-    local runner = normalRunnerQueue[1]
-    local chasers = {}
+    -- Pick the player with the highest escape ratio as runner (needs more chasing,
+    -- but as runner they give others chaser roles → system balances overall)
+    local bestRunnerIdx = 1
+    local bestRunnerScore = -1
 
-    local numChasers = math.min(#normalChaserQueue, Config.NORMAL_MAX_CHASERS)
-    for i = 1, numChasers do
-        table.insert(chasers, normalChaserQueue[i])
+    for i, p in ipairs(normalQueue) do
+        local total = (p.chases or 0) + (p.escapes or 0)
+        local escRatio = total > 0 and (p.escapes / total) or 0.5
+        -- Invert: player who has CHASED the most (lowest escRatio) should be runner
+        local runnerScore = 1 - escRatio
+        -- Add small random jitter for variety
+        runnerScore = runnerScore + math.random() * 0.15
+        if runnerScore > bestRunnerScore then
+            bestRunnerScore = runnerScore
+            bestRunnerIdx = i
+        end
     end
 
-    -- Remove matched players
-    table.remove(normalRunnerQueue, 1)
-    for i = numChasers, 1, -1 do
-        table.remove(normalChaserQueue, i)
+    local runner = table.remove(normalQueue, bestRunnerIdx)
+
+    local numChasers = math.min(#normalQueue, Config.NORMAL_MAX_CHASERS)
+    local chasers = {}
+    for i = 1, numChasers do
+        table.insert(chasers, table.remove(normalQueue, 1))
     end
 
     playerStates[runner.source] = 'in_match'
@@ -361,9 +374,8 @@ function startRankedMatch(chaser, runner, isCrossTier, forceTier)
 
     TriggerEvent('blacklist:startChaseMatch', matchData)
 
-    local ctMsg = isCrossTier and ' (CROSS-TIER)' or ''
-    TriggerClientEvent('blacklist:queueUpdate', chaser.source, { status = 'matched', message = 'Match found! You are the CHASER' .. ctMsg })
-    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found! You are the RUNNER' .. ctMsg })
+    TriggerClientEvent('blacklist:queueUpdate', chaser.source, { status = 'matched', message = 'Match found!' })
+    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found!' })
 
     print(('[Matchmaking] Ranked match%s at %s: %s (%s chaser, %d MMR) vs %s (%s runner, %d MMR)%s'):format(
         isCrossTier and ' [CROSS-TIER]' or '', loc.name,
@@ -396,9 +408,9 @@ function startNormalChaseMatch(runner, chasers)
 
     TriggerEvent('blacklist:startChaseMatch', matchData)
 
-    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Chase at ' .. loc.name .. '! You are the RUNNER' })
+    TriggerClientEvent('blacklist:queueUpdate', runner.source, { status = 'matched', message = 'Match found!' })
     for _, c in ipairs(chasers) do
-        TriggerClientEvent('blacklist:queueUpdate', c.source, { status = 'matched', message = 'Chase at ' .. loc.name .. '! You are a CHASER' })
+        TriggerClientEvent('blacklist:queueUpdate', c.source, { status = 'matched', message = 'Match found!' })
     end
 
     print(('[Matchmaking] Normal chase at %s: 1 runner vs %d chasers'):format(loc.name, #chasers))
@@ -446,14 +458,9 @@ function removeFromAllQueues(source)
             table.remove(rankedQueue, i)
         end
     end
-    for i = #normalRunnerQueue, 1, -1 do
-        if normalRunnerQueue[i].source == source then
-            table.remove(normalRunnerQueue, i)
-        end
-    end
-    for i = #normalChaserQueue, 1, -1 do
-        if normalChaserQueue[i].source == source then
-            table.remove(normalChaserQueue, i)
+    for i = #normalQueue, 1, -1 do
+        if normalQueue[i].source == source then
+            table.remove(normalQueue, i)
         end
     end
 end

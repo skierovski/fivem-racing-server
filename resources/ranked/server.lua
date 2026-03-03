@@ -15,15 +15,6 @@ local RankedConfig = {
         { name = 'blacklist', min = 2500, max = 99999 },
     },
 
-    TIER_FLOORS = {
-        bronze   = 0,
-        silver   = 500,
-        gold     = 1000,
-        platinum = 1500,
-        diamond  = 2000,
-        blacklist = 2500,
-    },
-
     BLACKLIST_SIZE = 20,
 }
 
@@ -120,12 +111,6 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
 
             local newWinnerMMR = math.max(winner.mmr + gain, RankedConfig.MIN_MMR)
             local newLoserMMR = math.max(loser.mmr + loss, RankedConfig.MIN_MMR)
-
-            -- Enforce tier floor: player cannot drop below their tier's min MMR
-            local loserFloor = RankedConfig.TIER_FLOORS[loser.tier] or 0
-            if newLoserMMR < loserFloor then
-                newLoserMMR = loserFloor
-            end
 
             local newWinnerTier = GetTierForMMR(newWinnerMMR)
             local newLoserTier = GetTierForMMR(newLoserMMR)
