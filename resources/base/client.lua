@@ -139,6 +139,53 @@ RegisterCommand('coords', function()
     print(('^3[coords]^0 vector4(%.2f, %.2f, %.2f, %.2f)'):format(pos.x, pos.y, pos.z, heading))
 end, false)
 
+-- /weather and /time commands for testing
+RegisterCommand('weather', function(source, args)
+    local w = (args[1] or 'EXTRASUNNY'):upper()
+    SetWeatherTypeNowPersist(w)
+    SetWeatherTypeNow(w)
+    print('^3[weather]^0 Set to ^5' .. w .. '^0')
+end, false)
+
+RegisterCommand('time', function(source, args)
+    local h = tonumber(args[1]) or 12
+    local m = tonumber(args[2]) or 0
+    NetworkOverrideClockTime(h, m, 0)
+    print('^3[time]^0 Set to ^5' .. h .. ':' .. string.format('%02d', m) .. '^0')
+end, false)
+
+Citizen.CreateThread(function()
+    SetWeatherTypeNowPersist('EXTRASUNNY')
+    NetworkOverrideClockTime(12, 0, 0)
+end)
+
+-- Keep weather/time locked every frame
+local forcedWeather = 'EXTRASUNNY'
+local forcedHour = 12
+local forcedMinute = 0
+
+RegisterCommand('setweather', function(source, args)
+    forcedWeather = (args[1] or 'EXTRASUNNY'):upper()
+    SetWeatherTypeNowPersist(forcedWeather)
+    SetWeatherTypeNow(forcedWeather)
+    print('^3[weather]^0 Locked to ^5' .. forcedWeather .. '^0')
+end, false)
+
+RegisterCommand('settime', function(source, args)
+    forcedHour = tonumber(args[1]) or 12
+    forcedMinute = tonumber(args[2]) or 0
+    NetworkOverrideClockTime(forcedHour, forcedMinute, 0)
+    print('^3[time]^0 Locked to ^5' .. forcedHour .. ':' .. string.format('%02d', forcedMinute) .. '^0')
+end, false)
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(5000)
+        SetWeatherTypeNowPersist(forcedWeather)
+        NetworkOverrideClockTime(forcedHour, forcedMinute, 0)
+    end
+end)
+
 -- Disable wanted level + keep health/armor bars hidden
 Citizen.CreateThread(function()
     while true do

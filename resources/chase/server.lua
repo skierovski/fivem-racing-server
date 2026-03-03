@@ -163,30 +163,33 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance)
     end
     if not isChaser then return end
 
-    -- Show capped distance (max 400m) on HUD
-    local allSources = getAllMatchSources(match)
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseHUD', src, {
-            action = 'distance',
-            distance = displayDistance or math.min(distance, 400),
-        })
-    end
-
     if distance <= ChaseConfig.CATCH_DISTANCE then
         match.catchTimer = match.catchTimer + 0.5
         match.escapeTimer = 0
         if match.catchTimer >= ChaseConfig.CATCH_TIME then
             endMatch(matchId, 'chaser', 'caught')
+            return
         end
     elseif distance >= ChaseConfig.ESCAPE_DISTANCE then
         match.catchTimer = 0
         match.escapeTimer = match.escapeTimer + 0.5
         if match.escapeTimer >= ChaseConfig.ESCAPE_TIME then
             endMatch(matchId, 'runner', 'escaped')
+            return
         end
     else
         match.catchTimer = 0
         match.escapeTimer = 0
+    end
+
+    local allSources = getAllMatchSources(match)
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseHUD', src, {
+            action = 'distance',
+            distance = displayDistance or math.min(distance, 400),
+            catchProgress = match.catchTimer / ChaseConfig.CATCH_TIME,
+            escapeProgress = match.escapeTimer / ChaseConfig.ESCAPE_TIME,
+        })
     end
 end)
 

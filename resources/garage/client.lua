@@ -77,12 +77,13 @@ AddEventHandler('blacklist:enterGarage', function(model)
     local ped = PlayerPedId()
 
     DoScreenFadeOut(400)
-    Citizen.Wait(500)
+    while not IsScreenFadedOut() do Citizen.Wait(10) end
 
-    -- Hide the player and move near Benny's so streaming kicks in immediately
+    -- Hide ped and park it at the skybox (far from the garage) so it's never visible
     SetEntityVisible(ped, false, false)
+    SetEntityAlpha(ped, 0, false)
     FreezeEntityPosition(ped, true)
-    SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 5.0, false, false, false, true)
+    SetEntityCoords(ped, -75.0, -818.0, 326.0, false, false, false, true)
 
     -- Kick off IPL + scene pre-stream + collision all at once (parallel requests)
     RequestIpl(BENNYS_IPL)
@@ -111,9 +112,9 @@ AddEventHandler('blacklist:enterGarage', function(model)
         RefreshInterior(interior)
     end
 
-    -- Collision (often already loaded from parallel request above)
+    -- Collision via coord request (ped is at skybox, so use timer-based wait)
     deadline = GetGameTimer() + 3000
-    while not HasCollisionLoadedAroundEntity(ped) and GetGameTimer() < deadline do
+    while GetGameTimer() < deadline do
         RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
         Citizen.Wait(50)
     end
@@ -162,7 +163,8 @@ AddEventHandler('blacklist:enterGarage', function(model)
     -- Request tuning data from server
     TriggerServerEvent('blacklist:requestTuningData', model)
 
-    Citizen.Wait(300)
+    -- Wait for camera transition (500ms ease) to finish before revealing
+    Citizen.Wait(600)
     DoScreenFadeIn(500)
 end)
 
@@ -517,6 +519,7 @@ function exitGarage()
     ClearFocus()
     local ped = PlayerPedId()
     SetEntityVisible(ped, true, false)
+    ResetEntityAlpha(ped)
     FreezeEntityPosition(ped, false)
 
     isInGarage = false
