@@ -7,6 +7,8 @@ local isFreeroamMenuOpen = false
 
 RegisterNetEvent('blacklist:enterFreeRoamClient')
 AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
+    isFreeroamMenuOpen = false
+
     local ped = PlayerPedId()
     local x, y, z, heading = spawn.x, spawn.y, spawn.z, spawn.heading
 
@@ -66,6 +68,9 @@ end)
 RegisterNetEvent('blacklist:enableGhostMode')
 AddEventHandler('blacklist:enableGhostMode', function(enable)
     isInFreeRoam = enable
+    if not enable and isFreeroamMenuOpen then
+        closeFreeroamMenu()
+    end
 end)
 
 -- ========================
@@ -202,47 +207,51 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Player name tags above heads
+-- Player name tags above heads (3D text, drawn per-frame)
 -- ========================
 
-local gamerTags = {}
+local NAME_TAG_MAX_DIST = 30.0
+
+local function drawText3D(x, y, z, text, scale)
+    local onScreen, sx, sy = World3dToScreen2d(x, y, z)
+    if not onScreen then return end
+
+    SetTextScale(scale, scale)
+    SetTextFont(4)
+    SetTextProportional(true)
+    SetTextColour(255, 255, 255, 215)
+    SetTextDropshadow(0, 0, 0, 0, 255)
+    SetTextEdge(2, 0, 0, 0, 150)
+    SetTextOutline()
+    SetTextCentre(true)
+    SetTextEntry('STRING')
+    AddTextComponentString(text)
+    DrawText(sx, sy)
+end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(500)
+        Citizen.Wait(0)
 
         if isInFreeRoam then
-            local activePlayers = {}
+            local myCoords = GetEntityCoords(PlayerPedId())
 
             for _, playerId in ipairs(GetActivePlayers()) do
                 if playerId ~= PlayerId() then
-                    local serverId = GetPlayerServerId(playerId)
-                    activePlayers[serverId] = true
-
                     local otherPed = GetPlayerPed(playerId)
-                    if otherPed ~= 0 then
-                        if not gamerTags[serverId] or not IsMpGamerTagActive(gamerTags[serverId]) then
+                    if otherPed ~= 0 and not IsEntityDead(otherPed) then
+                        local coords = GetEntityCoords(otherPed)
+                        local dist = #(myCoords - coords)
+
+                        if dist < NAME_TAG_MAX_DIST then
                             local name = GetPlayerName(playerId)
-                            gamerTags[serverId] = CreateMpGamerTagWithCrewColor(otherPed, name or 'Player', false, false, '', 0, 0, 0, 0)
+                            local zOff = GetVehiclePedIsIn(otherPed, false) ~= 0 and 1.5 or 1.0
+                            local alpha = dist < 20.0 and 1.0 or (1.0 - (dist - 20.0) / 10.0)
+                            drawText3D(coords.x, coords.y, coords.z + zOff, name or 'Player', 0.35 * alpha)
                         end
-                        SetMpGamerTagVisibility(gamerTags[serverId], 0, true)
                     end
                 end
             end
-
-            -- Clean up tags for players who left
-            for serverId, tag in pairs(gamerTags) do
-                if not activePlayers[serverId] then
-                    RemoveMpGamerTag(tag)
-                    gamerTags[serverId] = nil
-                end
-            end
-        else
-            -- Clean up all tags when not in freeroam
-            for serverId, tag in pairs(gamerTags) do
-                RemoveMpGamerTag(tag)
-            end
-            gamerTags = {}
         end
     end
 end)
@@ -260,6 +269,10 @@ Citizen.CreateThread(function()
 
             local ped = PlayerPedId()
             if IsEntityDead(ped) then
+                if isFreeroamMenuOpen then
+                    closeFreeroamMenu()
+                end
+
                 DoScreenFadeOut(300)
                 Citizen.Wait(500)
 

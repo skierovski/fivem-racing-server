@@ -12,6 +12,10 @@
     const hudTimer = document.getElementById('hudTimer');
     const hudRole = document.getElementById('hudRole');
     const distanceValue = document.getElementById('distanceValue');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressFill = document.getElementById('progressFill');
+    const progressTime = document.getElementById('progressTime');
     const warningPopup = document.getElementById('warningPopup');
     const warningText = document.getElementById('warningText');
     const matchEnd = document.getElementById('matchEnd');
@@ -19,6 +23,11 @@
     const endDetails = document.getElementById('endDetails');
 
     let warningTimeout = null;
+    let progressHideTimeout = null;
+    let currentRole = null;
+
+    const CATCH_TIME = 9.0;
+    const ESCAPE_TIME = 5.0;
 
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
@@ -31,6 +40,7 @@
         roleAnnounce.classList.add('hidden');
         headstartBanner.classList.add('hidden');
         chaseHud.classList.add('hidden');
+        progressContainer.classList.add('hidden');
         warningPopup.classList.add('hidden');
         matchEnd.classList.add('hidden');
     }
@@ -95,6 +105,7 @@
                 headstartBanner.classList.add('hidden');
                 chaseHud.classList.remove('hidden');
 
+                currentRole = data.role;
                 hudRole.textContent = data.role === 'runner' ? 'RUNNER' : 'CHASER';
                 hudRole.className = 'hud-role ' + data.role;
                 hudTimer.textContent = formatTime(data.duration);
@@ -110,6 +121,37 @@
 
             case 'distance': {
                 distanceValue.textContent = data.distance;
+
+                const cp = data.catchProgress || 0;
+                const ep = data.escapeProgress || 0;
+
+                if (cp > 0) {
+                    progressContainer.classList.remove('hidden');
+                    progressFill.className = 'progress-fill catch';
+                    progressFill.style.width = (cp * 100) + '%';
+                    progressLabel.textContent = currentRole === 'chaser' ? 'CATCHING' : 'BEING CAUGHT';
+                    progressTime.textContent = (cp * CATCH_TIME).toFixed(1) + 's / ' + CATCH_TIME.toFixed(1) + 's';
+
+                    if (progressHideTimeout) clearTimeout(progressHideTimeout);
+                    progressHideTimeout = null;
+                } else if (ep > 0) {
+                    progressContainer.classList.remove('hidden');
+                    progressFill.className = 'progress-fill escape';
+                    progressFill.style.width = (ep * 100) + '%';
+                    progressLabel.textContent = currentRole === 'runner' ? 'ESCAPING' : 'RUNNER ESCAPING';
+                    progressTime.textContent = (ep * ESCAPE_TIME).toFixed(1) + 's / ' + ESCAPE_TIME.toFixed(1) + 's';
+
+                    if (progressHideTimeout) clearTimeout(progressHideTimeout);
+                    progressHideTimeout = null;
+                } else {
+                    progressFill.style.width = '0%';
+                    if (!progressHideTimeout) {
+                        progressHideTimeout = setTimeout(() => {
+                            progressContainer.classList.add('hidden');
+                            progressHideTimeout = null;
+                        }, 800);
+                    }
+                }
                 break;
             }
 
