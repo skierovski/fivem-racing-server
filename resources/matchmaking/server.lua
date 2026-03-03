@@ -77,8 +77,37 @@ for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
 
 -- Cache of models per tier for random car selection in ranked
 local tierModels = {}
+
+local TIER_ASSIGNMENTS = {
+    bronze    = { 'gb_cometcl', 'rh4', 'ballerc', 'futo' },
+    silver    = { 'gb_cometclf', 'gb_retinueloz', 'gb_schrauber' },
+    gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gb_gresleystx' },
+    platinum  = { 'gb_argento7f', 'gb_solace', 'gb_sultanrsx' },
+    diamond   = { 'gb_tr3s' },
+    blacklist = { 'gsttoros1', 'gb_comets2r' },
+}
+
 Citizen.CreateThread(function()
     Citizen.Wait(2000)
+
+    -- Auto-apply tier assignments so DB is always in sync with code
+    exports.oxmysql:execute('UPDATE vehicle_catalog SET tier = ? WHERE tier != ?', { 'custom', 'custom' })
+    Citizen.Wait(200)
+    for tier, models in pairs(TIER_ASSIGNMENTS) do
+        local placeholders = {}
+        for _ in ipairs(models) do table.insert(placeholders, '?') end
+        local params = { tier }
+        for _, m in ipairs(models) do table.insert(params, m) end
+        exports.oxmysql:execute(
+            'UPDATE vehicle_catalog SET tier = ? WHERE model IN (' .. table.concat(placeholders, ',') .. ')',
+            params
+        )
+    end
+    print('[Matchmaking] ^2Tier assignments synced to DB^0')
+
+    Citizen.Wait(500)
+
+    -- Now cache the result
     exports.oxmysql:execute(
         'SELECT model, tier FROM vehicle_catalog WHERE tier != ?', { 'custom' },
         function(result)

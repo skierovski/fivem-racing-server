@@ -17,7 +17,7 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`) VALUES
 ('callista', 'Callista', 'custom', 'classic'),
 ('coqvice', 'Coquette Vice', 'custom', 'classic'),
 ('espexecutive', 'Esperanto Executive', 'custom', 'classic'),
-('rh4', 'Annis RH4', 'custom', 'classic'),
+('rh4', 'Annis RH4', 'bronze', 'classic'),
 ('turismo2lm', 'Turismo LM', 'custom', 'classic'),
 -- Muscle
 ('gauntlets', 'Gauntlet S', 'custom', 'muscle'),
@@ -25,7 +25,7 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`) VALUES
 ('vulture', 'Vulture', 'custom', 'muscle'),
 -- Sedany (Sedans)
 ('asteropers', 'Asterope RS', 'custom', 'sedan'),
-('buffaloh', 'Buffalo S Hellhound', 'custom', 'sedan'),
+('buffaloh', 'Buffalo S Hellhound', 'gold', 'sedan'),
 ('cypherct', 'Cypher Hatchback', 'custom', 'sedan'),
 ('sentinelp', 'Sentinel Sedan', 'custom', 'sedan'),
 ('superd3', 'Super Diamond', 'custom', 'sedan'),
@@ -37,13 +37,13 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`) VALUES
 ('buffalo4h', 'Buffalo Hellfire', 'custom', 'sports'),
 ('estancia', 'Estancia', 'custom', 'sports'),
 ('gauntletctx', 'Hellfire CTX', 'custom', 'sports'),
-('jester5', 'Jester', 'custom', 'sports'),
+('jester5', 'Jester', 'gold', 'sports'),
 ('paragonxr', 'Paragon FR', 'custom', 'sports'),
 ('pentro', 'Pentro', 'custom', 'sports'),
 ('revolutionw', 'Revolucion', 'custom', 'sports'),
 ('elegyrh5', 'RH5', 'custom', 'sports'),
 ('elegyx', 'RH8-X', 'custom', 'sports'),
-('roxanne', 'Roxanne', 'custom', 'sports'),
+('roxanne', 'Roxanne', 'gold', 'sports'),
 ('schlagenstr', 'Schlagen STR', 'custom', 'sports'),
 ('remustwo', 'Remus Two', 'custom', 'sports'),
 ('sultanrsv8', 'Sultan RS V8', 'custom', 'sports'),
@@ -59,7 +59,7 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`) VALUES
 ('tempestafr', 'Tempesta FR', 'custom', 'super'),
 -- SUVs
 ('nscout', '2020 Scout', 'custom', 'suv'),
-('ballerc', 'Baller Classic', 'custom', 'suv'),
+('ballerc', 'Baller Classic', 'bronze', 'suv'),
 ('dubsta22', 'Dubsta 22', 'custom', 'suv'),
 ('gresleyh', 'Gresley Hell', 'custom', 'suv'),
 -- Terenowe (Off-road)
@@ -76,7 +76,7 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`) VALUES
 ('gstsadlt1', 'GST Sadler T1', 'custom', 'offroad'),
 ('gstsg71', 'GST SG71', 'custom', 'sports'),
 ('pbbgtsj', 'PBB GTS J', 'custom', 'sports'),
-('sent6', 'Sentinel 6', 'custom', 'sports'),
-('gsttoros1', 'GST Toros', 'custom', 'suv'),
+('sent6', 'Sentinel 6', 'gold', 'sports'),
+('gsttoros1', 'GST Toros', 'blacklist', 'suv'),
 ('hycrh7', 'RH7 HYC', 'custom', 'sports')
 ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `tier` = VALUES(`tier`);

@@ -19,6 +19,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             npm install
+            if [ -f sql/update_tiers.sql ]; then
+              mysql -u "$DB_USER" -p"$DB_PASS" blacklist_racing < sql/update_tiers.sql && echo "SQL tier migration applied" || echo "SQL migration skipped (non-fatal)"
+            fi
             node tests/run.js
             systemctl restart fxserver
             sleep 5

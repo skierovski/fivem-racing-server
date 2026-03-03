@@ -130,54 +130,36 @@ CREATE TABLE IF NOT EXISTS `vehicle_catalog` (
     INDEX `idx_tier` (`tier`)
 ) ENGINE=InnoDB;
 
--- Seed vehicle catalog
+-- Seed vehicle catalog (ranked tier cars only; addon cars are in separate SQL files)
 INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`, `top_speed`) VALUES
--- Bronze tier (street cars, slower)
-('futo', 'Karin Futo', 'bronze', 'sports', 125.0),
-('sultan', 'Karin Sultan', 'bronze', 'sports', 130.0),
-('blista', 'Dinka Blista', 'bronze', 'compact', 120.0),
-('penumbra', 'Maibatsu Penumbra', 'bronze', 'sports', 128.0),
-('prairie', 'Bollokan Prairie', 'bronze', 'compact', 122.0),
-('kuruma', 'Karin Kuruma', 'bronze', 'sports', 132.0),
+-- Bronze (~105 mph)
+('gb_cometcl', 'Comet Classic', 'bronze', 'sports', 105.0),
+('rh4', 'Annis RH4', 'bronze', 'classic', 105.0),
+('ballerc', 'Baller Classic', 'bronze', 'suv', 105.0),
+('futo', 'Karin Futo', 'bronze', 'sports', 105.0),
 
--- Silver tier
-('feltzer2', 'Benefactor Feltzer', 'silver', 'sports', 140.0),
-('jester', 'Dinka Jester', 'silver', 'sports', 145.0),
-('massacro', 'Dewbauchee Massacro', 'silver', 'sports', 143.0),
-('elegy2', 'Annis Elegy RH8', 'silver', 'sports', 142.0),
-('carbonizzare', 'Grotti Carbonizzare', 'silver', 'sports', 144.0),
-('comet2', 'Pfister Comet', 'silver', 'sports', 141.0),
+-- Silver (~115 mph)
+('gb_cometclf', 'Comet Classic Florio', 'silver', 'sports', 115.0),
+('gb_retinueloz', 'Retinue Loz', 'silver', 'sports', 115.0),
+('gb_schrauber', 'Schrauber', 'silver', 'sports', 115.0),
 
--- Gold tier
-('schafter3', 'Benefactor Schafter V12', 'gold', 'sports', 155.0),
-('surano', 'Benefactor Surano', 'gold', 'sports', 152.0),
-('ninef', 'Obey 9F', 'gold', 'sports', 150.0),
-('rapidgt', 'Dewbauchee Rapid GT', 'gold', 'sports', 153.0),
-('coquette', 'Invetero Coquette', 'gold', 'sports', 156.0),
-('banshee', 'Bravado Banshee', 'gold', 'sports', 158.0),
+-- Gold (~125 mph)
+('roxanne', 'Roxanne', 'gold', 'sports', 125.0),
+('buffaloh', 'Buffalo S Hellhound', 'gold', 'sedan', 125.0),
+('jester5', 'Jester', 'gold', 'sports', 125.0),
+('sent6', 'Sentinel 6', 'gold', 'sports', 125.0),
+('gb_gresleystx', 'Gresley STX', 'gold', 'sports', 125.0),
 
--- Platinum tier
-('turismor', 'Grotti Turismo R', 'platinum', 'super', 165.0),
-('zentorno', 'Pegassi Zentorno', 'platinum', 'super', 168.0),
-('entityxf', 'Overflod Entity XF', 'platinum', 'super', 166.0),
-('infernus', 'Pegassi Infernus', 'platinum', 'super', 162.0),
-('vacca', 'Pegassi Vacca', 'platinum', 'super', 160.0),
-('bullet', 'Vapid Bullet', 'platinum', 'super', 163.0),
+-- Platinum (~135 mph)
+('gb_argento7f', 'Argento 7F', 'platinum', 'sports', 135.0),
+('gb_solace', 'Solace', 'platinum', 'sports', 135.0),
+('gb_sultanrsx', 'Sultan RSX', 'platinum', 'sports', 135.0),
 
--- Diamond tier
-('t20', 'Progen T20', 'diamond', 'super', 175.0),
-('osiris', 'Pegassi Osiris', 'diamond', 'super', 173.0),
-('reaper', 'Pegassi Reaper', 'diamond', 'super', 172.0),
-('fmj', 'Vapid FMJ', 'diamond', 'super', 174.0),
-('nero', 'Truffade Nero', 'diamond', 'super', 176.0),
-('tempesta', 'Pegassi Tempesta', 'diamond', 'super', 171.0),
+-- Diamond (~145 mph)
+('gb_tr3s', 'TR3S', 'diamond', 'sports', 145.0),
 
--- BlackList tier (fastest / most exotic)
-('emerus', 'Progen Emerus', 'blacklist', 'super', 185.0),
-('krieger', 'Benefactor Krieger', 'blacklist', 'super', 188.0),
-('s80rr', 'Annis S80RR', 'blacklist', 'super', 183.0),
-('deveste', 'Principe Deveste Eight', 'blacklist', 'super', 190.0),
-('thrax', 'Truffade Thrax', 'blacklist', 'super', 186.0),
-('tigon', 'Lampadati Tigon', 'blacklist', 'super', 184.0)
+-- Blacklist (~155 mph)
+('gsttoros1', 'GST Toros', 'blacklist', 'suv', 155.0),
+('gb_comets2r', 'Comet S2R', 'blacklist', 'sports', 155.0)
 
-ON DUPLICATE KEY UPDATE `label` = VALUES(`label`);
+ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `tier` = VALUES(`tier`), `top_speed` = VALUES(`top_speed`);
