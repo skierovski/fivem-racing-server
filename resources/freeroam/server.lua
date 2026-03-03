@@ -56,6 +56,7 @@ AddEventHandler('blacklist:requestVehiclesForFreeroam', function()
             for i = 1, playerTierIndex do
                 table.insert(availableTiers, tierOrder[i])
             end
+            table.insert(availableTiers, 'custom')
 
             local placeholders = {}
             for _ in ipairs(availableTiers) do

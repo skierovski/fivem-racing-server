@@ -72,11 +72,12 @@ AddEventHandler('blacklist:requestVehicles', function()
                 end
             end
 
-            -- Get all vehicles up to player's tier
+            -- Get all vehicles up to player's tier + custom (available to everyone)
             local availableTiers = {}
             for i = 1, playerTierIndex do
                 table.insert(availableTiers, tierOrder[i])
             end
+            table.insert(availableTiers, 'custom')
 
             local placeholders = {}
             for _ in ipairs(availableTiers) do

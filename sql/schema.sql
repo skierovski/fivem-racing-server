@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `player_vehicles` (
     `identifier` VARCHAR(64) NOT NULL,
     `model` VARCHAR(64) NOT NULL,
     `label` VARCHAR(128) NOT NULL DEFAULT '',
-    `tier` ENUM('bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist') NOT NULL DEFAULT 'bronze',
+    `tier` ENUM('bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist', 'custom') NOT NULL DEFAULT 'bronze',
     `tuning` JSON DEFAULT NULL,
     `is_selected` TINYINT(1) NOT NULL DEFAULT 0,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `chat_messages` (
 CREATE TABLE IF NOT EXISTS `vehicle_catalog` (
     `model` VARCHAR(64) NOT NULL,
     `label` VARCHAR(128) NOT NULL,
-    `tier` ENUM('bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist') NOT NULL,
+    `tier` ENUM('bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist', 'custom') NOT NULL,
     `class` VARCHAR(32) NOT NULL DEFAULT 'sports',
     `top_speed` FLOAT DEFAULT NULL,
     `image_url` VARCHAR(256) DEFAULT NULL,

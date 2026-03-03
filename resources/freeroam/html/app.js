@@ -13,7 +13,8 @@
 
     const tierLabels = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
-        platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST'
+        platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST',
+        custom: 'CUSTOM'
     };
 
     // ========================
