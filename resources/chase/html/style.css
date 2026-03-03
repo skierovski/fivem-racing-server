@@ -316,6 +316,144 @@ body {
 }
 
 /* ========================
+   MMR / ELO Section
+   ======================== */
+
+.mmr-section {
+    margin-top: 24px;
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.mmr-section.visible {
+    animation: mmrFadeIn 0.6s ease-out forwards;
+}
+
+@keyframes mmrFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mmr-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 14px;
+}
+
+.mmr-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+}
+
+.mmr-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 52px;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+    letter-spacing: 2px;
+}
+
+.mmr-change {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.mmr-change.positive {
+    color: #44ff88;
+    text-shadow: 0 0 14px rgba(68, 255, 136, 0.6);
+}
+
+.mmr-change.negative {
+    color: #ff4444;
+    text-shadow: 0 0 14px rgba(255, 68, 68, 0.6);
+}
+
+.mmr-placement {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #ffcc44;
+    text-shadow: 0 0 10px rgba(255, 204, 68, 0.4);
+    margin-bottom: 8px;
+}
+
+/* ========================
+   Rank Change Banner
+   ======================== */
+
+.rank-change {
+    margin-top: 28px;
+    padding: 14px 40px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+}
+
+.rank-change.visible {
+    animation: rankSlideIn 0.7s ease-out forwards;
+}
+
+@keyframes rankSlideIn {
+    from { opacity: 0; transform: translateY(30px) scale(0.9); }
+    60%  { opacity: 1; transform: translateY(-4px) scale(1.03); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.rank-change.promoted {
+    background: linear-gradient(135deg, rgba(68, 255, 136, 0.15), rgba(255, 215, 0, 0.15));
+    border: 1px solid rgba(68, 255, 136, 0.3);
+}
+
+.rank-change.promoted.visible {
+    animation: rankSlideIn 0.7s ease-out forwards, promotedGlow 2s ease-in-out infinite 0.7s;
+}
+
+.rank-change.demoted {
+    background: linear-gradient(135deg, rgba(255, 68, 68, 0.15), rgba(180, 30, 30, 0.15));
+    border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+.rank-change.demoted.visible {
+    animation: rankSlideIn 0.7s ease-out forwards, demotedGlow 2s ease-in-out infinite 0.7s;
+}
+
+@keyframes promotedGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(68, 255, 136, 0.15); }
+    50%      { box-shadow: 0 0 35px rgba(68, 255, 136, 0.3); }
+}
+
+@keyframes demotedGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 68, 68, 0.15); }
+    50%      { box-shadow: 0 0 35px rgba(255, 68, 68, 0.3); }
+}
+
+.rank-change-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 6px;
+}
+
+.rank-change.promoted .rank-change-text {
+    color: #44ff88;
+    text-shadow: 0 0 20px rgba(68, 255, 136, 0.5);
+}
+
+.rank-change.demoted .rank-change-text {
+    color: #ff4444;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+/* ========================
    Timer danger state
    ======================== */
 

@@ -120,6 +120,26 @@ AddEventHandler('blacklist:chaseHUD', function(data)
 end)
 
 -- ========================
+-- MMR result from ranked system
+-- ========================
+
+RegisterNetEvent('blacklist:matchResult')
+AddEventHandler('blacklist:matchResult', function(data)
+    SendNUIMessage({
+        action = 'mmrUpdate',
+        mmrChange = data.mmrChange,
+        newMMR = data.newMMR,
+        newTier = data.newTier,
+        oldTier = data.oldTier,
+        promoted = data.promoted,
+        demoted = data.demoted,
+        isPlacement = data.isPlacement,
+        placementMatch = data.placementMatch,
+        placementTotal = data.placementTotal,
+    })
+end)
+
+-- ========================
 -- Chase HUD cleanup on return to menu
 -- ========================
 
