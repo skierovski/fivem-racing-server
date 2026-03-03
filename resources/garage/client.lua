@@ -76,70 +76,74 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     local ped = PlayerPedId()
 
-    DoScreenFadeOut(400)
-    while not IsScreenFadedOut() do Citizen.Wait(10) end
+    DoScreenFadeOut(250)
+    while not IsScreenFadedOut() do Citizen.Wait(0) end
 
-    -- Hide ped and park it at the skybox (far from the garage) so it's never visible
+    -- Hide ped and place it at the garage so the engine streams interior/collision there
     SetEntityVisible(ped, false, false)
     SetEntityAlpha(ped, 0, false)
     FreezeEntityPosition(ped, true)
-    SetEntityCoords(ped, -75.0, -818.0, 326.0, false, false, false, true)
+    SetEntityCoords(ped, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z, false, false, false, true)
 
-    -- Kick off IPL + scene pre-stream + collision all at once (parallel requests)
-    RequestIpl(BENNYS_IPL)
-    RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
-    SetFocusPosAndVel(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 0.0, 0.0, 0.0)
-    NewLoadSceneStart(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 50.0, 0)
-
-    -- Wait for scene + IPL together (they load in parallel)
-    local deadline = GetGameTimer() + 5000
-    while GetGameTimer() < deadline do
-        if IsNewLoadSceneLoaded() and IsIplActive(BENNYS_IPL) then break end
-        RequestIpl(BENNYS_IPL)
-        Citizen.Wait(50)
-    end
-    NewLoadSceneStop()
-
-    -- Load interior (usually instant once IPL is active)
-    local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
-    if IsValidInterior(interior) then
-        LoadInterior(interior)
-        deadline = GetGameTimer() + 3000
-        while not IsInteriorReady(interior) and GetGameTimer() < deadline do
-            Citizen.Wait(50)
-        end
-        PinInteriorInMemory(interior)
-        RefreshInterior(interior)
-    end
-
-    -- Collision via coord request (ped is at skybox, so use timer-based wait)
-    deadline = GetGameTimer() + 3000
-    while GetGameTimer() < deadline do
-        RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
-        Citizen.Wait(50)
-    end
-
-    -- Spawn the vehicle
+    -- Request vehicle model immediately so it loads in parallel with the interior
     local hash = GetHashKey(model)
     RequestModel(hash)
-    timeout = GetGameTimer() + 10000
+
+    RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
+
+    -- IPL + interior: the background thread keeps these pinned, so they're usually
+    -- already loaded after the first visit. Only wait if they genuinely need loading.
+    if not IsIplActive(BENNYS_IPL) then
+        RequestIpl(BENNYS_IPL)
+        NewLoadSceneStart(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z,
+                          BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 50.0, 0)
+        local deadline = GetGameTimer() + 4000
+        while GetGameTimer() < deadline do
+            if IsNewLoadSceneLoaded() and IsIplActive(BENNYS_IPL) then break end
+            RequestIpl(BENNYS_IPL)
+            Citizen.Wait(0)
+        end
+        NewLoadSceneStop()
+    end
+
+    local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
+    if IsValidInterior(interior) then
+        if not IsInteriorReady(interior) then
+            LoadInterior(interior)
+            local deadline = GetGameTimer() + 2000
+            while not IsInteriorReady(interior) and GetGameTimer() < deadline do
+                Citizen.Wait(0)
+            end
+        end
+        PinInteriorInMemory(interior)
+    end
+
+    -- Collision: request once more and do a short conditional wait (not a fixed timer)
+    RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
+    local deadline = GetGameTimer() + 1000
+    while GetGameTimer() < deadline do
+        if HasCollisionLoadedAroundEntity(ped) then break end
+        RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
+        Citizen.Wait(0)
+    end
+
+    -- Wait for model (was loading in parallel with everything above)
+    local timeout = GetGameTimer() + 8000
     while not HasModelLoaded(hash) do
-        Citizen.Wait(100)
+        Citizen.Wait(0)
         if GetGameTimer() > timeout then
             hash = GetHashKey('sultan')
             RequestModel(hash)
-            while not HasModelLoaded(hash) do Citizen.Wait(100) end
+            while not HasModelLoaded(hash) do Citizen.Wait(0) end
             break
         end
     end
 
-    garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z, GARAGE_POS.w, false, false)
+    garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetEntityInvincible(garageVehicle, true)
-
-    -- Let vehicle settle on the interior floor
+    FreezeEntityPosition(garageVehicle, true)
     SetVehicleOnGroundProperly(garageVehicle)
-    Citizen.Wait(100)
     SetEntityCoords(garageVehicle, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, false, false, false, false)
     SetEntityHeading(garageVehicle, GARAGE_POS.w)
     FreezeEntityPosition(garageVehicle, true)
@@ -155,17 +159,15 @@ AddEventHandler('blacklist:enterGarage', function(model)
     garageCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
     updateCameraPosition()
     SetCamActive(garageCam, true)
-    RenderScriptCams(true, true, 500, true, true)
+    RenderScriptCams(true, true, 300, true, true)
 
-    -- Streaming focus is no longer needed; the scripted camera drives it now
     ClearFocus()
 
-    -- Request tuning data from server
+    -- Request tuning data from server (fires while camera transition plays)
     TriggerServerEvent('blacklist:requestTuningData', model)
 
-    -- Wait for camera transition (500ms ease) to finish before revealing
-    Citizen.Wait(600)
-    DoScreenFadeIn(500)
+    Citizen.Wait(350)
+    DoScreenFadeIn(300)
 end)
 
 -- ========================
@@ -495,13 +497,12 @@ function collectTuningFromVehicle()
 end
 
 function exitGarage()
-    DoScreenFadeOut(400)
-    Citizen.Wait(500)
+    DoScreenFadeOut(250)
+    Citizen.Wait(300)
 
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'closeTuning' })
 
-    -- Destroy vehicle and camera
     if garageVehicle and DoesEntityExist(garageVehicle) then
         DeleteEntity(garageVehicle)
     end
@@ -510,12 +511,11 @@ function exitGarage()
 
     if garageCam then
         SetCamActive(garageCam, false)
-        RenderScriptCams(false, true, 500, true, true)
+        RenderScriptCams(false, true, 300, true, true)
         DestroyCam(garageCam, false)
         garageCam = nil
     end
 
-    -- Restore player
     ClearFocus()
     local ped = PlayerPedId()
     SetEntityVisible(ped, true, false)
@@ -524,14 +524,12 @@ function exitGarage()
 
     isInGarage = false
 
-    -- Return to default routing bucket
     TriggerServerEvent('blacklist:leaveGarageBucket')
 
-    Citizen.Wait(300)
+    Citizen.Wait(100)
 
-    -- Return to main menu
     TriggerEvent('blacklist:openMenu')
-    DoScreenFadeIn(500)
+    DoScreenFadeIn(300)
 end
 
 -- ========================

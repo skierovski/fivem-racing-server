@@ -21,10 +21,34 @@
     const matchEnd = document.getElementById('matchEnd');
     const endResult = document.getElementById('endResult');
     const endDetails = document.getElementById('endDetails');
+    const mmrSection = document.getElementById('mmrSection');
+    const mmrValue = document.getElementById('mmrValue');
+    const mmrChange = document.getElementById('mmrChange');
+    const mmrPlacement = document.getElementById('mmrPlacement');
+    const rankChange = document.getElementById('rankChange');
+    const rankChangeText = document.getElementById('rankChangeText');
 
     let warningTimeout = null;
     let progressHideTimeout = null;
     let currentRole = null;
+
+    const TIER_LABELS = {
+        bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
+        platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST'
+    };
+
+    function animateMMR(from, to, element, duration) {
+        const start = performance.now();
+        const diff = to - from;
+        function update(now) {
+            const elapsed = now - start;
+            const t = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            element.textContent = Math.round(from + diff * eased);
+            if (t < 1) requestAnimationFrame(update);
+        }
+        requestAnimationFrame(update);
+    }
 
     const CATCH_TIME = 9.0;
     const ESCAPE_TIME = 5.0;
@@ -43,6 +67,11 @@
         progressContainer.classList.add('hidden');
         warningPopup.classList.add('hidden');
         matchEnd.classList.add('hidden');
+        mmrSection.classList.add('hidden');
+        mmrSection.classList.remove('visible');
+        rankChange.classList.add('hidden');
+        rankChange.classList.remove('visible');
+        mmrPlacement.classList.add('hidden');
     }
 
     window.addEventListener('message', (event) => {
@@ -203,6 +232,56 @@
                 }
                 detail += ' Duration: ' + formatTime(data.duration || 0);
                 endDetails.textContent = detail;
+                break;
+            }
+
+            case 'mmrUpdate': {
+                const oldMMR = data.newMMR - data.mmrChange;
+                const change = data.mmrChange;
+
+                mmrSection.classList.remove('visible');
+                mmrSection.classList.remove('hidden');
+                rankChange.classList.remove('visible');
+                rankChange.classList.add('hidden');
+                mmrPlacement.classList.add('hidden');
+                mmrChange.classList.remove('positive', 'negative');
+
+                if (data.isPlacement) {
+                    mmrPlacement.textContent = 'PLACEMENT ' + data.placementMatch + '/' + data.placementTotal;
+                    mmrPlacement.classList.remove('hidden');
+                }
+
+                mmrValue.textContent = oldMMR;
+                if (change >= 0) {
+                    mmrChange.textContent = '+' + change;
+                    mmrChange.classList.add('positive');
+                } else {
+                    mmrChange.textContent = '' + change;
+                    mmrChange.classList.add('negative');
+                }
+
+                setTimeout(() => {
+                    mmrSection.classList.add('visible');
+                    animateMMR(oldMMR, data.newMMR, mmrValue, 2000);
+                }, 1500);
+
+                if (data.promoted || data.demoted) {
+                    const tierName = TIER_LABELS[data.newTier] || data.newTier.toUpperCase();
+                    rankChange.classList.remove('promoted', 'demoted');
+
+                    if (data.promoted) {
+                        rankChangeText.textContent = 'PROMOTED TO ' + tierName;
+                        rankChange.classList.add('promoted');
+                    } else {
+                        rankChangeText.textContent = 'DEMOTED TO ' + tierName;
+                        rankChange.classList.add('demoted');
+                    }
+
+                    setTimeout(() => {
+                        rankChange.classList.remove('hidden');
+                        rankChange.classList.add('visible');
+                    }, 4000);
+                }
                 break;
             }
         }
