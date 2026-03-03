@@ -3,16 +3,18 @@
 -- ============================================================
 
 local RankedConfig = {
-    K_FACTOR = 32,
+    K_FACTOR = 50,
+    K_PLACEMENT = 100,
+    PLACEMENT_MATCHES = 3,
     MIN_MMR = 0,
 
     TIERS = {
-        { name = 'bronze',   min = 0,    max = 499  },
-        { name = 'silver',   min = 500,  max = 999  },
-        { name = 'gold',     min = 1000, max = 1499 },
-        { name = 'platinum', min = 1500, max = 1999 },
-        { name = 'diamond',  min = 2000, max = 2499 },
-        { name = 'blacklist', min = 2500, max = 99999 },
+        { name = 'bronze',    min = 0,    max = 500  },
+        { name = 'silver',    min = 501,  max = 650  },
+        { name = 'gold',      min = 651,  max = 800  },
+        { name = 'platinum',  min = 801,  max = 950  },
+        { name = 'diamond',   min = 951,  max = 1100 },
+        { name = 'blacklist', min = 1101, max = 99999 },
     },
 
     BLACKLIST_SIZE = 20,
@@ -27,18 +29,31 @@ local function expectedScore(ratingA, ratingB)
     return 1.0 / (1.0 + 10 ^ ((ratingB - ratingA) / 400.0))
 end
 
---- Calculate MMR changes for a match
+--- Get K-factor for a player (higher during placement for faster calibration)
+function getKFactor(player)
+    local totalMatches = (player.wins or 0) + (player.losses or 0)
+    if totalMatches < RankedConfig.PLACEMENT_MATCHES then
+        return RankedConfig.K_PLACEMENT
+    end
+    return RankedConfig.K_FACTOR
+end
+
+--- Calculate MMR changes for a match (per-player K-factor)
 --- @param winnerMMR number
 --- @param loserMMR number
+--- @param winnerK number|nil
+--- @param loserK number|nil
 --- @return number winnerGain, number loserLoss
-function CalculateMMRChange(winnerMMR, loserMMR)
+function CalculateMMRChange(winnerMMR, loserMMR, winnerK, loserK)
+    winnerK = winnerK or RankedConfig.K_FACTOR
+    loserK = loserK or RankedConfig.K_FACTOR
+
     local expectedWin = expectedScore(winnerMMR, loserMMR)
     local expectedLose = expectedScore(loserMMR, winnerMMR)
 
-    local winnerGain = math.floor(RankedConfig.K_FACTOR * (1 - expectedWin) + 0.5)
-    local loserLoss = math.floor(RankedConfig.K_FACTOR * (0 - expectedLose) + 0.5)
+    local winnerGain = math.floor(winnerK * (1 - expectedWin) + 0.5)
+    local loserLoss = math.floor(loserK * (0 - expectedLose) + 0.5)
 
-    -- Minimum gain/loss
     if winnerGain < 5 then winnerGain = 5 end
     if loserLoss > -5 then loserLoss = -5 end
 
@@ -94,7 +109,9 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
 
             if not winner or not loser then return end
 
-            local gain, loss = CalculateMMRChange(winner.mmr, loser.mmr)
+            local winnerK = getKFactor(winner)
+            local loserK = getKFactor(loser)
+            local gain, loss = CalculateMMRChange(winner.mmr, loser.mmr, winnerK, loserK)
 
             if isCrossTier then
                 local winnerIsLowerTier = (winner.mmr < loser.mmr)
@@ -165,6 +182,9 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
             local winnerSource = getSourceFromIdentifier(winnerId)
             local loserSource = getSourceFromIdentifier(loserId)
 
+            local winnerTotalAfter = (winner.wins or 0) + (winner.losses or 0) + 1
+            local loserTotalAfter = (loser.wins or 0) + (loser.losses or 0) + 1
+
             if winnerSource then
                 TriggerClientEvent('blacklist:matchResult', winnerSource, {
                     result = 'win',
@@ -173,6 +193,9 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
                     newTier = newWinnerTier,
                     oldTier = winner.tier,
                     promoted = newWinnerTier ~= winner.tier,
+                    isPlacement = winnerTotalAfter <= RankedConfig.PLACEMENT_MATCHES,
+                    placementMatch = math.min(winnerTotalAfter, RankedConfig.PLACEMENT_MATCHES),
+                    placementTotal = RankedConfig.PLACEMENT_MATCHES,
                 })
             end
 
@@ -184,6 +207,9 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
                     newTier = newLoserTier,
                     oldTier = loser.tier,
                     demoted = newLoserTier ~= loser.tier,
+                    isPlacement = loserTotalAfter <= RankedConfig.PLACEMENT_MATCHES,
+                    placementMatch = math.min(loserTotalAfter, RankedConfig.PLACEMENT_MATCHES),
+                    placementTotal = RankedConfig.PLACEMENT_MATCHES,
                 })
             end
 
@@ -235,4 +261,5 @@ function getSourceFromIdentifier(identifier)
 end
 
 print('[Ranked] ^2Tier system loaded^0')
-print('[Ranked] Tiers: Bronze(0-499) Silver(500-999) Gold(1000-1499) Platinum(1500-1999) Diamond(2000-2499) BlackList(2500+, Top 20)')
+print('[Ranked] Tiers: Bronze(0-500) Silver(501-650) Gold(651-800) Platinum(801-950) Diamond(951-1100) BlackList(1101+, Top 20)')
+print(('[Ranked] K-Factor: %d (placement: %d, first %d matches)'):format(RankedConfig.K_FACTOR, RankedConfig.K_PLACEMENT, RankedConfig.PLACEMENT_MATCHES))
