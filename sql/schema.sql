@@ -133,33 +133,33 @@ CREATE TABLE IF NOT EXISTS `vehicle_catalog` (
 -- Seed vehicle catalog (ranked tier cars only; addon cars are in separate SQL files)
 INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`, `top_speed`) VALUES
 -- Bronze (~105 mph)
-('gb_cometcl', 'Comet Classic', 'bronze', 'sports', 105.0),
+('gbcometcl', 'Comet Classic', 'bronze', 'sports', 105.0),
 ('rh4', 'Annis RH4', 'bronze', 'classic', 105.0),
 ('ballerc', 'Baller Classic', 'bronze', 'suv', 105.0),
 ('futo', 'Karin Futo', 'bronze', 'sports', 105.0),
 
 -- Silver (~115 mph)
-('gb_cometclf', 'Comet Classic Florio', 'silver', 'sports', 115.0),
-('gb_retinueloz', 'Retinue Loz', 'silver', 'sports', 115.0),
-('gb_schrauber', 'Schrauber', 'silver', 'sports', 115.0),
+('gbcometclf', 'Comet Classic Florio', 'silver', 'sports', 115.0),
+('gbretinueloz', 'Retinue Loz', 'silver', 'sports', 115.0),
+('gbschrauber', 'Schrauber', 'silver', 'sports', 115.0),
 
 -- Gold (~125 mph)
 ('roxanne', 'Roxanne', 'gold', 'sports', 125.0),
 ('buffaloh', 'Buffalo S Hellhound', 'gold', 'sedan', 125.0),
 ('jester5', 'Jester', 'gold', 'sports', 125.0),
 ('sent6', 'Sentinel 6', 'gold', 'sports', 125.0),
-('gb_gresleystx', 'Gresley STX', 'gold', 'sports', 125.0),
+('gbgresleystx', 'Gresley STX', 'gold', 'sports', 125.0),
 
 -- Platinum (~135 mph)
-('gb_argento7f', 'Argento 7F', 'platinum', 'sports', 135.0),
-('gb_solace', 'Solace', 'platinum', 'sports', 135.0),
-('gb_sultanrsx', 'Sultan RSX', 'platinum', 'sports', 135.0),
+('gbargento7f', 'Argento 7F', 'platinum', 'sports', 135.0),
+('gbsolace', 'Solace', 'platinum', 'sports', 135.0),
+('gbsultanrsx', 'Sultan RSX', 'platinum', 'sports', 135.0),
 
 -- Diamond (~145 mph)
-('gb_tr3s', 'TR3S', 'diamond', 'sports', 145.0),
+('gbtr3s', 'TR3S', 'diamond', 'sports', 145.0),
 
 -- Blacklist (~155 mph)
 ('gsttoros1', 'GST Toros', 'blacklist', 'suv', 155.0),
-('gb_comets2r', 'Comet S2R', 'blacklist', 'sports', 155.0)
+('gbcomets2r', 'Comet S2R', 'blacklist', 'sports', 155.0)
 
 ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `tier` = VALUES(`tier`), `top_speed` = VALUES(`top_speed`);
