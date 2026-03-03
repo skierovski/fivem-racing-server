@@ -140,7 +140,8 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Ghost mode: collision (per-frame, thisFrameOnly=true so it stops naturally)
+-- Ghost mode: collision (per-frame, all entity pairs covered)
+-- Handles re-streaming after players leave/return to 400m range
 -- ========================
 
 Citizen.CreateThread(function()
@@ -155,11 +156,19 @@ Citizen.CreateThread(function()
                 if playerId ~= PlayerId() then
                     local otherPed = GetPlayerPed(playerId)
                     if otherPed ~= 0 then
+                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
+
                         SetEntityNoCollisionEntity(myPed, otherPed, true)
 
-                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
-                        if myVehicle ~= 0 and otherVehicle ~= 0 then
-                            SetEntityNoCollisionEntity(myVehicle, otherVehicle, true)
+                        if otherVehicle ~= 0 then
+                            SetEntityNoCollisionEntity(myPed, otherVehicle, true)
+                        end
+
+                        if myVehicle ~= 0 then
+                            SetEntityNoCollisionEntity(myVehicle, otherPed, true)
+                            if otherVehicle ~= 0 then
+                                SetEntityNoCollisionEntity(myVehicle, otherVehicle, true)
+                            end
                         end
                     end
                 end
