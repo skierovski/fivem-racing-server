@@ -86,3 +86,12 @@ resources/vectre_gom/
 resources/vigero_rumbler/
 resources/vincent/
 resources/vulture/
+
+# Gabz vehicle resources (large assets, uploaded directly to server)
+resources/gb_vehicles_a_to_m/
+resources/gb_vehicles_a_to_m2/
+resources/gb_vehicles_n_to_z/
+resources/gb_vehicles_n_to_z2/
+resources/gb_vehicles_pd_ems/
+resources/gb_vehicles_pd_ems2/
+resources/gb_vehicles_audio/

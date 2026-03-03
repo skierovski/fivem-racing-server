@@ -163,28 +163,13 @@ Citizen.CreateThread(function()
     end
 end)
 
--- ========================
--- Ghost mode: transparency (periodic, less performance-critical)
--- ========================
-
+-- Ghost mode: no transparency (cars are fully visible but have no collision)
+-- Alpha reset on mode change to clean up any leftover transparency
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(500)
+        Citizen.Wait(2000)
 
-        if isInFreeRoam then
-            for _, playerId in ipairs(GetActivePlayers()) do
-                if playerId ~= PlayerId() then
-                    local otherPed = GetPlayerPed(playerId)
-                    if otherPed ~= 0 then
-                        SetEntityAlpha(otherPed, 100, false)
-                        local otherVehicle = GetVehiclePedIsIn(otherPed, false)
-                        if otherVehicle ~= 0 then
-                            SetEntityAlpha(otherVehicle, 100, false)
-                        end
-                    end
-                end
-            end
-        else
+        if not isInFreeRoam then
             for _, playerId in ipairs(GetActivePlayers()) do
                 if playerId ~= PlayerId() then
                     local otherPed = GetPlayerPed(playerId)
