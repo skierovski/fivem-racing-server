@@ -22,6 +22,7 @@
     --tier-platinum: #e5e4e2;
     --tier-diamond: #b9f2ff;
     --tier-blacklist: #ff2222;
+    --tier-custom: #00c878;
 
     --sidebar-width: 220px;
     --chat-width: 300px;
@@ -970,6 +971,7 @@ body {
 .tier-platinum { color: var(--tier-platinum); }
 .tier-diamond { color: var(--tier-diamond); }
 .tier-blacklist { color: var(--tier-blacklist); }
+.tier-custom { color: var(--tier-custom); }
 
 .badge-bronze { background: var(--tier-bronze); color: #000; }
 .badge-silver { background: var(--tier-silver); color: #000; }
@@ -977,6 +979,7 @@ body {
 .badge-platinum { background: var(--tier-platinum); color: #000; }
 .badge-diamond { background: var(--tier-diamond); color: #000; }
 .badge-blacklist { background: var(--tier-blacklist); color: #fff; }
+.badge-custom { background: var(--tier-custom); color: #fff; }
 
 /* Scrollbar */
 .main-content::-webkit-scrollbar { width: 6px; }

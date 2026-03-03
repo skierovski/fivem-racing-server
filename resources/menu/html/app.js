@@ -7,14 +7,15 @@
     let playerData = null;
     let isQueuing = false;
 
-    const tierOrder = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist'];
+    const tierOrder = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist', 'custom'];
     const tierLabels = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
-        platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST'
+        platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST',
+        custom: 'CUSTOM'
     };
     const tierLetters = {
         bronze: 'B', silver: 'S', gold: 'G',
-        platinum: 'P', diamond: 'D', blacklist: 'X'
+        platinum: 'P', diamond: 'D', blacklist: 'X', custom: 'C'
     };
     const tierThresholds = {
         bronze: { min: 0, max: 499 },
@@ -246,11 +247,12 @@
         tierOrder.forEach((tier, idx) => {
             const btn = document.createElement('button');
             btn.classList.add('tier-filter-btn');
-            if (idx > playerTierIdx) btn.classList.add('locked');
+            const isUnlocked = tier === 'custom' || idx <= playerTierIdx;
+            if (!isUnlocked) btn.classList.add('locked');
             if (idx === 0) btn.classList.add('active');
             btn.textContent = tierLabels[tier];
             btn.dataset.tier = tier;
-            if (idx <= playerTierIdx) {
+            if (isUnlocked) {
                 btn.addEventListener('click', () => {
                     garageTierFilter.querySelectorAll('.tier-filter-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
