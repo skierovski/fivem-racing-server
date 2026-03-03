@@ -18,12 +18,12 @@
         platinum: 'P', diamond: 'D', blacklist: 'X', custom: 'C'
     };
     const tierThresholds = {
-        bronze: { min: 0, max: 499 },
-        silver: { min: 500, max: 999 },
-        gold: { min: 1000, max: 1499 },
-        platinum: { min: 1500, max: 1999 },
-        diamond: { min: 2000, max: 2499 },
-        blacklist: { min: 2500, max: 99999 }
+        bronze: { min: 0, max: 500 },
+        silver: { min: 501, max: 650 },
+        gold: { min: 651, max: 800 },
+        platinum: { min: 801, max: 950 },
+        diamond: { min: 951, max: 1100 },
+        blacklist: { min: 1101, max: 99999 }
     };
 
     // ========================
