@@ -15,53 +15,35 @@ files {
     'custom/*.meta',
 }
 
--- Bronze tier
+-- Bronze tier (105 mph)
+data_file 'HANDLING_FILE' 'bronze/gb_cometcl.meta'
+data_file 'HANDLING_FILE' 'bronze/rh4.meta'
+data_file 'HANDLING_FILE' 'bronze/ballerc.meta'
 data_file 'HANDLING_FILE' 'bronze/futo.meta'
-data_file 'HANDLING_FILE' 'bronze/sultan.meta'
-data_file 'HANDLING_FILE' 'bronze/blista.meta'
-data_file 'HANDLING_FILE' 'bronze/penumbra.meta'
-data_file 'HANDLING_FILE' 'bronze/prairie.meta'
-data_file 'HANDLING_FILE' 'bronze/kuruma.meta'
 
--- Silver tier
-data_file 'HANDLING_FILE' 'silver/feltzer2.meta'
-data_file 'HANDLING_FILE' 'silver/jester.meta'
-data_file 'HANDLING_FILE' 'silver/massacro.meta'
-data_file 'HANDLING_FILE' 'silver/elegy2.meta'
-data_file 'HANDLING_FILE' 'silver/carbonizzare.meta'
-data_file 'HANDLING_FILE' 'silver/comet2.meta'
+-- Silver tier (115 mph)
+data_file 'HANDLING_FILE' 'silver/gb_cometclf.meta'
+data_file 'HANDLING_FILE' 'silver/gb_retinueloz.meta'
+data_file 'HANDLING_FILE' 'silver/gb_schrauber.meta'
 
--- Gold tier
-data_file 'HANDLING_FILE' 'gold/schafter3.meta'
-data_file 'HANDLING_FILE' 'gold/surano.meta'
-data_file 'HANDLING_FILE' 'gold/ninef.meta'
-data_file 'HANDLING_FILE' 'gold/rapidgt.meta'
-data_file 'HANDLING_FILE' 'gold/coquette.meta'
-data_file 'HANDLING_FILE' 'gold/banshee.meta'
+-- Gold tier (125 mph)
+data_file 'HANDLING_FILE' 'gold/roxanne.meta'
+data_file 'HANDLING_FILE' 'gold/buffaloh.meta'
+data_file 'HANDLING_FILE' 'gold/jester5.meta'
+data_file 'HANDLING_FILE' 'gold/sent6.meta'
+data_file 'HANDLING_FILE' 'gold/gb_gresleystx.meta'
 
--- Platinum tier
-data_file 'HANDLING_FILE' 'platinum/turismor.meta'
-data_file 'HANDLING_FILE' 'platinum/zentorno.meta'
-data_file 'HANDLING_FILE' 'platinum/entityxf.meta'
-data_file 'HANDLING_FILE' 'platinum/infernus.meta'
-data_file 'HANDLING_FILE' 'platinum/vacca.meta'
-data_file 'HANDLING_FILE' 'platinum/bullet.meta'
+-- Platinum tier (135 mph)
+data_file 'HANDLING_FILE' 'platinum/gb_argento7f.meta'
+data_file 'HANDLING_FILE' 'platinum/gb_solace.meta'
+data_file 'HANDLING_FILE' 'platinum/gb_sultanrsx.meta'
 
--- Diamond tier
-data_file 'HANDLING_FILE' 'diamond/t20.meta'
-data_file 'HANDLING_FILE' 'diamond/osiris.meta'
-data_file 'HANDLING_FILE' 'diamond/reaper.meta'
-data_file 'HANDLING_FILE' 'diamond/fmj.meta'
-data_file 'HANDLING_FILE' 'diamond/nero.meta'
-data_file 'HANDLING_FILE' 'diamond/tempesta.meta'
+-- Diamond tier (145 mph)
+data_file 'HANDLING_FILE' 'diamond/gb_tr3s.meta'
 
--- BlackList tier
-data_file 'HANDLING_FILE' 'blacklist/emerus.meta'
-data_file 'HANDLING_FILE' 'blacklist/krieger.meta'
-data_file 'HANDLING_FILE' 'blacklist/s80rr.meta'
-data_file 'HANDLING_FILE' 'blacklist/deveste.meta'
-data_file 'HANDLING_FILE' 'blacklist/thrax.meta'
-data_file 'HANDLING_FILE' 'blacklist/tigon.meta'
+-- BlackList tier (155 mph)
+data_file 'HANDLING_FILE' 'blacklist/gsttoros1.meta'
+data_file 'HANDLING_FILE' 'blacklist/gb_comets2r.meta'
 
 -- Custom (PixaCars)
 data_file 'HANDLING_FILE' 'custom/as_nexus.meta'
