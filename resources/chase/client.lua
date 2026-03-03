@@ -96,6 +96,8 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         SendNUIMessage({
             action = 'distance',
             distance = math.floor(data.distance),
+            catchProgress = data.catchProgress,
+            escapeProgress = data.escapeProgress,
         })
 
     elseif data.action == 'warning' then
