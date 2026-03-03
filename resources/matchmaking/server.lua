@@ -75,6 +75,22 @@ local TIER_ORDER = { 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'blackli
 local TIER_INDEX = {}
 for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
 
+-- Cache of models per tier for random car selection in ranked
+local tierModels = {}
+Citizen.CreateThread(function()
+    Citizen.Wait(2000)
+    exports.oxmysql:execute(
+        'SELECT model, tier FROM vehicle_catalog WHERE tier != ?', { 'custom' },
+        function(result)
+            for _, row in ipairs(result or {}) do
+                if not tierModels[row.tier] then tierModels[row.tier] = {} end
+                table.insert(tierModels[row.tier], row.model)
+            end
+            print('[Matchmaking] Vehicle catalog cached: ' .. json.encode(tierModels))
+        end
+    )
+end)
+
 RegisterNetEvent('blacklist:joinQueue')
 AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
     local source = source
@@ -288,10 +304,15 @@ end
 function startRankedMatch(chaser, runner, isCrossTier, forceTier)
     local loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
 
+    -- Pick one random car from the tier -- both players will drive this model
+    local models = tierModels[forceTier] or {}
+    local forceModel = #models > 0 and models[math.random(#models)] or nil
+
     local matchData = {
         mode = 'ranked',
         isCrossTier = isCrossTier or false,
         forceTier = forceTier,
+        forceModel = forceModel,
         locationName = loc.name,
         chaser = {
             source = chaser.source,

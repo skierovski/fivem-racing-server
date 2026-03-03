@@ -35,6 +35,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         mode = matchData.mode,
         isCrossTier = matchData.isCrossTier or false,
         forceTier = matchData.forceTier,
+        forceModel = matchData.forceModel,
         state = 'countdown',
         startTime = 0,
         duration = ChaseConfig.ROUND_DURATION,
@@ -77,12 +78,23 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
     Citizen.Wait(500)
 
     -- Spawn runner at runner coords, chasers at chaser coords
-    TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
-        match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading, match.forceTier)
+    -- If forceModel is set (ranked), both players get the exact same car model
+    if match.forceModel then
+        TriggerEvent('blacklist:spawnPlayerWithModel', match.runner.source, match.forceModel,
+            match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
 
-    for _, chaser in ipairs(match.chasers) do
-        TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-            match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, match.forceTier)
+        for _, chaser in ipairs(match.chasers) do
+            TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, match.forceModel,
+                match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading)
+        end
+    else
+        TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
+            match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading, match.forceTier)
+
+        for _, chaser in ipairs(match.chasers) do
+            TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
+                match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, match.forceTier)
+        end
     end
 
     Citizen.Wait(1000)

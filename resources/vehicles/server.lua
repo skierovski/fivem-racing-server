@@ -22,11 +22,31 @@ function GetPlayerVehicle(identifier, callback)
                 callback(data)
             else
                 -- No selected vehicle: give default bronze car
-                callback({ model = 'sultan', tuning = {}, label = 'Karin Sultan', tier = 'bronze' })
+                callback({ model = 'futo', tuning = {}, label = 'Karin Futo', tier = 'bronze' })
             end
         end
     )
 end
+
+--- Spawn a specific model for a player, loading their tuning for that model from DB
+RegisterNetEvent('blacklist:spawnPlayerWithModel')
+AddEventHandler('blacklist:spawnPlayerWithModel', function(targetSource, model, x, y, z, heading)
+    local identifier = getIdentifier(targetSource)
+    if not identifier then return end
+
+    exports.oxmysql:execute(
+        'SELECT tuning FROM player_vehicles WHERE identifier = ? AND model = ? LIMIT 1',
+        { identifier, model },
+        function(result)
+            local tuning = {}
+            if result and result[1] and result[1].tuning then
+                tuning = type(result[1].tuning) == 'string' and json.decode(result[1].tuning) or result[1].tuning
+            end
+            TriggerClientEvent('blacklist:doSpawnVehicle', targetSource,
+                { model = model, tuning = tuning, label = model, tier = 'ranked' }, x, y, z, heading)
+        end
+    )
+end)
 
 --- Spawn a vehicle for a player at given coords, optionally forcing a tier
 RegisterNetEvent('blacklist:spawnPlayerVehicle')
@@ -65,12 +85,12 @@ function GetPlayerVehicleForTier(identifier, tier, callback)
             else
                 -- Player has no vehicle in this tier: give default for tier
                 local defaults = {
-                    bronze = { model = 'sultan', label = 'Karin Sultan' },
-                    silver = { model = 'jester', label = 'Dinka Jester' },
-                    gold = { model = 'elegy2', label = 'Annis Elegy RH8' },
-                    platinum = { model = 'turismor', label = 'Grotti Turismo R' },
-                    diamond = { model = 'zentorno', label = 'Pegassi Zentorno' },
-                    blacklist = { model = 't20', label = 'Progen T20' },
+                    bronze = { model = 'futo', label = 'Karin Futo' },
+                    silver = { model = 'gb_cometclf', label = 'Pfister Comet CLF' },
+                    gold = { model = 'roxanne', label = 'Roxanne' },
+                    platinum = { model = 'gb_argento7f', label = 'Argento 7F' },
+                    diamond = { model = 'gb_tr3s', label = 'TR3S' },
+                    blacklist = { model = 'gsttoros1', label = 'GST Toros' },
                 }
                 local def = defaults[tier] or defaults.bronze
                 callback({ model = def.model, tuning = {}, label = def.label, tier = tier })
@@ -93,11 +113,11 @@ AddEventHandler('blacklist:ensureDefaultVehicle', function()
             if not result or #result == 0 then
                 exports.oxmysql:execute(
                     'INSERT INTO player_vehicles (identifier, model, label, tier, is_selected) VALUES (?, ?, ?, ?, 1)',
-                    { identifier, 'sultan', 'Karin Sultan', 'bronze' }
+                    { identifier, 'futo', 'Karin Futo', 'bronze' }
                 )
                 exports.oxmysql:execute(
                     'UPDATE players SET selected_vehicle = ? WHERE identifier = ?',
-                    { 'sultan', identifier }
+                    { 'futo', identifier }
                 )
             end
         end
