@@ -5,6 +5,7 @@ author 'BlackList Racing'
 description 'Live handling editor — /handling to open'
 version '1.0.0'
 
+server_script 'server.lua'
 client_script 'client.lua'
 
 ui_page 'html/index.html'

@@ -115,7 +115,12 @@ Citizen.CreateThread(function()
     end
 end)
 
--- /refresh <resource> - restart a resource (e.g. /refresh callista to reload that car + its handling)
+-- /restart — full server restart (reloads handling.meta files)
+RegisterCommand('restart', function()
+    TriggerServerEvent('blacklist:restartServer')
+end, false)
+
+-- /refresh <resource> - restart a resource
 RegisterCommand('refresh', function(source, args)
     local name = args[1]
     if not name then
