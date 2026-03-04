@@ -3,12 +3,12 @@
   <HandlingData>
     <Item type="CHandlingData">
       <handlingName>FUTO</handlingName>
-      <fMass value="1000.000000"/>
+      <fMass value="1100.000000"/>
       <fInitialDragCoeff value="8.000000"/>
       <fPercentSubmerged value="85.000000"/>
       <vecCentreOfMassOffset x="0.000000" y="-0.050000" z="-0.18000"/>
       <vecInertiaMultiplier x="1.300000" y="1.300000" z="1.700000"/>
-      <fDriveBiasFront value="0.000000"/>
+      <fDriveBiasFront value="0.150000"/>
       <nInitialDriveGears value="5"/>
       <fInitialDriveForce value="0.260000"/>
       <fDriveInertia value="0.800000"/>
@@ -19,7 +19,7 @@
       <fBrakeForce value="0.420000"/>
       <fBrakeBiasFront value="0.520000"/>
       <fHandBrakeForce value="0.300000"/>
-      <fSteeringLock value="32.000000"/>
+      <fSteeringLock value="35.000000"/>
       <fTractionCurveMax value="2.400000"/>
       <fTractionCurveMin value="2.300000"/>
       <fTractionCurveLateral value="33.000000"/>
