@@ -89,6 +89,8 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
 
     DisplayHud(true)
     DisplayRadar(true)
+
+    TriggerServerEvent('blacklist:spawnReady')
 end)
 
 function applyTuning(vehicle, tuning)
