@@ -11,6 +11,7 @@ local garageModel = nil
 local trackedNeonEnabled = false
 local trackedNeonColor = { r = 0, g = 150, b = 255 }
 local trackedWheelColor = 0
+local trackedTurboEnabled = false
 
 -- Benny's Original Motor Works interior
 local BENNYS_IPL = 'bkr_biker_interior_placement_interior_intb_intb_dlc_int_02'
@@ -237,12 +238,14 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
     -- Initialize tracked state from saved tuning (natives are unreliable right after apply)
     if savedTuning then
         trackedNeonEnabled = savedTuning.neon == true
+        trackedTurboEnabled = savedTuning.turbo == true
         if savedTuning.neonColor then
             trackedNeonColor = { r = savedTuning.neonColor.r or 0, g = savedTuning.neonColor.g or 150, b = savedTuning.neonColor.b or 255 }
         end
         trackedWheelColor = savedTuning.wheelColor or 0
     else
         trackedNeonEnabled = false
+        trackedTurboEnabled = false
         trackedNeonColor = { r = 0, g = 150, b = 255 }
         trackedWheelColor = 0
     end
@@ -389,7 +392,8 @@ end)
 
 RegisterNUICallback('applyTurbo', function(data, cb)
     if not garageVehicle then cb({}) return end
-    ToggleVehicleMod(garageVehicle, 18, data.enabled == true)
+    trackedTurboEnabled = data.enabled == true
+    ToggleVehicleMod(garageVehicle, 18, trackedTurboEnabled)
     cb({})
 end)
 
@@ -474,7 +478,7 @@ function collectTuningFromVehicle()
     t.brakes = GetVehicleMod(garageVehicle, 12)
     t.transmission = GetVehicleMod(garageVehicle, 13)
     t.suspension = GetVehicleMod(garageVehicle, 15)
-    t.turbo = IsToggleModOn(garageVehicle, 18)
+    t.turbo = trackedTurboEnabled
 
     -- Wheels
     t.wheelType = GetVehicleWheelType(garageVehicle)

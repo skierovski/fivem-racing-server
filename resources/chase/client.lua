@@ -182,7 +182,10 @@ Citizen.CreateThread(function()
                 closestDist = 999.0
             end
 
-            TriggerServerEvent('blacklist:reportDistance', closestDist, math.min(closestDist, 400.0))
+            local myVehicle = GetVehiclePedIsIn(myPed, false)
+            local mySpeed = myVehicle ~= 0 and GetEntitySpeed(myVehicle) or 0.0
+
+            TriggerServerEvent('blacklist:reportDistance', closestDist, math.min(closestDist, 400.0), mySpeed)
         end
     end
 end)
