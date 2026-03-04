@@ -78,12 +78,12 @@ for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
 local tierModels = {}
 
 local TIER_ASSIGNMENTS = {
-    bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo' },
-    silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2' },
-    gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
-    platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx' },
-    diamond   = { 'gbtr3s' },
-    blacklist = { 'gsttoros1', 'gbcomets2r' },
+    bronze    = { 'gb_cometcl', 'rh4', 'ballerc', 'futo' },
+    silver    = { 'gb_cometclf', 'gb_retinueloz', 'gb_schrauber' },
+    gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gb_gresleystx' },
+    platinum  = { 'gb_argento7f', 'gb_solace', 'gb_sultanrsx' },
+    diamond   = { 'gb_tr3s' },
+    blacklist = { 'gsttoros1', 'gb_comets2r' },
 }
 
 Citizen.CreateThread(function()

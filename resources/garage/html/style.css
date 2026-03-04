@@ -263,39 +263,6 @@ body {
    Color picker
    ======================== */
 
-.paint-type-selector {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.paint-type-btn {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    padding: 7px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: var(--bg-item);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.paint-type-btn:hover {
-    background: var(--bg-item-hover);
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.15);
-}
-
-.paint-type-btn.active {
-    background: rgba(0, 150, 255, 0.2);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
 .color-picker-area {
     padding: 16px 24px;
 }

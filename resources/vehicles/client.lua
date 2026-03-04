@@ -69,7 +69,6 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     ClearFocus()
 
     applyTuning(vehicle, tuning)
-    exports.handling:ApplyHandlingOverrides(vehicle, model)
     SetVehicleCanBeVisiblyDamaged(vehicle, false)
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
@@ -96,14 +95,6 @@ function applyTuning(vehicle, tuning)
     if not tuning then tuning = {} end
 
     SetVehicleModKit(vehicle, 0)
-
-    -- Paint finish (must be set before custom colors)
-    if tuning.paintType1 then
-        SetVehicleModColor_1(vehicle, tuning.paintType1, 0, 0)
-    end
-    if tuning.paintType2 then
-        SetVehicleModColor_2(vehicle, tuning.paintType2, 0)
-    end
 
     -- Primary color
     if tuning.color1 then

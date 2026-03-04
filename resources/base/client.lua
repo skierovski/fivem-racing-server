@@ -115,11 +115,11 @@ Citizen.CreateThread(function()
     end
 end)
 
--- /refresh command (always available, handled by base server)
+-- /refresh <resource> - restart a resource (e.g. /refresh callista to reload that car + its handling)
 RegisterCommand('refresh', function(source, args)
     local name = args[1]
     if not name then
-        print('^3[refresh]^0 Usage: /refresh <resource>  |  /refresh all')
+        print('^3[refresh]^0 Usage: /refresh <resource_name> — then respawn your car')
         return
     end
     TriggerServerEvent('blacklist:refreshResource', name)

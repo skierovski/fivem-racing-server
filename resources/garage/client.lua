@@ -11,9 +11,6 @@ local garageModel = nil
 local trackedNeonEnabled = false
 local trackedNeonColor = { r = 0, g = 150, b = 255 }
 local trackedWheelColor = 0
-local trackedTurboEnabled = false
-local trackedPaintType1 = 0
-local trackedPaintType2 = 0
 
 -- Benny's Original Motor Works interior
 local BENNYS_IPL = 'bkr_biker_interior_placement_interior_intb_intb_dlc_int_02'
@@ -144,7 +141,6 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
-    exports.handling:ApplyHandlingOverrides(garageVehicle, garageModel)
     SetEntityInvincible(garageVehicle, true)
     FreezeEntityPosition(garageVehicle, true)
     SetVehicleOnGroundProperly(garageVehicle)
@@ -241,18 +237,12 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
     -- Initialize tracked state from saved tuning (natives are unreliable right after apply)
     if savedTuning then
         trackedNeonEnabled = savedTuning.neon == true
-        trackedTurboEnabled = savedTuning.turbo == true
-        trackedPaintType1 = savedTuning.paintType1 or 0
-        trackedPaintType2 = savedTuning.paintType2 or 0
         if savedTuning.neonColor then
             trackedNeonColor = { r = savedTuning.neonColor.r or 0, g = savedTuning.neonColor.g or 150, b = savedTuning.neonColor.b or 255 }
         end
         trackedWheelColor = savedTuning.wheelColor or 0
     else
         trackedNeonEnabled = false
-        trackedTurboEnabled = false
-        trackedPaintType1 = 0
-        trackedPaintType2 = 0
         trackedNeonColor = { r = 0, g = 150, b = 255 }
         trackedWheelColor = 0
     end
@@ -278,8 +268,6 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
         currentWindowTint = GetVehicleWindowTint(garageVehicle),
         currentLivery = GetVehicleLivery(garageVehicle),
         currentWheelColor = trackedWheelColor,
-        paintType1 = trackedPaintType1,
-        paintType2 = trackedPaintType2,
     })
 end)
 
@@ -378,27 +366,8 @@ RegisterNUICallback('applyColor', function(data, cb)
     local g = tonumber(data.g) or 0
     local b = tonumber(data.b) or 0
     if data.target == 'primary' then
-        SetVehicleModColor_1(garageVehicle, trackedPaintType1, 0, 0)
         SetVehicleCustomPrimaryColour(garageVehicle, r, g, b)
     elseif data.target == 'secondary' then
-        SetVehicleModColor_2(garageVehicle, trackedPaintType2, 0)
-        SetVehicleCustomSecondaryColour(garageVehicle, r, g, b)
-    end
-    cb({})
-end)
-
-RegisterNUICallback('applyPaintType', function(data, cb)
-    if not garageVehicle then cb({}) return end
-    local paintType = tonumber(data.paintType) or 0
-    if data.target == 'primary' then
-        trackedPaintType1 = paintType
-        SetVehicleModColor_1(garageVehicle, paintType, 0, 0)
-        local r, g, b = GetVehicleCustomPrimaryColour(garageVehicle)
-        SetVehicleCustomPrimaryColour(garageVehicle, r, g, b)
-    elseif data.target == 'secondary' then
-        trackedPaintType2 = paintType
-        SetVehicleModColor_2(garageVehicle, paintType, 0)
-        local r, g, b = GetVehicleCustomSecondaryColour(garageVehicle)
         SetVehicleCustomSecondaryColour(garageVehicle, r, g, b)
     end
     cb({})
@@ -420,8 +389,7 @@ end)
 
 RegisterNUICallback('applyTurbo', function(data, cb)
     if not garageVehicle then cb({}) return end
-    trackedTurboEnabled = data.enabled == true
-    ToggleVehicleMod(garageVehicle, 18, trackedTurboEnabled)
+    ToggleVehicleMod(garageVehicle, 18, data.enabled == true)
     cb({})
 end)
 
@@ -488,13 +456,11 @@ function collectTuningFromVehicle()
     if not garageVehicle then return {} end
     local t = {}
 
-    -- Colors + paint finish
+    -- Colors
     local pr, pg, pb = GetVehicleCustomPrimaryColour(garageVehicle)
     local sr, sg, sb = GetVehicleCustomSecondaryColour(garageVehicle)
     t.color1 = { r = pr, g = pg, b = pb }
     t.color2 = { r = sr, g = sg, b = sb }
-    t.paintType1 = trackedPaintType1
-    t.paintType2 = trackedPaintType2
 
     -- Mod slots
     t.spoiler = GetVehicleMod(garageVehicle, 0)
@@ -508,7 +474,7 @@ function collectTuningFromVehicle()
     t.brakes = GetVehicleMod(garageVehicle, 12)
     t.transmission = GetVehicleMod(garageVehicle, 13)
     t.suspension = GetVehicleMod(garageVehicle, 15)
-    t.turbo = trackedTurboEnabled
+    t.turbo = IsToggleModOn(garageVehicle, 18)
 
     -- Wheels
     t.wheelType = GetVehicleWheelType(garageVehicle)
@@ -575,12 +541,6 @@ function applyFullTuning(vehicle, t)
 
     SetVehicleModKit(vehicle, 0)
 
-    if t.paintType1 then
-        SetVehicleModColor_1(vehicle, t.paintType1, 0, 0)
-    end
-    if t.paintType2 then
-        SetVehicleModColor_2(vehicle, t.paintType2, 0)
-    end
     if t.color1 then
         SetVehicleCustomPrimaryColour(vehicle, t.color1.r or 0, t.color1.g or 0, t.color1.b or 0)
     end

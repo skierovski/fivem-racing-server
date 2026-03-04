@@ -185,43 +185,13 @@
     // Color picker
     // ========================
 
-    const PAINT_TYPES = [
-        { id: 0, label: 'Normal' },
-        { id: 1, label: 'Metallic' },
-        { id: 3, label: 'Matte' },
-        { id: 4, label: 'Metal' },
-        { id: 5, label: 'Chrome' },
-    ];
-
     function renderColorPicker(target) {
         optionsList.innerHTML = '';
         const area = document.createElement('div');
         area.className = 'color-picker-area';
 
         const key = target === 'color1' ? 'primary' : 'secondary';
-        const nuiTarget = target === 'color1' ? 'primary' : 'secondary';
         const cur = tuningData.currentColors[key] || { r: 0, g: 0, b: 0 };
-        const ptKey = target === 'color1' ? 'paintType1' : 'paintType2';
-        const curPT = tuningData[ptKey] || 0;
-
-        // Paint type selector
-        const ptRow = document.createElement('div');
-        ptRow.className = 'paint-type-selector';
-        PAINT_TYPES.forEach(pt => {
-            const btn = document.createElement('button');
-            btn.className = 'paint-type-btn' + (pt.id === curPT ? ' active' : '');
-            btn.textContent = pt.label;
-            btn.addEventListener('click', () => {
-                tuningData[ptKey] = pt.id;
-                fetch('https://garage/applyPaintType', {
-                    method: 'POST',
-                    body: JSON.stringify({ target: nuiTarget, paintType: pt.id })
-                });
-                renderColorPicker(target);
-            });
-            ptRow.appendChild(btn);
-        });
-        area.appendChild(ptRow);
 
         // Swatches
         const swatches = document.createElement('div');

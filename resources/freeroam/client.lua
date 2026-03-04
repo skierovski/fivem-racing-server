@@ -122,21 +122,11 @@ Citizen.CreateThread(function()
             end
             EndFindPed(handle)
 
-            local playerVehicles = {}
-            for _, playerId in ipairs(GetActivePlayers()) do
-                local otherPed = GetPlayerPed(playerId)
-                if otherPed ~= 0 then
-                    local otherVeh = GetVehiclePedIsIn(otherPed, false)
-                    if otherVeh ~= 0 then
-                        playerVehicles[otherVeh] = true
-                    end
-                end
-            end
-
+            local myVeh = GetVehiclePedIsIn(playerPed, false)
             local vHandle, veh = FindFirstVehicle()
             success = true
             while success do
-                if DoesEntityExist(veh) and not playerVehicles[veh] then
+                if veh ~= myVeh and DoesEntityExist(veh) then
                     local driver = GetPedInVehicleSeat(veh, -1)
                     if driver == 0 or not IsPedAPlayer(driver) then
                         DeleteEntity(veh)
@@ -398,7 +388,6 @@ AddEventHandler('blacklist:receiveFreeroamTuning', function(model, tuning)
         ToggleVehicleMod(vehicle, 18, true)
     end
 
-    exports.handling:ApplyHandlingOverrides(vehicle, model)
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
 end)
