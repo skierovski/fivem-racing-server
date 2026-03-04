@@ -69,6 +69,7 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     ClearFocus()
 
     applyTuning(vehicle, tuning)
+    exports.handling:ApplyHandlingOverrides(vehicle, model)
     SetVehicleCanBeVisiblyDamaged(vehicle, false)
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')

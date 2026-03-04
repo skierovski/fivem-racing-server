@@ -144,6 +144,7 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
+    exports.handling:ApplyHandlingOverrides(garageVehicle, garageModel)
     SetEntityInvincible(garageVehicle, true)
     FreezeEntityPosition(garageVehicle, true)
     SetVehicleOnGroundProperly(garageVehicle)

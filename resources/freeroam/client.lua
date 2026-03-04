@@ -398,6 +398,7 @@ AddEventHandler('blacklist:receiveFreeroamTuning', function(model, tuning)
         ToggleVehicleMod(vehicle, 18, true)
     end
 
+    exports.handling:ApplyHandlingOverrides(vehicle, model)
     SetVehicleRadioEnabled(vehicle, false)
     SetVehRadioStation(vehicle, 'OFF')
 end)

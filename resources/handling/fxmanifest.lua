@@ -5,6 +5,9 @@ author 'BlackList Racing'
 description 'Vehicle handling overrides - edit .meta files and /refresh handling'
 version '1.0.0'
 
+server_script 'server.lua'
+client_script 'client.lua'
+
 files {
     'bronze/*.meta',
     'silver/*.meta',
