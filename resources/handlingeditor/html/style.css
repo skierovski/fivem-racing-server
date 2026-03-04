@@ -1,0 +1,239 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #e0e0e0;
+    overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+.editor {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 420px;
+    max-height: calc(100vh - 40px);
+    background: rgba(12, 12, 18, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.editor-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #fff;
+}
+
+.editor-title .icon {
+    margin-right: 6px;
+}
+
+.vehicle-name {
+    margin-left: 8px;
+    color: #ff4444;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.btn-accent {
+    background: rgba(255, 68, 68, 0.15);
+    border-color: rgba(255, 68, 68, 0.3);
+    color: #ff4444;
+}
+
+.btn-accent:hover {
+    background: rgba(255, 68, 68, 0.25);
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 16px;
+    padding: 2px 6px;
+}
+
+.btn-close:hover {
+    color: #ff4444;
+}
+
+.search-bar {
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.search-bar input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 7px 12px;
+    color: #e0e0e0;
+    font-size: 12px;
+    outline: none;
+}
+
+.search-bar input:focus {
+    border-color: rgba(255, 68, 68, 0.4);
+}
+
+.search-bar input::placeholder {
+    color: #555;
+}
+
+.fields-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+    max-height: 65vh;
+}
+
+.fields-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.fields-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.fields-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.field-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 16px;
+    transition: background 0.1s;
+    cursor: pointer;
+}
+
+.field-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.field-row.modified {
+    background: rgba(255, 68, 68, 0.06);
+}
+
+.field-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.field-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ddd;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.field-desc {
+    font-size: 10px;
+    color: #666;
+    margin-top: 1px;
+}
+
+.field-value {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    padding: 4px 8px;
+    color: #4fc3f7;
+    font-size: 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    width: 120px;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.field-value:focus {
+    border-color: #ff4444;
+    color: #fff;
+}
+
+.field-value.changed {
+    color: #ff4444;
+    border-color: rgba(255, 68, 68, 0.4);
+}
+
+.export-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(12, 12, 18, 0.98);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    z-index: 10;
+}
+
+.export-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #aaa;
+}
+
+.export-header .btn-close {
+    margin-left: auto;
+}
+
+.export-panel textarea {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 12px;
+    color: #4fc3f7;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+}

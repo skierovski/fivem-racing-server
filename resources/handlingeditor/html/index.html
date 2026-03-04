@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handling Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="editor" class="editor hidden">
+        <div class="editor-header">
+            <div class="editor-title">
+                <span class="icon">⚙</span>
+                HANDLING EDITOR
+                <span id="vehicleName" class="vehicle-name"></span>
+            </div>
+            <div class="editor-actions">
+                <button id="btnRefresh" class="btn btn-small">REFRESH</button>
+                <button id="btnExport" class="btn btn-small btn-accent">EXPORT XML</button>
+                <button id="btnClose" class="btn btn-small btn-close">✕</button>
+            </div>
+        </div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search field...">
+        </div>
+        <div class="fields-container" id="fieldsContainer"></div>
+        <div id="exportPanel" class="export-panel hidden">
+            <div class="export-header">
+                <span>XML Output — copy to handling.meta</span>
+                <button id="btnCopyExport" class="btn btn-small">COPY</button>
+                <button id="btnCloseExport" class="btn btn-small btn-close">✕</button>
+            </div>
+            <textarea id="exportText" readonly></textarea>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
