@@ -11,6 +11,8 @@ local ChaseConfig = {
     ESCAPE_DISTANCE = 400.0,
     ESCAPE_TIME = 5.0,
 
+    ARREST_MAX_SPEED = 8.94, -- 20 mph in m/s
+
     MAX_AIRBORNE_TIME = 2.0,
     RAM_SPEED_THRESHOLD = 30.0,
     MAX_WARNINGS = 2,
@@ -149,7 +151,7 @@ function monitorMatch(matchId)
 
             local elapsed = (GetGameTimer() - match.startTime) / 1000
             if elapsed >= match.duration then
-                endMatch(matchId, 'runner', 'time_expired')
+                endMatch(matchId, 'chaser', 'time_expired')
                 break
             end
         end
@@ -161,7 +163,7 @@ end
 -- ========================
 
 RegisterNetEvent('blacklist:reportDistance')
-AddEventHandler('blacklist:reportDistance', function(distance, displayDistance)
+AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, chaserSpeed)
     local source = source
     local matchId = playerMatchMap[source]
     if not matchId then return end
@@ -175,7 +177,9 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance)
     end
     if not isChaser then return end
 
-    if distance <= ChaseConfig.CATCH_DISTANCE then
+    local speed = tonumber(chaserSpeed) or 0.0
+
+    if distance <= ChaseConfig.CATCH_DISTANCE and speed <= ChaseConfig.ARREST_MAX_SPEED then
         match.catchTimer = match.catchTimer + 0.5
         match.escapeTimer = 0
         if match.catchTimer >= ChaseConfig.CATCH_TIME then
