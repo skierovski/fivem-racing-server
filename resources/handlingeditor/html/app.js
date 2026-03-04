@@ -65,10 +65,17 @@ function renderFields(fields) {
         input.dataset.fieldName = field.name;
         input.dataset.fieldType = field.type;
 
+        if (field.readonly) {
+            input.classList.add('readonly');
+            input.readOnly = true;
+            input.title = 'Read-only — edit handling.meta + restart server';
+            desc.textContent = field.desc + ' (restart only)';
+        }
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                applyValue(field.name, input.value);
+                if (!field.readonly) applyValue(field.name, input.value);
                 input.blur();
             }
             if (e.key === 'Escape') {
@@ -78,7 +85,7 @@ function renderFields(fields) {
             e.stopPropagation();
         });
 
-        input.addEventListener('focus', () => input.select());
+        input.addEventListener('focus', () => { if (!field.readonly) input.select(); });
 
         row.appendChild(info);
         row.appendChild(input);

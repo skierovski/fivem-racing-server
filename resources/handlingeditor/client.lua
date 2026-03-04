@@ -6,12 +6,12 @@ local HANDLING_FIELDS = {
     { name = "fInitialDragCoeff", type = "float", desc = "Drag coefficient" },
     { name = "fPercentSubmerged", type = "float", desc = "% submerged before float" },
     { name = "fDriveBiasFront", type = "float", desc = "Drive bias front (0=RWD, 1=FWD)" },
-    { name = "nInitialDriveGears", type = "int", desc = "Number of gears" },
+    { name = "nInitialDriveGears", type = "int", desc = "Number of gears", readonly = true },
     { name = "fInitialDriveForce", type = "float", desc = "Engine power" },
     { name = "fDriveInertia", type = "float", desc = "Drive inertia" },
     { name = "fClutchChangeRateScaleUpShift", type = "float", desc = "Clutch upshift rate" },
     { name = "fClutchChangeRateScaleDownShift", type = "float", desc = "Clutch downshift rate" },
-    { name = "fInitialDriveMaxFlatVel", type = "float", desc = "Max speed (km/h)" },
+    { name = "fInitialDriveMaxFlatVel", type = "float", desc = "Max speed (km/h)", readonly = true },
     { name = "fBrakeForce", type = "float", desc = "Brake force" },
     { name = "fBrakeBiasFront", type = "float", desc = "Brake bias front" },
     { name = "fHandBrakeForce", type = "float", desc = "Handbrake force" },
@@ -58,8 +58,10 @@ local HANDLING_FIELDS = {
 }
 
 local FIELD_TYPE_MAP = {}
+local FIELD_READONLY = {}
 for _, field in ipairs(HANDLING_FIELDS) do
     FIELD_TYPE_MAP[field.name] = field.type
+    if field.readonly then FIELD_READONLY[field.name] = true end
 end
 
 local function applyHandlingValue(vehicle, name, value, fieldType)
@@ -68,6 +70,7 @@ local function applyHandlingValue(vehicle, name, value, fieldType)
     else
         SetVehicleHandlingFloat(vehicle, "CHandlingData", name, value + 0.0)
     end
+
 end
 
 local function getVehicleHandlingData(vehicle)
@@ -85,6 +88,7 @@ local function getVehicleHandlingData(vehicle)
                 value = val,
                 type = field.type,
                 desc = field.desc,
+                readonly = field.readonly or false,
             })
         end
     end
@@ -154,6 +158,12 @@ RegisterNUICallback('setValue', function(data, cb)
 
     local fieldType = FIELD_TYPE_MAP[name]
     if not fieldType then
+        cb({ ok = false })
+        return
+    end
+
+    if FIELD_READONLY[name] then
+        print('^1[handling-editor]^0 ' .. name .. ' is read-only (edit handling.meta + restart server)')
         cb({ ok = false })
         return
     end
