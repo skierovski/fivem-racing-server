@@ -5,6 +5,9 @@ for _, t in ipairs(TIER_FOLDERS) do TIER_SET[t] = true end
 
 local HandlingOverrides = {}
 
+-- Maps car name -> meta file path (e.g. "futo" -> "bronze/futo.meta")
+local CarFilePaths = {}
+
 local function readFile(relativePath)
     local fullPath = RESOURCE_PATH .. '/' .. relativePath
     local f = io.open(fullPath, 'r')
@@ -22,7 +25,6 @@ local function parseMetaFile(filePath)
 
     data.handlingName = content:match('<handlingName>(%w+)</handlingName>')
 
-    -- Strip SubHandlingData before parsing main block to avoid double-counting
     local subBlock = content:match('<Item type="CCarHandlingData">(.-)</Item>')
     local mainContent = content:gsub('<SubHandlingData>.-</SubHandlingData>', '')
 
@@ -49,6 +51,7 @@ end
 
 local function loadAllOverrides()
     HandlingOverrides = {}
+    CarFilePaths = {}
 
     local manifest = readFile('fxmanifest.lua')
     if not manifest then
@@ -60,21 +63,43 @@ local function loadAllOverrides()
     for path in manifest:gmatch("data_file%s+'HANDLING_FILE'%s+'([^']+)'") do
         local folder = path:match('^(%w+)/')
         if folder and TIER_SET[folder] then
-            local data = parseMetaFile(path)
-            if data then
-                local modelName = path:match('/(.+)%.meta$')
-                if modelName then
-                    HandlingOverrides[modelName:lower()] = data
+            local modelName = path:match('/(.+)%.meta$')
+            if modelName then
+                local key = modelName:lower()
+                CarFilePaths[key] = path
+                local data = parseMetaFile(path)
+                if data then
+                    HandlingOverrides[key] = data
                     count = count + 1
                     print(('[handling]   %s/%s -> %s'):format(folder, modelName, data.handlingName or '?'))
+                else
+                    print(('[handling] ^1Failed to parse %s^0'):format(path))
                 end
-            else
-                print(('[handling] ^1Failed to parse %s^0'):format(path))
             end
         end
     end
 
     print(('[handling] ^2Loaded %d tier handling overrides^0'):format(count))
+end
+
+local function reloadSingleCar(carName)
+    local key = carName:lower()
+    local filePath = CarFilePaths[key]
+    if not filePath then
+        return false, 'Car "' .. carName .. '" not found in tier folders'
+    end
+
+    local data = parseMetaFile(filePath)
+    if not data then
+        return false, 'Failed to parse ' .. filePath
+    end
+
+    HandlingOverrides[key] = data
+    for _, playerId in ipairs(GetPlayers()) do
+        TriggerClientEvent('handling:receiveSingleOverride', tonumber(playerId), key, data)
+    end
+
+    return true, filePath
 end
 
 loadAllOverrides()
@@ -84,7 +109,20 @@ AddEventHandler('handling:requestOverrides', function()
     TriggerClientEvent('handling:receiveOverrides', source, HandlingOverrides)
 end)
 
--- On resource (re)start, push to all connected players immediately
+RegisterNetEvent('handling:refreshCar')
+AddEventHandler('handling:refreshCar', function(carName)
+    if not carName or carName == '' then return end
+    local playerName = GetPlayerName(source)
+    local ok, info = reloadSingleCar(carName)
+    if ok then
+        print(('[handling] ^2%s refreshed %s (%s)^0'):format(playerName, carName, info))
+        TriggerClientEvent('handling:refreshResult', source, true, carName)
+    else
+        print(('[handling] ^1%s tried to refresh %s: %s^0'):format(playerName, carName, info))
+        TriggerClientEvent('handling:refreshResult', source, false, info)
+    end
+end)
+
 Citizen.CreateThread(function()
     Citizen.Wait(500)
     for _, playerId in ipairs(GetPlayers()) do
