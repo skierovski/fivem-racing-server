@@ -27,10 +27,15 @@
     const mmrPlacement = document.getElementById('mmrPlacement');
     const rankChange = document.getElementById('rankChange');
     const rankChangeText = document.getElementById('rankChangeText');
+    const rematchArea = document.getElementById('rematchArea');
+    const rematchBtn = document.getElementById('rematchBtn');
+    const rematchStatusEl = document.getElementById('rematchStatus');
+    const endReturning = document.getElementById('endReturning');
 
     let warningTimeout = null;
     let progressHideTimeout = null;
     let currentRole = null;
+    let rematchRequested = false;
 
     const TIER_LABELS = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
@@ -72,6 +77,12 @@
         rankChange.classList.add('hidden');
         rankChange.classList.remove('visible');
         mmrPlacement.classList.add('hidden');
+        rematchArea.classList.add('hidden');
+        rematchStatusEl.classList.add('hidden');
+        rematchRequested = false;
+        rematchBtn.textContent = 'REMATCH';
+        rematchBtn.disabled = false;
+        rematchBtn.classList.remove('waiting');
     }
 
     window.addEventListener('message', (event) => {
@@ -204,7 +215,7 @@
                 let detail = '';
                 switch (data.reason) {
                     case 'time_expired':
-                        detail = 'Runner escaped! Time ran out.';
+                        detail = 'Time ran out! Runner failed to escape.';
                         break;
                     case 'caught':
                         detail = 'Runner was caught!';
@@ -232,6 +243,31 @@
                 }
                 detail += ' Duration: ' + formatTime(data.duration || 0);
                 endDetails.textContent = detail;
+
+                if (data.isRanked) {
+                    setTimeout(() => {
+                        rematchArea.classList.remove('hidden');
+                    }, 3000);
+                }
+                break;
+            }
+
+            case 'rematchStatus': {
+                if (data.status === 'waiting') {
+                    rematchBtn.textContent = 'WAITING...';
+                    rematchBtn.disabled = true;
+                    rematchBtn.classList.add('waiting');
+                } else if (data.status === 'opponent_requested') {
+                    rematchStatusEl.classList.remove('hidden');
+                    rematchStatusEl.textContent = 'Opponent wants rematch!';
+                } else if (data.status === 'accepted') {
+                    rematchBtn.textContent = 'STARTING...';
+                    rematchBtn.disabled = true;
+                    rematchBtn.classList.add('waiting');
+                    rematchStatusEl.classList.remove('hidden');
+                    rematchStatusEl.textContent = 'Rematch accepted!';
+                    endReturning.classList.add('hidden');
+                }
                 break;
             }
 
@@ -285,5 +321,14 @@
                 break;
             }
         }
+    });
+
+    rematchBtn.addEventListener('click', () => {
+        if (rematchRequested) return;
+        rematchRequested = true;
+        rematchBtn.textContent = 'WAITING...';
+        rematchBtn.disabled = true;
+        rematchBtn.classList.add('waiting');
+        fetch('https://chase/requestRematch', { method: 'POST', body: '{}' });
     });
 })();

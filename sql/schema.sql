@@ -142,6 +142,7 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`, `top_speed`) V
 ('gbcometclf', 'Comet Classic Florio', 'silver', 'sports', 115.0),
 ('gbretinueloz', 'Retinue Loz', 'silver', 'sports', 115.0),
 ('gbschrauber', 'Schrauber', 'silver', 'sports', 115.0),
+('tailgater2', 'Obey Tailgater S', 'silver', 'sedan', 115.0),
 
 -- Gold (~125 mph)
 ('roxanne', 'Roxanne', 'gold', 'sports', 125.0),

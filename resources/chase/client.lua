@@ -115,6 +115,7 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             winnerRole = data.winnerRole,
             reason = data.reason,
             duration = data.duration,
+            isRanked = data.isRanked,
         })
     end
 end)
@@ -137,6 +138,20 @@ AddEventHandler('blacklist:matchResult', function(data)
         placementMatch = data.placementMatch,
         placementTotal = data.placementTotal,
     })
+end)
+
+-- ========================
+-- Rematch
+-- ========================
+
+RegisterNUICallback('requestRematch', function(data, cb)
+    TriggerServerEvent('blacklist:requestRematch')
+    cb({})
+end)
+
+RegisterNetEvent('blacklist:rematchStatus')
+AddEventHandler('blacklist:rematchStatus', function(status)
+    SendNUIMessage({ action = 'rematchStatus', status = status })
 end)
 
 -- ========================

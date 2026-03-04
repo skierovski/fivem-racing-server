@@ -96,6 +96,14 @@ function applyTuning(vehicle, tuning)
 
     SetVehicleModKit(vehicle, 0)
 
+    -- Paint finish (must be set before custom colors)
+    if tuning.paintType1 then
+        SetVehicleModColor_1(vehicle, tuning.paintType1, 0, 0)
+    end
+    if tuning.paintType2 then
+        SetVehicleModColor_2(vehicle, tuning.paintType2, 0)
+    end
+
     -- Primary color
     if tuning.color1 then
         SetVehicleCustomPrimaryColour(vehicle, tuning.color1.r or 0, tuning.color1.g or 0, tuning.color1.b or 0)

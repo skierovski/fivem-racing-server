@@ -79,7 +79,7 @@ local tierModels = {}
 
 local TIER_ASSIGNMENTS = {
     bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo' },
-    silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber' },
+    silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2' },
     gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
     platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx' },
     diamond   = { 'gbtr3s' },
