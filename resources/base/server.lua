@@ -33,20 +33,20 @@ AddEventHandler('blacklist:resetBucket', function()
 end)
 
 -- /restart — full server restart (reloads all handling.meta files)
+-- Uses ExecuteCommand('quit') + systemd Restart=always to come back up
 RegisterNetEvent('blacklist:restartServer')
 AddEventHandler('blacklist:restartServer', function()
     local source = source
     local playerName = GetPlayerName(source)
     print(('[Base] ^1SERVER RESTART^0 triggered by %s'):format(playerName))
 
-    -- Notify all players
     TriggerClientEvent('chat:addMessage', -1, {
         color = { 255, 68, 68 },
         args = { 'SERVER', 'Restarting in 3 seconds...' }
     })
 
     Citizen.SetTimeout(3000, function()
-        os.execute('systemctl restart fxserver &')
+        ExecuteCommand('quit "Server restart requested"')
     end)
 end)
 

@@ -5,7 +5,6 @@ const searchInput = document.getElementById('searchInput');
 const exportPanel = document.getElementById('exportPanel');
 const exportText = document.getElementById('exportText');
 
-let originalValues = {};
 let currentFields = [];
 
 window.addEventListener('message', (event) => {
@@ -14,8 +13,6 @@ window.addEventListener('message', (event) => {
     if (action === 'open') {
         currentFields = event.data.fields || [];
         vehicleName.textContent = event.data.vehicle || '';
-        originalValues = {};
-        currentFields.forEach(f => { originalValues[f.name] = f.value; });
         renderFields(currentFields);
         editor.classList.remove('hidden');
         searchInput.value = '';
@@ -39,9 +36,6 @@ function renderFields(fields) {
 
         const row = document.createElement('div');
         row.className = 'field-row';
-        const isModified = originalValues[field.name] !== undefined && 
-            Math.abs(field.value - originalValues[field.name]) > 0.0001;
-        if (isModified) row.classList.add('modified');
 
         const info = document.createElement('div');
         info.className = 'field-info';
@@ -57,38 +51,12 @@ function renderFields(fields) {
         info.appendChild(name);
         info.appendChild(desc);
 
-        const input = document.createElement('input');
-        input.className = 'field-value';
-        if (isModified) input.classList.add('changed');
-        input.type = 'text';
-        input.value = formatValue(field.value, field.type);
-        input.dataset.fieldName = field.name;
-        input.dataset.fieldType = field.type;
-
-        if (field.readonly) {
-            input.classList.add('readonly');
-            input.readOnly = true;
-            input.title = 'Read-only — edit handling.meta + restart server';
-            desc.textContent = field.desc + ' (restart only)';
-        }
-
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (!field.readonly) applyValue(field.name, input.value);
-                input.blur();
-            }
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                input.blur();
-            }
-            e.stopPropagation();
-        });
-
-        input.addEventListener('focus', () => { if (!field.readonly) input.select(); });
+        const val = document.createElement('div');
+        val.className = 'field-value';
+        val.textContent = formatValue(field.value, field.type);
 
         row.appendChild(info);
-        row.appendChild(input);
+        row.appendChild(val);
         fieldsContainer.appendChild(row);
     });
 }
@@ -97,23 +65,6 @@ function formatValue(value, type) {
     if (type === 'int') return Math.floor(value).toString();
     if (typeof value === 'number') return value.toFixed(4);
     return value;
-}
-
-function applyValue(name, rawValue) {
-    const value = parseFloat(rawValue);
-    if (isNaN(value)) return;
-
-    fetch('https://handlingeditor/setValue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, value })
-    }).then(r => r.json()).then(res => {
-        if (res.ok) {
-            const field = currentFields.find(f => f.name === name);
-            if (field) field.value = res.value;
-            renderFields(currentFields);
-        }
-    });
 }
 
 searchInput.addEventListener('input', () => renderFields(currentFields));
