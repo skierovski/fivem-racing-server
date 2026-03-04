@@ -4,7 +4,7 @@
     <Item type="CHandlingData">
       <handlingName>FUTO</handlingName>
       <fMass value="1000.000000"/>
-      <fInitialDragCoeff value="9.500000"/>
+      <fInitialDragCoeff value="8.000000"/>
       <fPercentSubmerged value="85.000000"/>
       <vecCentreOfMassOffset x="0.000000" y="-0.050000" z="-0.10000"/>
       <vecInertiaMultiplier x="1.300000" y="1.300000" z="1.500000"/>
@@ -28,13 +28,13 @@
       <fTractionBiasFront value="0.435000"/>
       <fTractionLossMult value="0.800000"/>
       <fSuspensionForce value="1.300000"/>
-      <fSuspensionCompDamp value="1.600000"/>
-      <fSuspensionReboundDamp value="1.600000"/>
+      <fSuspensionCompDamp value="1.400000"/>
+      <fSuspensionReboundDamp value="1.400000"/>
       <fSuspensionUpperLimit value="0.130000"/>
       <fSuspensionLowerLimit value="-0.150000"/>
       <fSuspensionRaise value="0.000000"/>
       <fSuspensionBiasFront value="0.510000"/>
-      <fAntiRollBarForce value="0.800000"/>
+      <fAntiRollBarForce value="0.400000"/>
       <fAntiRollBarBiasFront value="0.600000"/>
       <fRollCentreHeightFront value="0.250000"/>
       <fRollCentreHeightRear value="0.360000"/>
