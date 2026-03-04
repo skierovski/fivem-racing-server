@@ -1,4 +1,5 @@
 local isOpen = false
+local pendingOverrides = {}
 
 local HANDLING_FIELDS = {
     { name = "fMass", type = "float", desc = "Weight (kg)" },
@@ -56,6 +57,19 @@ local HANDLING_FIELDS = {
     { name = "fInAirSteerMult", type = "float", desc = "In-air steering mult" },
 }
 
+local FIELD_TYPE_MAP = {}
+for _, field in ipairs(HANDLING_FIELDS) do
+    FIELD_TYPE_MAP[field.name] = field.type
+end
+
+local function applyHandlingValue(vehicle, name, value, fieldType)
+    if fieldType == "int" then
+        SetVehicleHandlingInt(vehicle, "CHandlingData", name, math.floor(value))
+    else
+        SetVehicleHandlingFloat(vehicle, "CHandlingData", name, value + 0.0)
+    end
+end
+
 local function getVehicleHandlingData(vehicle)
     local data = {}
     for _, field in ipairs(HANDLING_FIELDS) do
@@ -76,6 +90,20 @@ local function getVehicleHandlingData(vehicle)
     end
     return data
 end
+
+-- Per-frame thread: continuously re-apply overrides so GTA can't reset them
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle ~= 0 and next(pendingOverrides) then
+            for name, info in pairs(pendingOverrides) do
+                applyHandlingValue(vehicle, name, info.value, info.type)
+            end
+        end
+    end
+end)
 
 local function openEditor()
     local ped = PlayerPedId()
@@ -113,7 +141,6 @@ RegisterNUICallback('setValue', function(data, cb)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle == 0 then
-        print('^1[handling-editor]^0 Not in vehicle')
         cb({ ok = false })
         return
     end
@@ -121,21 +148,12 @@ RegisterNUICallback('setValue', function(data, cb)
     local name = data.name
     local value = tonumber(data.value)
     if not value then
-        print('^1[handling-editor]^0 Invalid value for ' .. tostring(name))
         cb({ ok = false })
         return
     end
 
-    local fieldType = nil
-    for _, field in ipairs(HANDLING_FIELDS) do
-        if field.name == name then
-            fieldType = field.type
-            break
-        end
-    end
-
+    local fieldType = FIELD_TYPE_MAP[name]
     if not fieldType then
-        print('^1[handling-editor]^0 Unknown field: ' .. name)
         cb({ ok = false })
         return
     end
@@ -143,20 +161,14 @@ RegisterNUICallback('setValue', function(data, cb)
     local before
     if fieldType == "int" then
         before = GetVehicleHandlingInt(vehicle, "CHandlingData", name)
-        SetVehicleHandlingInt(vehicle, "CHandlingData", name, math.floor(value))
     else
         before = GetVehicleHandlingFloat(vehicle, "CHandlingData", name)
-        SetVehicleHandlingFloat(vehicle, "CHandlingData", name, value + 0.0)
     end
 
-    local after
-    if fieldType == "int" then
-        after = GetVehicleHandlingInt(vehicle, "CHandlingData", name)
-    else
-        after = GetVehicleHandlingFloat(vehicle, "CHandlingData", name)
-    end
+    applyHandlingValue(vehicle, name, value, fieldType)
+    pendingOverrides[name] = { value = value, type = fieldType }
 
-    print(string.format('^3[handling-editor]^0 %s: ^1%s^0 -> ^2%s^0 (readback: ^5%s^0)', name, tostring(before), tostring(value), tostring(after)))
+    print(string.format('^3[handling-editor]^0 %s: ^1%s^0 -> ^2%s^0 (locked)', name, tostring(before), tostring(value)))
 
     cb({ ok = true, value = value })
 end)
@@ -201,12 +213,36 @@ RegisterNUICallback('exportMeta', function(_, cb)
     cb({ xml = table.concat(lines, '\n') })
 end)
 
+-- /handling — toggle editor UI
 RegisterCommand('handling', function()
     if isOpen then
         closeEditor()
     else
         openEditor()
     end
+end, false)
+
+-- /handling_reset — clear all overrides, revert to original handling
+RegisterCommand('handling_reset', function()
+    pendingOverrides = {}
+    print('^2[handling-editor]^0 All overrides cleared. Respawn car to get original handling.')
+end, false)
+
+-- /handling_strip — remove all performance mods from current vehicle
+RegisterCommand('handling_strip', function()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 then
+        print('^1[handling-editor]^0 Not in vehicle')
+        return
+    end
+
+    SetVehicleModKit(vehicle, 0)
+    local perfMods = { 11, 12, 13, 15, 16, 18 }
+    for _, modType in ipairs(perfMods) do
+        SetVehicleMod(vehicle, modType, -1, false)
+    end
+    print('^2[handling-editor]^0 Stripped performance mods (engine, brakes, transmission, suspension, armor, turbo)')
 end, false)
 
 RegisterKeyMapping('handling', 'Handling Editor', 'keyboard', '')
