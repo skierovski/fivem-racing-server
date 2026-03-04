@@ -16,8 +16,12 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /opt/fxserver/server-data
+            cp -r resources/handling /tmp/handling-backup
             git fetch origin main
             git reset --hard origin/main
+            rm -rf resources/handling
+            cp -r /tmp/handling-backup resources/handling
+            rm -rf /tmp/handling-backup
             npm install
             if [ -f sql/update_tiers.sql ]; then
               mysql -u "$DB_USER" -p"$DB_PASS" blacklist_racing < sql/update_tiers.sql && echo "SQL tier migration applied" || echo "SQL migration skipped (non-fatal)"
