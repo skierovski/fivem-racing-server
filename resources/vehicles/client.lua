@@ -98,6 +98,14 @@ function applyTuning(vehicle, tuning)
 
     SetVehicleModKit(vehicle, 0)
 
+    -- Paint finish (must be set before custom colors)
+    if tuning.paintType1 then
+        SetVehicleModColor_1(vehicle, tuning.paintType1, 0, 0)
+    end
+    if tuning.paintType2 then
+        SetVehicleModColor_2(vehicle, tuning.paintType2, 0)
+    end
+
     -- Primary color
     if tuning.color1 then
         SetVehicleCustomPrimaryColour(vehicle, tuning.color1.r or 0, tuning.color1.g or 0, tuning.color1.b or 0)
@@ -163,6 +171,16 @@ function applyTuning(vehicle, tuning)
         ToggleVehicleMod(vehicle, 18, tuning.turbo == true)
     else
         ToggleVehicleMod(vehicle, 18, true)
+    end
+
+    -- Extras
+    if tuning.extras then
+        for idStr, enabled in pairs(tuning.extras) do
+            local id = tonumber(idStr)
+            if id and DoesExtraExist(vehicle, id) then
+                SetVehicleExtra(vehicle, id, not enabled)
+            end
+        end
     end
 end
 
