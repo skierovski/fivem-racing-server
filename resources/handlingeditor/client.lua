@@ -113,6 +113,7 @@ RegisterNUICallback('setValue', function(data, cb)
     local ped = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle == 0 then
+        print('^1[handling-editor]^0 Not in vehicle')
         cb({ ok = false })
         return
     end
@@ -120,20 +121,42 @@ RegisterNUICallback('setValue', function(data, cb)
     local name = data.name
     local value = tonumber(data.value)
     if not value then
+        print('^1[handling-editor]^0 Invalid value for ' .. tostring(name))
         cb({ ok = false })
         return
     end
 
+    local fieldType = nil
     for _, field in ipairs(HANDLING_FIELDS) do
         if field.name == name then
-            if field.type == "int" then
-                SetVehicleHandlingInt(vehicle, "CHandlingData", name, math.floor(value))
-            elseif field.type == "float" then
-                SetVehicleHandlingFloat(vehicle, "CHandlingData", name, value + 0.0)
-            end
+            fieldType = field.type
             break
         end
     end
+
+    if not fieldType then
+        print('^1[handling-editor]^0 Unknown field: ' .. name)
+        cb({ ok = false })
+        return
+    end
+
+    local before
+    if fieldType == "int" then
+        before = GetVehicleHandlingInt(vehicle, "CHandlingData", name)
+        SetVehicleHandlingInt(vehicle, "CHandlingData", name, math.floor(value))
+    else
+        before = GetVehicleHandlingFloat(vehicle, "CHandlingData", name)
+        SetVehicleHandlingFloat(vehicle, "CHandlingData", name, value + 0.0)
+    end
+
+    local after
+    if fieldType == "int" then
+        after = GetVehicleHandlingInt(vehicle, "CHandlingData", name)
+    else
+        after = GetVehicleHandlingFloat(vehicle, "CHandlingData", name)
+    end
+
+    print(string.format('^3[handling-editor]^0 %s: ^1%s^0 -> ^2%s^0 (readback: ^5%s^0)', name, tostring(before), tostring(value), tostring(after)))
 
     cb({ ok = true, value = value })
 end)
