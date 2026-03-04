@@ -466,3 +466,59 @@ body {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
+/* ========================
+   Rematch
+   ======================== */
+
+.rematch-area {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    animation: mmrFadeIn 0.6s ease-out forwards;
+    pointer-events: auto;
+}
+
+.rematch-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #0096ff;
+    background: rgba(0, 150, 255, 0.1);
+    border: 1px solid rgba(0, 150, 255, 0.4);
+    padding: 14px 48px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.rematch-btn:hover {
+    background: rgba(0, 150, 255, 0.25);
+    border-color: rgba(0, 150, 255, 0.7);
+    box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+}
+
+.rematch-btn:active {
+    transform: scale(0.96);
+}
+
+.rematch-btn.waiting {
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    cursor: default;
+    box-shadow: none;
+}
+
+.rematch-status {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #ffcc44;
+    text-shadow: 0 0 10px rgba(255, 204, 68, 0.4);
+    animation: mmrFadeIn 0.4s ease-out forwards;
+}

@@ -16,6 +16,8 @@ local ChaseConfig = {
     MAX_AIRBORNE_TIME = 2.0,
     RAM_SPEED_THRESHOLD = 30.0,
     MAX_WARNINGS = 2,
+
+    REMATCH_WINDOW = 15,
 }
 
 local activeMatches = {}
@@ -291,9 +293,11 @@ function endMatch(matchId, winnerRole, reason)
 
     match.state = 'finished'
     match.result = { winnerRole = winnerRole, reason = reason }
+    match.rematchRequests = {}
 
     local elapsed = math.floor((GetGameTimer() - match.startTime) / 1000)
     local allSources = getAllMatchSources(match)
+    local isRanked = match.mode == 'ranked' and #match.chasers == 1
 
     for _, src in ipairs(allSources) do
         local role = src == match.runner.source and 'runner' or 'chaser'
@@ -305,10 +309,11 @@ function endMatch(matchId, winnerRole, reason)
             winnerRole = winnerRole,
             reason = reason,
             duration = elapsed,
+            isRanked = isRanked,
         })
     end
 
-    if match.mode == 'ranked' and #match.chasers == 1 then
+    if isRanked then
         local winnerId, loserId
         if winnerRole == 'runner' then
             winnerId = match.runner.identifier
@@ -320,17 +325,29 @@ function endMatch(matchId, winnerRole, reason)
         exports.ranked:ProcessRankedResult(winnerId, loserId, winnerRole, elapsed, match.isCrossTier)
     end
 
-    Citizen.SetTimeout(8000, function()
-        for _, src in ipairs(allSources) do
-            SetPlayerRoutingBucket(src, 0)
-            TriggerClientEvent('blacklist:returnToMenu', src)
-            playerMatchMap[src] = nil
-        end
-        TriggerEvent('blacklist:matchEnded', allSources)
-        activeMatches[matchId] = nil
+    local returnDelay = isRanked and (ChaseConfig.REMATCH_WINDOW * 1000) or 8000
+
+    match.returnTimerActive = true
+    Citizen.SetTimeout(returnDelay, function()
+        if not match.returnTimerActive then return end
+        returnPlayersToMenu(matchId)
     end)
 
     print(('[Chase] Match #%d ended: %s wins (%s) after %ds'):format(matchId, winnerRole, reason, elapsed))
+end
+
+function returnPlayersToMenu(matchId)
+    local match = activeMatches[matchId]
+    if not match then return end
+
+    local allSources = getAllMatchSources(match)
+    for _, src in ipairs(allSources) do
+        SetPlayerRoutingBucket(src, 0)
+        TriggerClientEvent('blacklist:returnToMenu', src)
+        playerMatchMap[src] = nil
+    end
+    TriggerEvent('blacklist:matchEnded', allSources)
+    activeMatches[matchId] = nil
 end
 
 -- ========================
@@ -361,6 +378,81 @@ AddEventHandler('playerDropped', function()
 
     playerMatchMap[source] = nil
 end)
+
+-- ========================
+-- Rematch (ranked 1v1 only)
+-- ========================
+
+RegisterNetEvent('blacklist:requestRematch')
+AddEventHandler('blacklist:requestRematch', function()
+    local source = source
+    local matchId = playerMatchMap[source]
+    if not matchId then return end
+
+    local match = activeMatches[matchId]
+    if not match or match.state ~= 'finished' then return end
+    if match.mode ~= 'ranked' or #match.chasers ~= 1 then return end
+    if not match.rematchRequests then return end
+
+    match.rematchRequests[source] = true
+
+    local allSources = getAllMatchSources(match)
+    local opponentSource = nil
+    for _, src in ipairs(allSources) do
+        if src ~= source then opponentSource = src end
+    end
+
+    if opponentSource and not match.rematchRequests[opponentSource] then
+        TriggerClientEvent('blacklist:rematchStatus', opponentSource, 'opponent_requested')
+        TriggerClientEvent('blacklist:rematchStatus', source, 'waiting')
+    end
+
+    local allAccepted = true
+    for _, src in ipairs(allSources) do
+        if not match.rematchRequests[src] then allAccepted = false break end
+    end
+
+    if allAccepted then
+        match.returnTimerActive = false
+
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:rematchStatus', src, 'accepted')
+        end
+
+        Citizen.SetTimeout(1500, function()
+            startRematch(match)
+        end)
+
+        print(('[Chase] Rematch accepted for match #%d'):format(matchId))
+    end
+end)
+
+function startRematch(oldMatch)
+    local allSources = getAllMatchSources(oldMatch)
+    for _, src in ipairs(allSources) do
+        playerMatchMap[src] = nil
+    end
+    activeMatches[oldMatch.id] = nil
+
+    local newRunner = oldMatch.chasers[1]
+    local newChaser = oldMatch.runner
+
+    TriggerEvent('blacklist:startChaseMatch', {
+        mode = oldMatch.mode,
+        isCrossTier = oldMatch.isCrossTier,
+        forceTier = oldMatch.forceTier,
+        forceModel = oldMatch.forceModel,
+        locationName = 'rematch',
+
+        runner = { source = newRunner.source, identifier = newRunner.identifier, mmr = newRunner.mmr, tier = newRunner.tier },
+        chaser = { source = newChaser.source, identifier = newChaser.identifier, mmr = newChaser.mmr, tier = newChaser.tier },
+
+        runnerX = oldMatch.runnerX, runnerY = oldMatch.runnerY,
+        runnerZ = oldMatch.runnerZ, runnerHeading = oldMatch.runnerHeading,
+        chaserX = oldMatch.chaserX, chaserY = oldMatch.chaserY,
+        chaserZ = oldMatch.chaserZ, chaserHeading = oldMatch.chaserHeading,
+    })
+end
 
 -- ========================
 -- Utility
