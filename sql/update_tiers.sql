@@ -2,19 +2,19 @@
 UPDATE vehicle_catalog SET tier = 'custom' WHERE tier != 'custom';
 
 -- Bronze tier
-UPDATE vehicle_catalog SET tier = 'bronze' WHERE model IN ('gb_cometcl', 'rh4', 'ballerc', 'futo');
+UPDATE vehicle_catalog SET tier = 'bronze' WHERE model IN ('gbcometcl', 'rh4', 'ballerc', 'futo');
 
 -- Silver tier
-UPDATE vehicle_catalog SET tier = 'silver' WHERE model IN ('gb_cometclf', 'gb_retinueloz', 'gb_schrauber');
+UPDATE vehicle_catalog SET tier = 'silver' WHERE model IN ('gbcometclf', 'gbretinueloz', 'gbschrauber');
 
 -- Gold tier
-UPDATE vehicle_catalog SET tier = 'gold' WHERE model IN ('roxanne', 'buffaloh', 'jester5', 'sent6', 'gb_gresleystx');
+UPDATE vehicle_catalog SET tier = 'gold' WHERE model IN ('roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx');
 
 -- Platinum tier
-UPDATE vehicle_catalog SET tier = 'platinum' WHERE model IN ('gb_argento7f', 'gb_solace', 'gb_sultanrsx');
+UPDATE vehicle_catalog SET tier = 'platinum' WHERE model IN ('gbargento7f', 'gbsolace', 'gbsultanrsx');
 
 -- Diamond tier
-UPDATE vehicle_catalog SET tier = 'diamond' WHERE model IN ('gb_tr3s');
+UPDATE vehicle_catalog SET tier = 'diamond' WHERE model IN ('gbtr3s');
 
 -- Blacklist tier
-UPDATE vehicle_catalog SET tier = 'blacklist' WHERE model IN ('gsttoros1', 'gb_comets2r');
+UPDATE vehicle_catalog SET tier = 'blacklist' WHERE model IN ('gsttoros1', 'gbcomets2r');
