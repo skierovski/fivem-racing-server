@@ -3,6 +3,7 @@
 -- ============================================================
 
 local isInMatch = false
+local isPostMatch = false
 local myRole = nil -- 'chaser' or 'runner'
 local matchTimer = 0
 local matchStartTime = 0
@@ -108,6 +109,7 @@ AddEventHandler('blacklist:chaseHUD', function(data)
 
     elseif data.action == 'end' then
         isInMatch = false
+        isPostMatch = true
         myRole = nil
         SendNUIMessage({
             action = 'matchEnd',
@@ -117,6 +119,9 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             duration = data.duration,
             isRanked = data.isRanked,
         })
+        if data.isRanked then
+            SetNuiFocus(true, true)
+        end
     end
 end)
 
@@ -152,6 +157,10 @@ end)
 RegisterNetEvent('blacklist:rematchStatus')
 AddEventHandler('blacklist:rematchStatus', function(status)
     SendNUIMessage({ action = 'rematchStatus', status = status })
+    if status == 'accepted' then
+        isPostMatch = false
+        SetNuiFocus(false, false)
+    end
 end)
 
 -- ========================
@@ -161,7 +170,9 @@ end)
 RegisterNetEvent('blacklist:returnToMenu')
 AddEventHandler('blacklist:returnToMenu', function()
     isInMatch = false
+    isPostMatch = false
     myRole = nil
+    SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
 end)
 
@@ -226,14 +237,14 @@ end)
 
 -- ========================
 -- Traffic suppression + vehicle exit block + ghost nuke
--- Runs every frame during match
+-- Runs every frame during match and post-match results screen
 -- ========================
 
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
 
-        if isInMatch then
+        if isInMatch or isPostMatch then
             SetPedDensityMultiplierThisFrame(0.0)
             SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
             SetVehicleDensityMultiplierThisFrame(0.0)
@@ -281,14 +292,14 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Periodic NPC cleanup during match
+-- Periodic NPC cleanup during match and post-match
 -- ========================
 
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(3000)
 
-        if isInMatch then
+        if isInMatch or isPostMatch then
             local playerPed = PlayerPedId()
 
             local handle, ped = FindFirstPed()

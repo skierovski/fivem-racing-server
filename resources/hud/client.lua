@@ -43,8 +43,9 @@ end)
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
+        DisableControlAction(0, 245, true)
         if hudVisible and not chatOpen then
-            if IsControlJustPressed(0, 245) then
+            if IsDisabledControlJustPressed(0, 245) then
                 chatOpen = true
                 SetNuiFocus(true, false)
                 SendNUIMessage({ action = 'openChat' })

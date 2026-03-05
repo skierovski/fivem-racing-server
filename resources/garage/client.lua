@@ -11,6 +11,8 @@ local garageModel = nil
 local trackedNeonEnabled = false
 local trackedNeonColor = { r = 0, g = 150, b = 255 }
 local trackedWheelColor = 0
+local trackedPaintType1 = 0
+local trackedPaintType2 = 0
 
 -- Benny's Original Motor Works interior
 local BENNYS_IPL = 'bkr_biker_interior_placement_interior_intb_intb_dlc_int_02'
@@ -227,6 +229,17 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
         liveryCount = GetNumVehicleMods(garageVehicle, 48)
     end
 
+    -- Detect available extras (0-14)
+    local extrasData = {}
+    for i = 0, 14 do
+        if DoesExtraExist(garageVehicle, i) then
+            extrasData[#extrasData + 1] = {
+                id = i,
+                enabled = IsVehicleExtraTurnedOn(garageVehicle, i),
+            }
+        end
+    end
+
     -- Current colors
     local pr, pg, pb = GetVehicleCustomPrimaryColour(garageVehicle)
     local sr, sg, sb = GetVehicleCustomSecondaryColour(garageVehicle)
@@ -241,10 +254,14 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
             trackedNeonColor = { r = savedTuning.neonColor.r or 0, g = savedTuning.neonColor.g or 150, b = savedTuning.neonColor.b or 255 }
         end
         trackedWheelColor = savedTuning.wheelColor or 0
+        trackedPaintType1 = savedTuning.paintType1 or 0
+        trackedPaintType2 = savedTuning.paintType2 or 0
     else
         trackedNeonEnabled = false
         trackedNeonColor = { r = 0, g = 150, b = 255 }
         trackedWheelColor = 0
+        trackedPaintType1 = 0
+        trackedPaintType2 = 0
     end
 
     SetNuiFocus(true, true)
@@ -268,6 +285,9 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
         currentWindowTint = GetVehicleWindowTint(garageVehicle),
         currentLivery = GetVehicleLivery(garageVehicle),
         currentWheelColor = trackedWheelColor,
+        paintType1 = trackedPaintType1,
+        paintType2 = trackedPaintType2,
+        extras = extrasData,
     })
 end)
 
@@ -366,8 +386,28 @@ RegisterNUICallback('applyColor', function(data, cb)
     local g = tonumber(data.g) or 0
     local b = tonumber(data.b) or 0
     if data.target == 'primary' then
+        SetVehicleModColor_1(garageVehicle, trackedPaintType1, 0, 0)
         SetVehicleCustomPrimaryColour(garageVehicle, r, g, b)
     elseif data.target == 'secondary' then
+        SetVehicleModColor_2(garageVehicle, trackedPaintType2, 0)
+        SetVehicleCustomSecondaryColour(garageVehicle, r, g, b)
+    end
+    cb({})
+end)
+
+RegisterNUICallback('applyPaintType', function(data, cb)
+    if not garageVehicle then cb({}) return end
+    local paintType = tonumber(data.paintType) or 0
+    local target = data.target
+    if target == 'primary' then
+        trackedPaintType1 = paintType
+        SetVehicleModColor_1(garageVehicle, paintType, 0, 0)
+        local r, g, b = GetVehicleCustomPrimaryColour(garageVehicle)
+        SetVehicleCustomPrimaryColour(garageVehicle, r, g, b)
+    elseif target == 'secondary' then
+        trackedPaintType2 = paintType
+        SetVehicleModColor_2(garageVehicle, paintType, 0)
+        local r, g, b = GetVehicleCustomSecondaryColour(garageVehicle)
         SetVehicleCustomSecondaryColour(garageVehicle, r, g, b)
     end
     cb({})
@@ -431,6 +471,16 @@ RegisterNUICallback('applyNeonColor', function(data, cb)
     cb({})
 end)
 
+RegisterNUICallback('applyExtra', function(data, cb)
+    if not garageVehicle then cb({}) return end
+    local extraId = tonumber(data.id)
+    local enabled = data.enabled == true
+    if extraId and DoesExtraExist(garageVehicle, extraId) then
+        SetVehicleExtra(garageVehicle, extraId, not enabled)
+    end
+    cb({})
+end)
+
 -- ========================
 -- Save & Exit / Cancel
 -- ========================
@@ -461,6 +511,8 @@ function collectTuningFromVehicle()
     local sr, sg, sb = GetVehicleCustomSecondaryColour(garageVehicle)
     t.color1 = { r = pr, g = pg, b = pb }
     t.color2 = { r = sr, g = sg, b = sb }
+    t.paintType1 = trackedPaintType1
+    t.paintType2 = trackedPaintType2
 
     -- Mod slots
     t.spoiler = GetVehicleMod(garageVehicle, 0)
@@ -492,6 +544,15 @@ function collectTuningFromVehicle()
     if t.neon then
         t.neonColor = { r = trackedNeonColor.r, g = trackedNeonColor.g, b = trackedNeonColor.b }
     end
+
+    -- Extras
+    local extras = {}
+    for i = 0, 14 do
+        if DoesExtraExist(garageVehicle, i) then
+            extras[tostring(i)] = IsVehicleExtraTurnedOn(garageVehicle, i)
+        end
+    end
+    t.extras = extras
 
     return t
 end
@@ -541,6 +602,12 @@ function applyFullTuning(vehicle, t)
 
     SetVehicleModKit(vehicle, 0)
 
+    if t.paintType1 then
+        SetVehicleModColor_1(vehicle, t.paintType1, 0, 0)
+    end
+    if t.paintType2 then
+        SetVehicleModColor_2(vehicle, t.paintType2, 0)
+    end
     if t.color1 then
         SetVehicleCustomPrimaryColour(vehicle, t.color1.r or 0, t.color1.g or 0, t.color1.b or 0)
     end
@@ -581,6 +648,15 @@ function applyFullTuning(vehicle, t)
         for i = 0, 3 do SetVehicleNeonLightEnabled(vehicle, i, true) end
         if t.neonColor then
             SetVehicleNeonLightsColour(vehicle, t.neonColor.r or 0, t.neonColor.g or 150, t.neonColor.b or 255)
+        end
+    end
+
+    if t.extras then
+        for idStr, enabled in pairs(t.extras) do
+            local id = tonumber(idStr)
+            if id and DoesExtraExist(vehicle, id) then
+                SetVehicleExtra(vehicle, id, not enabled)
+            end
         end
     end
 end

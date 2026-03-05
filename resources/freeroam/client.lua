@@ -1,5 +1,6 @@
 local isInFreeRoam = false
 local isFreeroamMenuOpen = false
+local sirenState = 'off' -- 'off', 'code2', 'code3'
 
 -- ========================
 -- Full client-side freeroam entry
@@ -279,6 +280,57 @@ Citizen.CreateThread(function()
 
                 Citizen.Wait(300)
                 DoScreenFadeIn(500)
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Police siren controls (Q = Code 2 lights only, Alt = Code 3 lights+sound)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+
+        if isInFreeRoam then
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+
+            if veh ~= 0 then
+                DisableControlAction(0, 44, true)   -- Q (INPUT_COVER)
+                DisableControlAction(0, 19, true)   -- Left Alt (INPUT_CHARACTER_WHEEL)
+
+                -- Q = toggle Code 2 (lights only, no siren sound)
+                if IsDisabledControlJustPressed(0, 44) then
+                    if sirenState == 'code2' then
+                        SetVehicleSiren(veh, false)
+                        sirenState = 'off'
+                    else
+                        SetVehicleSiren(veh, true)
+                        SetVehicleHasMutedSirens(veh, true)
+                        sirenState = 'code2'
+                    end
+                end
+
+                -- Alt = toggle Code 3 (lights + siren sound)
+                if IsDisabledControlJustPressed(0, 19) then
+                    if sirenState == 'code3' then
+                        SetVehicleSiren(veh, false)
+                        sirenState = 'off'
+                    else
+                        SetVehicleSiren(veh, true)
+                        SetVehicleHasMutedSirens(veh, false)
+                        sirenState = 'code3'
+                    end
+                end
+
+                -- Reinforce muted siren each frame for Code 2
+                if sirenState == 'code2' then
+                    SetVehicleHasMutedSirens(veh, true)
+                end
+            else
+                sirenState = 'off'
             end
         end
     end

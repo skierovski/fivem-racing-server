@@ -89,12 +89,22 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
 
     DisplayHud(true)
     DisplayRadar(true)
+
+    TriggerServerEvent('blacklist:spawnReady')
 end)
 
 function applyTuning(vehicle, tuning)
     if not tuning then tuning = {} end
 
     SetVehicleModKit(vehicle, 0)
+
+    -- Paint finish (must be set before custom colors)
+    if tuning.paintType1 then
+        SetVehicleModColor_1(vehicle, tuning.paintType1, 0, 0)
+    end
+    if tuning.paintType2 then
+        SetVehicleModColor_2(vehicle, tuning.paintType2, 0)
+    end
 
     -- Primary color
     if tuning.color1 then
@@ -161,6 +171,16 @@ function applyTuning(vehicle, tuning)
         ToggleVehicleMod(vehicle, 18, tuning.turbo == true)
     else
         ToggleVehicleMod(vehicle, 18, true)
+    end
+
+    -- Extras
+    if tuning.extras then
+        for idStr, enabled in pairs(tuning.extras) do
+            local id = tonumber(idStr)
+            if id and DoesExtraExist(vehicle, id) then
+                SetVehicleExtra(vehicle, id, not enabled)
+            end
+        end
     end
 end
 

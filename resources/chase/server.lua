@@ -22,6 +22,7 @@ local ChaseConfig = {
 
 local activeMatches = {}
 local playerMatchMap = {}
+local spawnReady = {}
 
 local matchIdCounter = 0
 
@@ -101,10 +102,23 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         end
     end
 
-    Citizen.Wait(1000)
+    -- Wait for all players to finish spawning (with timeout)
+    local allSources = getAllMatchSources(match)
+    local spawnDeadline = GetGameTimer() + 20000
+    while GetGameTimer() < spawnDeadline do
+        local allReady = true
+        for _, src in ipairs(allSources) do
+            if not spawnReady[src] then allReady = false break end
+        end
+        if allReady then break end
+        Citizen.Wait(200)
+    end
+
+    for _, src in ipairs(allSources) do
+        spawnReady[src] = nil
+    end
 
     -- Freeze everyone during countdown
-    local allSources = getAllMatchSources(match)
     for _, src in ipairs(allSources) do
         TriggerClientEvent('blacklist:chaseFreeze', src, true)
     end
@@ -377,6 +391,7 @@ AddEventHandler('playerDropped', function()
     end
 
     playerMatchMap[source] = nil
+    spawnReady[source] = nil
 end)
 
 -- ========================
@@ -453,6 +468,15 @@ function startRematch(oldMatch)
         chaserZ = oldMatch.chaserZ, chaserHeading = oldMatch.chaserHeading,
     })
 end
+
+-- ========================
+-- Spawn readiness signal from client
+-- ========================
+
+RegisterNetEvent('blacklist:spawnReady')
+AddEventHandler('blacklist:spawnReady', function()
+    spawnReady[source] = true
+end)
 
 -- ========================
 -- Utility

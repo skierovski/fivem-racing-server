@@ -27,7 +27,7 @@
         sideSkirts: '\u{1F3CE}', hood: '\u{1F3CE}',
         wheels: '\u{2699}', wheelColor: '\u{1F3A8}',
         livery: '\u{1F3AD}', windowTint: '\u{1F576}',
-        neon: '\u{1F4A1}', turbo: '\u{26A1}',
+        neon: '\u{1F4A1}', turbo: '\u{26A1}', extras: '\u{1F6E0}',
         engine: '\u{1F527}', brakes: '\u{1F6D1}', transmission: '\u{2699}', suspension: '\u{1F4CF}',
     };
 
@@ -78,6 +78,10 @@
         }
         addCategory('windowTint', 'Window Tint', CATEGORY_ICONS.windowTint);
         addCategory('neon', 'Neon Underglow', CATEGORY_ICONS.neon);
+
+        if ((tuningData.extras || []).length > 0) {
+            addCategory('extras', 'Extras', CATEGORY_ICONS.extras);
+        }
 
         addSectionHeader('PERFORMANCE');
         const perfMods = (tuningData.mods || []).filter(m =>
@@ -138,6 +142,8 @@
             renderNeon();
         } else if (catId === 'turbo') {
             renderTurbo();
+        } else if (catId === 'extras') {
+            renderExtras();
         } else {
             renderModSlot(catId);
         }
@@ -185,6 +191,14 @@
     // Color picker
     // ========================
 
+    const PAINT_TYPES = [
+        { id: 0, label: 'Normal' },
+        { id: 1, label: 'Metallic' },
+        { id: 3, label: 'Matte' },
+        { id: 4, label: 'Metal' },
+        { id: 5, label: 'Chrome' },
+    ];
+
     function renderColorPicker(target) {
         optionsList.innerHTML = '';
         const area = document.createElement('div');
@@ -192,6 +206,28 @@
 
         const key = target === 'color1' ? 'primary' : 'secondary';
         const cur = tuningData.currentColors[key] || { r: 0, g: 0, b: 0 };
+        const ptKey = target === 'color1' ? 'paintType1' : 'paintType2';
+        const activePT = tuningData[ptKey] || 0;
+
+        // Paint type selector
+        const ptRow = document.createElement('div');
+        ptRow.className = 'paint-type-selector';
+        PAINT_TYPES.forEach(pt => {
+            const btn = document.createElement('button');
+            btn.className = 'paint-type-btn' + (pt.id === activePT ? ' active' : '');
+            btn.textContent = pt.label;
+            btn.addEventListener('click', () => {
+                tuningData[ptKey] = pt.id;
+                const nuiTarget = target === 'color1' ? 'primary' : 'secondary';
+                fetch('https://garage/applyPaintType', {
+                    method: 'POST',
+                    body: JSON.stringify({ target: nuiTarget, paintType: pt.id })
+                });
+                renderColorPicker(target);
+            });
+            ptRow.appendChild(btn);
+        });
+        area.appendChild(ptRow);
 
         // Swatches
         const swatches = document.createElement('div');
@@ -504,6 +540,29 @@
             renderTurbo();
         });
         optionsList.appendChild(toggleRow);
+    }
+
+    // ========================
+    // Extras
+    // ========================
+
+    function renderExtras() {
+        optionsList.innerHTML = '';
+        const extras = tuningData.extras || [];
+        extras.forEach(extra => {
+            const toggleRow = document.createElement('div');
+            toggleRow.className = 'toggle-row';
+            toggleRow.innerHTML = `<span>Extra ${extra.id + 1}</span><div class="toggle-switch ${extra.enabled ? 'on' : ''}"></div>`;
+            toggleRow.querySelector('.toggle-switch').addEventListener('click', () => {
+                extra.enabled = !extra.enabled;
+                fetch('https://garage/applyExtra', {
+                    method: 'POST',
+                    body: JSON.stringify({ id: extra.id, enabled: extra.enabled })
+                });
+                renderExtras();
+            });
+            optionsList.appendChild(toggleRow);
+        });
     }
 
     // ========================

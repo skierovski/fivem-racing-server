@@ -267,6 +267,38 @@ body {
     padding: 16px 24px;
 }
 
+.paint-type-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.paint-type-btn {
+    flex: 1;
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.paint-type-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.paint-type-btn.active {
+    background: rgba(0, 150, 255, 0.2);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .color-swatches {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
