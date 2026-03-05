@@ -16,8 +16,23 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /opt/fxserver/server-data
+
+            # Backup handling files edited by the handling team
+            if [ -d resources/basecars ]; then
+              cp -r resources/basecars /tmp/basecars_backup
+              echo "Handling backup saved"
+            fi
+
             git fetch origin main
             git reset --hard origin/main
+
+            # Restore handling overrides (server edits take priority over repo)
+            if [ -d /tmp/basecars_backup ]; then
+              cp /tmp/basecars_backup/*.meta resources/basecars/ 2>/dev/null
+              rm -rf /tmp/basecars_backup
+              echo "Handling files restored from server"
+            fi
+
             npm install
             if [ -f sql/update_tiers.sql ]; then
               mysql -u "$DB_USER" -p"$DB_PASS" blacklist_racing < sql/update_tiers.sql && echo "SQL tier migration applied" || echo "SQL migration skipped (non-fatal)"
