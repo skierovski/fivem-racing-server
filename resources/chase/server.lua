@@ -116,6 +116,20 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         spawnReady[src] = nil
     end
 
+    -- Abort if someone disconnected during spawn wait
+    if match.state == 'finished' or match.state == 'cancelled' then
+        print(('[Chase] Match #%d aborted — player left during spawn'):format(matchId))
+        return
+    end
+
+    for _, src in ipairs(allSources) do
+        if not GetPlayerName(src) then
+            cancelMatch(matchId, 'player_left_during_setup')
+            print(('[Chase] Match #%d aborted — player %d gone after spawn'):format(matchId, src))
+            return
+        end
+    end
+
     -- Freeze everyone during countdown
     for _, src in ipairs(allSources) do
         TriggerClientEvent('blacklist:chaseFreeze', src, true)
@@ -126,6 +140,20 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
     end
 
     Citizen.Wait(ChaseConfig.COUNTDOWN_DURATION * 1000)
+
+    -- Abort if someone disconnected during countdown
+    if match.state == 'finished' or match.state == 'cancelled' then
+        print(('[Chase] Match #%d aborted — player left during countdown'):format(matchId))
+        return
+    end
+
+    for _, src in ipairs(allSources) do
+        if not GetPlayerName(src) then
+            cancelMatch(matchId, 'player_left_during_setup')
+            print(('[Chase] Match #%d aborted — player %d gone after countdown'):format(matchId, src))
+            return
+        end
+    end
 
     -- No headstart: unfreeze everyone simultaneously
     match.state = 'active'
@@ -295,9 +323,56 @@ end)
 -- End match
 -- ========================
 
+-- ========================
+-- Disconnect reason classification
+-- ========================
+
+local function isIntentionalQuit(reason)
+    if not reason then return false end
+    local r = reason:lower()
+    return r:find('exiting') ~= nil or r:find('quit') ~= nil
+end
+
+-- ========================
+-- Cancel match (no winner, no MMR change)
+-- Used when a player disconnects due to connection loss or during setup
+-- ========================
+
+function cancelMatch(matchId, reason)
+    local match = activeMatches[matchId]
+    if not match or match.state == 'finished' or match.state == 'cancelled' then return end
+
+    match.state = 'cancelled'
+
+    local allSources = getAllMatchSources(match)
+    for _, src in ipairs(allSources) do
+        if GetPlayerName(src) then
+            TriggerClientEvent('blacklist:chaseFreeze', src, false)
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'end',
+                won = false,
+                winnerRole = 'none',
+                reason = reason,
+                duration = 0,
+                isRanked = false,
+            })
+        end
+    end
+
+    Citizen.SetTimeout(5000, function()
+        returnPlayersToMenu(matchId)
+    end)
+
+    print(('[Chase] ^3Match #%d CANCELLED: %s^0'):format(matchId, reason))
+end
+
+-- ========================
+-- End match (with winner/loser and ranked processing)
+-- ========================
+
 function endMatch(matchId, winnerRole, reason)
     local match = activeMatches[matchId]
-    if not match or match.state == 'finished' then return end
+    if not match or match.state == 'finished' or match.state == 'cancelled' then return end
 
     match.state = 'finished'
     match.result = { winnerRole = winnerRole, reason = reason }
@@ -350,8 +425,10 @@ function returnPlayersToMenu(matchId)
 
     local allSources = getAllMatchSources(match)
     for _, src in ipairs(allSources) do
-        SetPlayerRoutingBucket(src, 0)
-        TriggerClientEvent('blacklist:returnToMenu', src)
+        if GetPlayerName(src) then
+            SetPlayerRoutingBucket(src, 0)
+            TriggerClientEvent('blacklist:returnToMenu', src)
+        end
         playerMatchMap[src] = nil
     end
     TriggerEvent('blacklist:matchEnded', allSources)
@@ -362,26 +439,50 @@ end
 -- Player disconnect during match
 -- ========================
 
-AddEventHandler('playerDropped', function()
+AddEventHandler('playerDropped', function(reason)
     local source = source
     local matchId = playerMatchMap[source]
     if not matchId then return end
 
     local match = activeMatches[matchId]
-    if not match or match.state == 'finished' then return end
+    if not match or match.state == 'finished' or match.state == 'cancelled' then
+        playerMatchMap[source] = nil
+        spawnReady[source] = nil
+        return
+    end
 
-    if source == match.runner.source then
-        endMatch(matchId, 'chaser', 'runner_disconnected')
-    else
-        for i, c in ipairs(match.chasers) do
-            if c.source == source then
-                table.remove(match.chasers, i)
-                break
+    local playerName = GetPlayerName(source) or 'Unknown'
+    local intentional = isIntentionalQuit(reason)
+
+    print(('[Chase] %s dropped from match #%d | reason="%s" | intentional=%s'):format(
+        playerName, matchId, reason or 'unknown', tostring(intentional)))
+
+    -- During setup: always cancel (match never started, nobody should lose)
+    if match.state == 'countdown' then
+        cancelMatch(matchId, 'player_left_during_setup')
+        playerMatchMap[source] = nil
+        spawnReady[source] = nil
+        return
+    end
+
+    -- Active match: intentional quit = quitter loses, connection loss = cancel
+    if intentional then
+        local isRunner = (source == match.runner.source)
+        if isRunner then
+            endMatch(matchId, 'chaser', 'runner_quit')
+        else
+            for i, c in ipairs(match.chasers) do
+                if c.source == source then
+                    table.remove(match.chasers, i)
+                    break
+                end
+            end
+            if #match.chasers == 0 then
+                endMatch(matchId, 'runner', 'chaser_quit')
             end
         end
-        if #match.chasers == 0 then
-            endMatch(matchId, 'runner', 'all_chasers_disconnected')
-        end
+    else
+        cancelMatch(matchId, 'connection_lost')
     end
 
     playerMatchMap[source] = nil

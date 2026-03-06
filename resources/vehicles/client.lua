@@ -21,7 +21,7 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     while not HasModelLoaded(hash) do
         Citizen.Wait(100)
         if GetGameTimer() > timeout then
-            print('[Vehicles] ^1Failed to load model: ' .. model .. '^0')
+            print('[Vehicles] ^1Failed to load model: ' .. model .. ', falling back to sultan^0')
             hash = GetHashKey('sultan')
             RequestModel(hash)
             while not HasModelLoaded(hash) do
@@ -37,11 +37,38 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     SetEntityVisible(ped, true, false)
     SetEntityInvincible(ped, false)
 
-    -- Spawn vehicle above target, freeze it while collision loads
-    local vehicle = CreateVehicle(hash, x, y, spawnZ, heading or 0.0, true, false)
+    -- Spawn vehicle above target, retry up to 3 times if creation fails
+    local vehicle = 0
+    for attempt = 1, 3 do
+        vehicle = CreateVehicle(hash, x, y, spawnZ, heading or 0.0, true, false)
+        if vehicle ~= 0 then break end
+        print(('[Vehicles] ^3CreateVehicle failed (attempt %d/3), retrying...^0'):format(attempt))
+        Citizen.Wait(500)
+    end
+
+    if vehicle == 0 then
+        print('[Vehicles] ^1CRITICAL: Vehicle creation failed after 3 attempts^0')
+        TriggerServerEvent('blacklist:spawnReady')
+        return
+    end
+
     SetModelAsNoLongerNeeded(hash)
     FreezeEntityPosition(vehicle, true)
-    TaskWarpPedIntoVehicle(ped, vehicle, -1)
+
+    -- Warp ped into vehicle using immediate native, then verify
+    SetPedIntoVehicle(ped, vehicle, -1)
+    Citizen.Wait(50)
+
+    if GetVehiclePedIsIn(ped, false) ~= vehicle then
+        TaskWarpPedIntoVehicle(ped, vehicle, -1)
+        Citizen.Wait(200)
+    end
+
+    if GetVehiclePedIsIn(ped, false) ~= vehicle then
+        SetPedIntoVehicle(ped, vehicle, -1)
+        Citizen.Wait(100)
+        print('[Vehicles] ^3Ped warp required multiple attempts^0')
+    end
 
     -- Stream the area and load collision
     SetFocusPosAndVel(x, y, z, 0.0, 0.0, 0.0)
@@ -54,7 +81,7 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         if GetGameTimer() > timeout then break end
     end
 
-    -- Find solid ground (probe from z+5 to avoid finding rooftops)
+    -- Find solid ground: tight probe first, wider fallback second
     local found, groundZ = false, z
     for attempt = 1, 30 do
         found, groundZ = GetGroundZFor_3dCoord(x, y, z + 5.0, false)
@@ -63,7 +90,15 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         Citizen.Wait(100)
     end
 
-    local finalZ = found and (groundZ + 0.5) or z
+    if not found then
+        for attempt = 1, 15 do
+            found, groundZ = GetGroundZFor_3dCoord(x, y, z + 50.0, false)
+            if found then break end
+            Citizen.Wait(100)
+        end
+    end
+
+    local finalZ = found and (groundZ + 0.3) or z
     SetEntityCoords(vehicle, x, y, finalZ, false, false, false, true)
     SetEntityHeading(vehicle, heading or 0.0)
     ClearFocus()
@@ -84,6 +119,12 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
     -- Keep frozen -- chase countdown will unfreeze
     FreezeEntityPosition(vehicle, true)
     FreezeEntityPosition(ped, true)
+
+    -- Final safety: guarantee ped is in the vehicle
+    if GetVehiclePedIsIn(ped, false) ~= vehicle then
+        SetPedIntoVehicle(ped, vehicle, -1)
+        print('[Vehicles] ^3Final ped-in-vehicle safety check triggered^0')
+    end
 
     currentVehicle = vehicle
 
