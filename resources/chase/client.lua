@@ -329,148 +329,685 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- ============================================================
+-- ANTI-CHEAT TELEMETRY v1.0 — Comprehensive F8 Console Logger
+-- Press F8 in-game to view all logs in real time
+-- ============================================================
+
+local AC_VERSION = '1.0'
+
+-- F8 color codes: ^1=red ^2=green ^3=yellow ^4=blue ^5=cyan ^6=purple ^0=reset
+local CLR = { R='^1', G='^2', Y='^3', B='^4', C='^5', P='^6', X='^0' }
+
 -- ========================
--- Tester diagnostic logging: airborne + collision detection
+-- Telemetry state
 -- ========================
 
-local wasAirborne = false
-local airborneStartTime = 0
-local airborneStartSpeed = 0
-local lastEnvCrash = nil -- { time = ms, speed = km/h }
-local lastCollisionTime = 0
+local telem = {
+    wasAirborne       = false,
+    airborneStart     = 0,
+    airborneStartSpd  = 0,
+    airborneStartHgt  = 0,
+    airborneMaxHgt    = 0,
+    airborneCause     = 'UNKNOWN',
+    preAirborneSlope  = 0,
 
-local function logChase(msg)
-    local prefix = ('[CHASE LOG] role=%s | %s'):format(myRole or 'unknown', msg)
-    print(prefix)
-    TriggerServerEvent('blacklist:chaseLog', { message = msg })
+    lastCollisionTime = 0,
+    lastEnvCrash      = nil,
+    lastWallHitTime   = 0,
+    lastWallHitSpeed  = 0,
+
+    lastSpeed         = 0,
+    lastHeading       = 0,
+    isBraking         = false,
+    brakeStartTime    = 0,
+    isAccelerating    = false,
+    steeringAngle     = 0,
+
+    oppPrevSpeed      = 0,
+    oppPrevDist       = 999,
+    oppSpeedHistory   = {},
+    maxOppSamples     = 10,
+
+    lastBrakeCheck    = nil,
+    brakeCheckCount   = 0,
+
+    speedSamples      = {},
+    maxSpeedSamples   = 20,
+
+    pitch             = 0,
+    roll              = 0,
+    lastTerrainLog    = 0,
+    lastTerrainType   = 'FLAT',
+
+    totalCollisions   = 0,
+    playerContacts    = 0,
+    envCollisions     = 0,
+    airborneCount     = 0,
+    spinOuts          = 0,
+    wallBounces       = 0,
+    lastSummaryTime   = 0,
+}
+
+-- ========================
+-- Logging
+-- ========================
+
+local function matchTime()
+    if matchStartTime and matchStartTime > 0 then
+        return (GetGameTimer() - matchStartTime) / 1000.0
+    end
+    return 0.0
 end
 
-local function getClosestPlayerInfo()
-    local myPed = PlayerPedId()
+local function acLog(level, msg)
+    local color = CLR.G
+    if level == 'WARN' then color = CLR.Y
+    elseif level == 'CRIT' then color = CLR.R
+    elseif level == 'DATA' then color = CLR.C
+    elseif level == 'ANLZ' then color = CLR.P end
+
+    local role = (myRole or '???'):upper()
+    local t = ('%.1f'):format(matchTime())
+
+    print(('%s[AC]%s %s[%s]%s [%ss] [%s] %s'):format(
+        CLR.C, CLR.X, color, level, CLR.X, t, role, msg))
+
+    TriggerServerEvent('blacklist:chaseLog', {
+        message = ('[%s] [%ss] [%s] %s'):format(level, t, role, msg)
+    })
+end
+
+-- ========================
+-- Vehicle data snapshot
+-- ========================
+
+local function getVehicleData(vehicle)
+    if not vehicle or vehicle == 0 then return nil end
+
+    local speed   = GetEntitySpeed(vehicle)
+    local coords  = GetEntityCoords(vehicle)
+    local fwd     = GetEntityForwardVector(vehicle)
+    local rotVel  = GetEntityRotationVelocity(vehicle)
+
+    return {
+        entity    = vehicle,
+        speed     = speed,
+        speedKmh  = math.floor(speed * 3.6),
+        heading   = GetEntityHeading(vehicle),
+        coords    = coords,
+        pitch     = GetEntityPitch(vehicle),
+        roll      = GetEntityRoll(vehicle),
+        height    = GetEntityHeightAboveGround(vehicle),
+        fwd       = fwd,
+        vel       = GetEntityVelocity(vehicle),
+        rotVel    = rotVel,
+        yawRate   = math.abs(rotVel.z) * 57.2958,
+        steering  = GetVehicleSteeringAngle(vehicle),
+        onWheels  = IsVehicleOnAllWheels(vehicle),
+        inAir     = IsEntityInAir(vehicle),
+        upright   = IsEntityUpright(vehicle),
+        upsideDown = IsEntityUpsidedown(vehicle),
+        braking   = IsControlPressed(0, 72) or IsDisabledControlPressed(0, 72),
+        throttle  = IsControlPressed(0, 71) or IsDisabledControlPressed(0, 71),
+    }
+end
+
+-- ========================
+-- Closest opponent snapshot
+-- ========================
+
+local function getOpponentData()
+    local myPed    = PlayerPedId()
     local myCoords = GetEntityCoords(myPed)
-    local closestDist = 99999.0
-    local closestSpeed = 0.0
-    local closestPed = 0
+    local best     = {
+        dist = 99999, speed = 0, speedKmh = 0, heading = 0,
+        ped = 0, vehicle = 0, coords = myCoords,
+        fwd = vector3(0,1,0), yawRate = 0, braking = false,
+    }
 
     for _, playerId in ipairs(GetActivePlayers()) do
         if playerId ~= PlayerId() then
             local otherPed = GetPlayerPed(playerId)
             if otherPed ~= 0 then
-                local dist = #(myCoords - GetEntityCoords(otherPed))
-                if dist < closestDist then
-                    closestDist = dist
-                    closestPed = otherPed
-                    local otherVeh = GetVehiclePedIsIn(otherPed, false)
-                    closestSpeed = otherVeh ~= 0 and math.floor(GetEntitySpeed(otherVeh) * 3.6) or 0
+                local otherCoords = GetEntityCoords(otherPed)
+                local dist = #(myCoords - otherCoords)
+                if dist < best.dist then
+                    best.dist    = dist
+                    best.ped     = otherPed
+                    best.coords  = otherCoords
+                    local veh = GetVehiclePedIsIn(otherPed, false)
+                    best.vehicle = veh
+                    if veh ~= 0 then
+                        best.speed    = GetEntitySpeed(veh)
+                        best.speedKmh = math.floor(best.speed * 3.6)
+                        best.heading  = GetEntityHeading(veh)
+                        best.fwd      = GetEntityForwardVector(veh)
+                        local rv      = GetEntityRotationVelocity(veh)
+                        best.yawRate  = math.abs(rv.z) * 57.2958
+                        best.braking  = false
+                    end
                 end
             end
         end
     end
 
-    return closestDist, closestSpeed
+    return best
 end
 
--- Airborne tracking
+-- ========================
+-- Utilities
+-- ========================
+
+local function headingDiff(h1, h2)
+    local diff = math.abs(h1 - h2)
+    if diff > 180 then diff = 360 - diff end
+    return diff
+end
+
+local function addSpeedSample(kmh)
+    table.insert(telem.speedSamples, kmh)
+    if #telem.speedSamples > telem.maxSpeedSamples then
+        table.remove(telem.speedSamples, 1)
+    end
+end
+
+local function getSpeedTrend()
+    local n = #telem.speedSamples
+    if n < 4 then return 'STABLE', 0 end
+    local recent = telem.speedSamples[n]
+    local older  = telem.speedSamples[math.max(1, n - 5)]
+    local diff   = recent - older
+    if diff < -15 then return 'BRAKING_HARD', diff
+    elseif diff < -5 then return 'DECELERATING', diff
+    elseif diff > 10 then return 'ACCELERATING', diff
+    else return 'STABLE', diff end
+end
+
+-- ========================
+-- Pit maneuver & collision analysis
+-- ========================
+
+local function analyzePitManeuver(myData, opp)
+    local toOpp     = opp.coords - myData.coords
+    local toOppLen  = #toOpp
+    if toOppLen < 0.01 then toOppLen = 0.01 end
+    local toOppN    = toOpp / toOppLen
+
+    local approachDot   = myData.fwd.x * toOppN.x + myData.fwd.y * toOppN.y
+    local approachAngle = math.acos(math.max(-1, math.min(1, approachDot))) * 57.2958
+
+    local hdgDiff = headingDiff(myData.heading, opp.heading)
+    local spdDiff = myData.speedKmh - opp.speedKmh
+
+    local contactType = 'SIDESWIPE'
+    if approachAngle < 30 then
+        contactType = hdgDiff < 45 and 'REAR_END' or 'T_BONE'
+    elseif approachAngle > 150 then
+        contactType = 'HEAD_ON'
+    elseif hdgDiff < 45 then
+        contactType = 'PIT_MANEUVER'
+    end
+
+    local intentScore = 0
+    local factors = {}
+
+    if math.abs(myData.steering) > 10 then
+        intentScore = intentScore + 2
+        table.insert(factors, ('steering=%.0f°'):format(myData.steering))
+    end
+
+    if not telem.isBraking then
+        intentScore = intentScore + 1
+        table.insert(factors, 'no_brake')
+    else
+        intentScore = intentScore - 2
+        local brakeDur = (GetGameTimer() - telem.brakeStartTime) / 1000.0
+        table.insert(factors, ('braking_%.1fs'):format(brakeDur))
+    end
+
+    if spdDiff > 30 then
+        intentScore = intentScore + 2
+        table.insert(factors, ('closing_fast+%d'):format(spdDiff))
+    elseif spdDiff > 15 then
+        intentScore = intentScore + 1
+    end
+
+    if hdgDiff < 15 and contactType == 'SIDESWIPE' then
+        intentScore = intentScore - 1
+        table.insert(factors, 'parallel')
+    end
+
+    -- Opponent braked / slowed suddenly (brake-check scenario)
+    if opp.speedKmh < telem.oppPrevSpeed - 20 then
+        intentScore = intentScore - 1
+        table.insert(factors, ('opp_braked_%d→%d'):format(telem.oppPrevSpeed, opp.speedKmh))
+    end
+
+    if telem.lastEnvCrash and (GetGameTimer() - telem.lastEnvCrash.time) < 3000 and myRole == 'chaser' then
+        intentScore = intentScore - 2
+        local gap = GetGameTimer() - telem.lastEnvCrash.time
+        table.insert(factors, ('follow_up_%dms'):format(gap))
+    end
+
+    -- Runner brake-checked right before contact — chaser likely couldn't avoid
+    if telem.lastBrakeCheck and (GetGameTimer() - telem.lastBrakeCheck.time) < 3000 and myRole == 'chaser' then
+        intentScore = intentScore - 3
+        local gap = GetGameTimer() - telem.lastBrakeCheck.time
+        table.insert(factors, ('BRAKE_CHECKED_%dms_ago_opp_%d→%d'):format(
+            gap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+    end
+
+    local intent = 'LIKELY_ACCIDENTAL'
+    if intentScore >= 3 then intent = 'LIKELY_INTENTIONAL'
+    elseif intentScore >= 1 then intent = 'UNCLEAR' end
+
+    return {
+        contactType   = contactType,
+        approachAngle = approachAngle,
+        headingDiff   = hdgDiff,
+        speedDiff     = spdDiff,
+        intent        = intent,
+        intentScore   = intentScore,
+        factors       = table.concat(factors, ', '),
+    }
+end
+
+-- ========================
+-- Airborne cause detection
+-- ========================
+
+local function determineAirborneCause(myData)
+    local now = GetGameTimer()
+
+    if telem.lastWallHitTime > 0 and (now - telem.lastWallHitTime) < 500 then
+        return 'WALL_BOUNCE'
+    end
+
+    if math.abs(telem.pitch) > 10 then
+        return 'HILL'
+    end
+
+    if telem.lastCollisionTime > 0 and (now - telem.lastCollisionTime) < 500 then
+        return 'PLAYER_HIT'
+    end
+
+    if myData.height < 1.5 then
+        return 'BUMP'
+    end
+
+    return 'UNKNOWN'
+end
+
+-- ========================
+-- Match lifecycle logging (hooks into existing HUD events)
+-- ========================
+
+RegisterNetEvent('blacklist:chaseHUD')
+AddEventHandler('blacklist:chaseHUD', function(data)
+    if data.action == 'start' then
+        telem.totalCollisions = 0
+        telem.playerContacts  = 0
+        telem.envCollisions   = 0
+        telem.airborneCount   = 0
+        telem.spinOuts        = 0
+        telem.wallBounces     = 0
+        telem.speedSamples    = {}
+        telem.oppSpeedHistory = {}
+        telem.lastEnvCrash    = nil
+        telem.lastBrakeCheck  = nil
+        telem.brakeCheckCount = 0
+        telem.lastSummaryTime = GetGameTimer()
+        telem.lastTerrainType = 'FLAT'
+
+        acLog('INFO', ('========== MATCH START ==========  role=%s  duration=%ds'):format(
+            data.role or '?', data.duration or 0))
+
+    elseif data.action == 'end' then
+        acLog('INFO', ('========== MATCH END ==========  won=%s  reason=%s'):format(
+            tostring(data.won), data.reason or '?'))
+        acLog('DATA', ('FINAL STATS | contacts: player=%d env=%d total=%d | airborne=%d | spins=%d | wall_bounces=%d | brake_checks=%d'):format(
+            telem.playerContacts, telem.envCollisions, telem.totalCollisions,
+            telem.airborneCount, telem.spinOuts, telem.wallBounces, telem.brakeCheckCount))
+    end
+end)
+
+-- ============================================================
+-- THREAD 1 — Fast sampler (100 ms)
+-- Airborne + Collision + Input state
+-- ============================================================
+
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(100)
 
-        if isInMatch then
-            local ped = PlayerPedId()
-            local vehicle = GetVehiclePedIsIn(ped, false)
+        if not isInMatch then
+            telem.wasAirborne = false
+            telem.airborneStart = 0
+            goto continue
+        end
 
-            if vehicle ~= 0 then
-                local isAir = IsEntityInAir(vehicle)
-                local speed = math.floor(GetEntitySpeed(vehicle) * 3.6)
-                local height = GetEntityHeightAboveGround(vehicle)
+        local ped     = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle == 0 then goto continue end
 
-                if isAir and not wasAirborne then
-                    wasAirborne = true
-                    airborneStartTime = GetGameTimer()
-                    airborneStartSpeed = speed
-                    logChase(('AIRBORNE START | speed=%d km/h | height=%.1fm'):format(speed, height))
-                elseif not isAir and wasAirborne then
-                    local duration = (GetGameTimer() - airborneStartTime) / 1000.0
-                    wasAirborne = false
-                    logChase(('AIRBORNE END | duration=%.1fs | launch_speed=%d km/h | landing_speed=%d km/h'):format(
-                        duration, airborneStartSpeed, speed))
+        local vd = getVehicleData(vehicle)
+        if not vd then goto continue end
 
-                    if duration >= 2.0 then
-                        TriggerServerEvent('blacklist:reportViolation', 'jump')
-                    end
-                    airborneTimer = 0.0
-                end
-            else
-                wasAirborne = false
+        -- ---- Input tracking ----
+        local wasBraking    = telem.isBraking
+        telem.isBraking     = vd.braking
+        telem.isAccelerating = vd.throttle
+        telem.steeringAngle = vd.steering
+
+        if vd.braking and not wasBraking then
+            telem.brakeStartTime = GetGameTimer()
+        end
+
+        addSpeedSample(vd.speedKmh)
+        telem.lastSpeed   = vd.speedKmh
+        telem.lastHeading = vd.heading
+        telem.pitch       = vd.pitch
+        telem.roll        = vd.roll
+
+        -- ======== AIRBORNE DETECTION ========
+
+        if vd.inAir and not telem.wasAirborne then
+            telem.wasAirborne       = true
+            telem.airborneStart     = GetGameTimer()
+            telem.airborneStartSpd  = vd.speedKmh
+            telem.airborneStartHgt  = vd.height
+            telem.airborneMaxHgt    = vd.height
+            telem.preAirborneSlope  = telem.pitch
+            telem.airborneCause     = determineAirborneCause(vd)
+            telem.airborneCount     = telem.airborneCount + 1
+
+            acLog('INFO', ('AIRBORNE START | spd=%d km/h | hgt=%.1fm | cause=%s | slope=%.1f° | steering=%.0f°'):format(
+                vd.speedKmh, vd.height, telem.airborneCause, telem.pitch, vd.steering))
+
+        elseif vd.inAir and telem.wasAirborne then
+            if vd.height > telem.airborneMaxHgt then
+                telem.airborneMaxHgt = vd.height
             end
-        else
-            wasAirborne = false
+
+        elseif not vd.inAir and telem.wasAirborne then
+            local dur = (GetGameTimer() - telem.airborneStart) / 1000.0
+            telem.wasAirborne = false
+
+            local level = 'INFO'
+            if dur >= 2.0 then level = 'CRIT'
+            elseif dur >= 1.0 then level = 'WARN' end
+
+            local landing = 'CLEAN'
+            if vd.upsideDown then landing = 'UPSIDE_DOWN'
+            elseif not vd.upright then landing = 'TUMBLED'
+            elseif math.abs(vd.roll) > 30 then landing = 'ROUGH' end
+
+            acLog(level, ('AIRBORNE END | dur=%.1fs | launch=%d km/h | land=%d km/h | max_hgt=%.1fm | cause=%s | landing=%s'):format(
+                dur, telem.airborneStartSpd, vd.speedKmh, telem.airborneMaxHgt, telem.airborneCause, landing))
+
+            if dur >= 2.0 then
+                TriggerServerEvent('blacklist:reportViolation', 'jump')
+            end
             airborneTimer = 0.0
         end
-    end
-end)
 
--- Collision tracking (both runner and chaser)
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(100)
+        -- ======== COLLISION DETECTION ========
 
-        if isInMatch then
-            local ped = PlayerPedId()
-            local vehicle = GetVehiclePedIsIn(ped, false)
+        if HasEntityCollidedWithAnything(vehicle) then
+            local now = GetGameTimer()
+            if now - telem.lastCollisionTime < 1500 then goto continue end
+            telem.lastCollisionTime = now
+            telem.totalCollisions   = telem.totalCollisions + 1
 
-            if vehicle ~= 0 and HasEntityCollidedWithAnything(vehicle) then
-                local now = GetGameTimer()
-                if now - lastCollisionTime < 2000 then goto skipCollision end
-                lastCollisionTime = now
+            local opp = getOpponentData()
+            local isPlayerContact = opp.dist < 8.0
 
-                local speed = math.floor(GetEntitySpeed(vehicle) * 3.6)
-                local oppDist, oppSpeed = getClosestPlayerInfo()
+            if isPlayerContact then
+                -- ---------- PLAYER CONTACT ----------
+                telem.playerContacts = telem.playerContacts + 1
 
-                local isPlayerContact = oppDist < 8.0
-                local contactType = isPlayerContact and 'PLAYER_CONTACT' or 'ENVIRONMENT'
+                local analysis = analyzePitManeuver(vd, opp)
 
-                if isPlayerContact then
-                    local subType = 'INTENTIONAL'
-                    local extraInfo = ''
+                local spinInfo = ''
+                if opp.yawRate > 45 then
+                    spinInfo = (' | OPP_SPIN=YES %.0f°/s'):format(opp.yawRate)
+                    telem.spinOuts = telem.spinOuts + 1
+                end
 
-                    if lastEnvCrash and (now - lastEnvCrash.time) < 2000 and myRole == 'chaser' then
-                        subType = 'FOLLOW_UP'
-                        local gap = now - lastEnvCrash.time
-                        extraInfo = (' | sub=FOLLOW_UP | gap=%dms | runner_crashed_at=%d km/h'):format(gap, lastEnvCrash.speed)
-                    else
-                        extraInfo = ' | sub=INTENTIONAL'
+                local brakeInfo = 'NO'
+                if telem.isBraking then
+                    local brakeDur = (GetGameTimer() - telem.brakeStartTime) / 1000.0
+                    brakeInfo = ('YES %.1fs'):format(brakeDur)
+                end
+
+                local trend, _ = getSpeedTrend()
+
+                local level = 'INFO'
+                if analysis.intent == 'LIKELY_INTENTIONAL' then level = 'WARN' end
+
+                acLog(level, ('CONTACT PLAYER | type=%s | intent=%s (score=%d) | my_spd=%d | opp_spd=%d km/h | dist=%.1fm'):format(
+                    analysis.contactType, analysis.intent, analysis.intentScore, vd.speedKmh, opp.speedKmh, opp.dist))
+
+                acLog(level, ('  > approach=%.0f° | hdg_diff=%.0f° | spd_diff=%+d | steer=%.0f° | brake=%s | trend=%s%s'):format(
+                    analysis.approachAngle, analysis.headingDiff, analysis.speedDiff,
+                    vd.steering, brakeInfo, trend, spinInfo))
+
+                if #analysis.factors > 0 then
+                    acLog('ANLZ', ('  > factors: %s'):format(analysis.factors))
+                end
+
+                -- Follow-up context: runner crashed → did chaser have time to react?
+                if telem.lastEnvCrash and myRole == 'chaser' then
+                    local gap = now - telem.lastEnvCrash.time
+                    if gap < 3000 then
+                        local reaction = 'NO_TIME'
+                        if gap > 1500 then reaction = 'HAD_TIME'
+                        elseif gap > 700 and telem.isBraking then reaction = 'TRIED_AVOID' end
+
+                        acLog('ANLZ', ('  > FOLLOW-UP: runner crashed %dms ago @ %d km/h | reaction=%s | chaser_brake=%s | dist_at_crash=%.0fm'):format(
+                            gap, telem.lastEnvCrash.speed, reaction, brakeInfo, opp.dist))
+                    end
+                end
+
+                if myRole == 'chaser' and vd.speedKmh > 30 then
+                    local wasBrakeChecked = telem.lastBrakeCheck
+                        and (now - telem.lastBrakeCheck.time) < 3000
+
+                    if wasBrakeChecked then
+                        local bcGap = now - telem.lastBrakeCheck.time
+                        acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser penalized unfairly?'):format(
+                            bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
                     end
 
-                    logChase(('COLLISION | type=%s%s | my_speed=%d km/h | opponent_speed=%d km/h | dist=%.1fm'):format(
-                        contactType, extraInfo, speed, oppSpeed, oppDist))
+                    TriggerServerEvent('blacklist:reportViolation', 'ram')
+                end
 
-                    if myRole == 'chaser' and speed > 30.0 then
-                        TriggerServerEvent('blacklist:reportViolation', 'ram')
-                    end
-                else
-                    logChase(('COLLISION | type=ENVIRONMENT | my_speed=%d km/h | opponent_dist=%.1fm'):format(speed, oppDist))
+            else
+                -- ---------- ENVIRONMENT COLLISION ----------
+                telem.envCollisions = telem.envCollisions + 1
 
-                    -- Track environment crash for follow-up detection
-                    if myRole == 'runner' then
-                        lastEnvCrash = { time = now, speed = speed }
-                        TriggerServerEvent('blacklist:chaseLog', {
-                            message = ('RUNNER_ENV_CRASH | speed=%d km/h'):format(speed),
-                        })
-                    end
+                local prevSpd   = #telem.speedSamples > 2 and telem.speedSamples[#telem.speedSamples - 2] or vd.speedKmh
+                local speedLoss = prevSpd - vd.speedKmh
+
+                local severity = 'LIGHT'
+                if speedLoss > 50 then severity = 'HEAVY'
+                elseif speedLoss > 20 then severity = 'MEDIUM' end
+
+                telem.lastWallHitTime  = now
+                telem.lastWallHitSpeed = vd.speedKmh
+
+                local level = severity == 'HEAVY' and 'WARN' or 'INFO'
+
+                acLog(level, ('COLLISION ENV | severity=%s | spd=%d km/h | lost=%d km/h | pitch=%.1f° | roll=%.1f° | opp_dist=%.0fm'):format(
+                    severity, vd.speedKmh, speedLoss, vd.pitch, vd.roll, opp.dist))
+
+                if myRole == 'runner' then
+                    telem.lastEnvCrash = { time = now, speed = vd.speedKmh }
+                    TriggerServerEvent('blacklist:chaseLog', {
+                        message = ('RUNNER_ENV_CRASH | speed=%d km/h | severity=%s'):format(vd.speedKmh, severity),
+                    })
+                end
+
+                if vd.inAir or vd.height > 1.5 then
+                    telem.wallBounces = telem.wallBounces + 1
+                    acLog('WARN', ('  > WALL BOUNCE | hgt=%.1fm | upright=%s | spd=%d km/h'):format(
+                        vd.height, vd.upright and 'YES' or 'NO', vd.speedKmh))
                 end
             end
 
-            ::skipCollision::
+            -- Track opponent speed for brake-check detection
+            telem.oppPrevSpeed = opp.speedKmh
+            telem.oppPrevDist  = opp.dist
         end
+
+        ::continue::
     end
 end)
 
--- Broadcast runner's env crash time to chasers for follow-up detection
+-- ============================================================
+-- THREAD 2 — Slow sampler (500 ms)
+-- Terrain analysis + spin detection + periodic summary
+-- ============================================================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+
+        if not isInMatch then goto skip end
+
+        local ped     = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle == 0 then goto skip end
+
+        local vd = getVehicleData(vehicle)
+        if not vd then goto skip end
+
+        local opp = getOpponentData()
+
+        -- ---- Opponent speed history for brake-check detection ----
+        table.insert(telem.oppSpeedHistory, opp.speedKmh)
+        if #telem.oppSpeedHistory > telem.maxOppSamples then
+            table.remove(telem.oppSpeedHistory, 1)
+        end
+
+        telem.oppPrevSpeed = opp.speedKmh
+        telem.oppPrevDist  = opp.dist
+
+        -- ---- Terrain classification ----
+        local slopeAbs    = math.abs(vd.pitch)
+        local terrainType = 'FLAT'
+        if slopeAbs > 15 then terrainType = 'STEEP_HILL'
+        elseif slopeAbs > 8 then terrainType = 'HILL'
+        elseif slopeAbs > 3 then terrainType = 'SLOPE' end
+
+        local rollTag = ''
+        if math.abs(vd.roll) > 20 then rollTag = ' BANKED'
+        elseif math.abs(vd.roll) > 8 then rollTag = ' TILTED' end
+
+        local now = GetGameTimer()
+
+        if terrainType ~= 'FLAT' and not vd.inAir and terrainType ~= telem.lastTerrainType
+            and (now - telem.lastTerrainLog > 2000) then
+            telem.lastTerrainLog  = now
+            telem.lastTerrainType = terrainType
+            acLog('DATA', ('TERRAIN | type=%s%s | pitch=%.1f° | roll=%.1f° | spd=%d km/h | wheels_down=%s'):format(
+                terrainType, rollTag, vd.pitch, vd.roll, vd.speedKmh, vd.onWheels and 'YES' or 'NO'))
+        elseif terrainType == 'FLAT' then
+            telem.lastTerrainType = 'FLAT'
+        end
+
+        -- ---- Spin detection (loss of control, not from direct collision) ----
+        if vd.yawRate > 90 and not vd.inAir then
+            acLog('WARN', ('SPIN | yaw_rate=%.0f°/s | spd=%d km/h | wheels=%s | steer=%.0f° | roll=%.1f°'):format(
+                vd.yawRate, vd.speedKmh, vd.onWheels and 'YES' or 'NO', vd.steering, vd.roll))
+        end
+
+        -- ---- BRAKE-CHECK DETECTION ----
+        -- Analyzes opponent speed history for sharp intentional deceleration
+        if myRole == 'chaser' and opp.dist < 35 then
+            local nOpp = #telem.oppSpeedHistory
+            if nOpp >= 3 then
+                local oppNow    = telem.oppSpeedHistory[nOpp]
+                local oppRecent = telem.oppSpeedHistory[math.max(1, nOpp - 2)]
+                local oppDecel  = oppRecent - oppNow
+
+                -- Opponent dropped 25+ km/h while near the chaser and chaser is faster
+                if oppDecel > 25 and oppNow < vd.speedKmh then
+                    local prevBC = telem.lastBrakeCheck
+                    local isRepeat = prevBC and (now - prevBC.time) < 8000
+
+                    telem.lastBrakeCheck = {
+                        time           = now,
+                        oppSpeedBefore = oppRecent,
+                        oppSpeedAfter  = oppNow,
+                        dist           = opp.dist,
+                        mySpeed        = vd.speedKmh,
+                    }
+                    telem.brakeCheckCount = telem.brakeCheckCount + 1
+
+                    local repeatTag = isRepeat and ' | !! REPEATED !!' or ''
+
+                    acLog('CRIT', ('BRAKE-CHECK #%d | opp_spd %d→%d km/h (-%d) | dist=%.0fm | my_spd=%d km/h | my_brake=%s | closing=%s%s'):format(
+                        telem.brakeCheckCount,
+                        oppRecent, oppNow, oppDecel,
+                        opp.dist, vd.speedKmh,
+                        telem.isBraking and 'YES' or 'NO',
+                        opp.dist < telem.oppPrevDist and 'YES' or 'NO',
+                        repeatTag))
+
+                    -- Check if runner was on a hill or hit a wall (not intentional brake-check)
+                    local oppOnHill = false
+                    if opp.vehicle ~= 0 then
+                        local oppPitch = GetEntityPitch(opp.vehicle)
+                        if math.abs(oppPitch) > 10 then oppOnHill = true end
+                    end
+
+                    if oppOnHill then
+                        acLog('ANLZ', '  > NOTE: opponent on hill/slope — may be terrain decel, not intentional')
+                    elseif opp.dist < 15 then
+                        acLog('ANLZ', '  > DANGER: very close range brake-check — high collision risk')
+                    end
+                end
+            end
+        end
+
+        -- ---- Periodic summary (every 10 s) ----
+        if now - telem.lastSummaryTime >= 10000 then
+            telem.lastSummaryTime = now
+            local trend, _ = getSpeedTrend()
+
+            acLog('DATA', ('--- %ss SUMMARY --- spd=%d km/h | trend=%s | opp_dist=%.0fm | opp_spd=%d km/h'):format(
+                ('%.0f'):format(matchTime()), vd.speedKmh, trend, opp.dist, opp.speedKmh))
+            acLog('DATA', ('  > hits: player=%d env=%d | airborne=%d | spins=%d | wall_bounce=%d | brake_checks=%d | brake=%s | steer=%.0f°'):format(
+                telem.playerContacts, telem.envCollisions,
+                telem.airborneCount, telem.spinOuts, telem.wallBounces,
+                telem.brakeCheckCount, telem.isBraking and 'YES' or 'NO', vd.steering))
+        end
+
+        ::skip::
+    end
+end)
+
+-- ========================
+-- Runner crash relay (chaser receives opponent crash context)
+-- ========================
+
 RegisterNetEvent('blacklist:runnerCrashInfo')
 AddEventHandler('blacklist:runnerCrashInfo', function(data)
     if myRole == 'chaser' then
-        lastEnvCrash = { time = GetGameTimer(), speed = data.speed or 0 }
+        telem.lastEnvCrash = { time = GetGameTimer(), speed = data.speed or 0 }
+
+        local ped     = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        local mySpeed = vehicle ~= 0 and math.floor(GetEntitySpeed(vehicle) * 3.6) or 0
+        local braking = IsControlPressed(0, 72) or IsDisabledControlPressed(0, 72)
+        local opp     = getOpponentData()
+
+        acLog('INFO', ('RUNNER CRASHED | runner_spd=%d km/h | my_spd=%d km/h | dist=%.0fm | closing=%s | my_brake=%s'):format(
+            data.speed or 0, mySpeed, opp.dist,
+            opp.dist < telem.oppPrevDist and 'YES' or 'NO',
+            braking and 'YES' or 'NO'))
     end
 end)
 
@@ -482,4 +1019,4 @@ Citizen.CreateThread(function()
     SetNuiFocus(false, false)
 end)
 
-print('[Chase] ^2Client-side loaded^0')
+print(('[AC-LOG] %sAnti-Cheat Telemetry v%s loaded%s'):format(CLR.G, AC_VERSION, CLR.X))

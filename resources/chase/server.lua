@@ -491,7 +491,7 @@ function getAllMatchSources(match)
 end
 
 -- ========================
--- Tester diagnostic logs from client
+-- Anti-cheat telemetry logs from client
 -- ========================
 
 RegisterNetEvent('blacklist:chaseLog')
@@ -499,18 +499,22 @@ AddEventHandler('blacklist:chaseLog', function(logData)
     local source = source
     local name = GetPlayerName(source) or 'Unknown'
     local matchId = playerMatchMap[source] or 0
-    print(('[CHASE LOG] Match#%d | %s | %s'):format(matchId, name, logData.message or ''))
+    print(('[AC-LOG] Match#%d | %s | %s'):format(matchId, name, logData.message or ''))
 
-    -- If runner crashed into environment, relay timing to chasers
+    -- Relay runner environment crashes to all chasers with full context
     if logData.message and string.find(logData.message, 'RUNNER_ENV_CRASH') then
         local match = activeMatches[matchId]
         if match then
-            local speed = tonumber(string.match(logData.message, 'speed=(%d+)')) or 0
+            local speed    = tonumber(string.match(logData.message, 'speed=(%d+)')) or 0
+            local severity = string.match(logData.message, 'severity=(%w+)') or 'UNKNOWN'
             for _, chaser in ipairs(match.chasers) do
-                TriggerClientEvent('blacklist:runnerCrashInfo', chaser.source, { speed = speed })
+                TriggerClientEvent('blacklist:runnerCrashInfo', chaser.source, {
+                    speed    = speed,
+                    severity = severity,
+                })
             end
         end
     end
 end)
 
-print('[Chase] ^2Game mode loaded^0')
+print('[Chase] ^2Game mode loaded  |  AC Telemetry relay active^0')
