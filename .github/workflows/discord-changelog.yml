@@ -12,15 +12,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build changelog and post to Discord
+      - name: Post changelog to Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          PUSHER="${{ github.actor }}"
-          BRANCH="${{ github.ref_name }}"
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::error::Secret DISCORD_WEBHOOK_URL is not set!"
+            exit 1
+          fi
+
+          echo "Webhook URL is set (length: ${#WEBHOOK_URL})"
+
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.event.after }}"
+          PUSHER="${{ github.actor }}"
 
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             COMMITS=$(git log --oneline -10 "$AFTER")
@@ -28,31 +33,42 @@ jobs:
             COMMITS=$(git log --oneline "$BEFORE".."$AFTER")
           fi
 
-          LINES=""
-          while IFS= read -r line; do
-            if [ -n "$line" ]; then
-              HASH=$(echo "$line" | cut -d' ' -f1)
-              MSG=$(echo "$line" | cut -d' ' -f2-)
-              LINES="${LINES}$(printf '\u2022') \`${HASH}\` ${MSG}"$'\n'
-            fi
-          done <<< "$COMMITS"
+          echo "Commits found:"
+          echo "$COMMITS"
 
-          if [ -z "$LINES" ]; then
-            LINES="Brak nowych commitow"
-          fi
-
-          MENTION="<@&1477347394600308972>"
-          DESC=$(printf "%s\n\n%s\n_Wyslane przez **%s** na \`%s\` -- %s_" "$MENTION" "$LINES" "$PUSHER" "$BRANCH" "$TIMESTAMP")
+          FORMATTED=$(echo "$COMMITS" | sed 's/^/- /')
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
 
           jq -n \
-            --arg content "$MENTION" \
-            --arg desc "$DESC" \
+            --arg formatted "$FORMATTED" \
+            --arg pusher "$PUSHER" \
+            --arg ts "$TIMESTAMP" \
+            --arg mention "<@&1477347394600308972>" \
             '{
-              content: $content,
+              content: $mention,
               allowed_mentions: { roles: ["1477347394600308972"] },
               embeds: [{
                 title: "Changelog - Racing Server",
-                description: $desc,
+                description: ($formatted + "\n\n_Wyslane przez **" + $pusher + "** - " + $ts + "_"),
                 color: 3447003
               }]
-            }' | curl -sf -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
+            }' > /tmp/payload.json
+
+          echo "Payload:"
+          cat /tmp/payload.json
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/payload.json \
+            "$WEBHOOK_URL")
+
+          echo "HTTP response code: $HTTP_CODE"
+          cat /tmp/response.txt
+          echo ""
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Discord webhook returned HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Changelog posted successfully!"
