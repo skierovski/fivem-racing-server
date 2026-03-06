@@ -746,8 +746,8 @@ Citizen.CreateThread(function()
             acLog(level, ('AIRBORNE END | dur=%.1fs | launch=%d km/h | land=%d km/h | max_hgt=%.1fm | cause=%s | landing=%s'):format(
                 dur, telem.airborneStartSpd, vd.speedKmh, telem.airborneMaxHgt, telem.airborneCause, landing))
 
-            if dur >= 2.0 then
-                TriggerServerEvent('blacklist:reportViolation', 'jump')
+            if dur >= 2.0 and myRole == 'runner' then
+                TriggerServerEvent('blacklist:reportViolation', 'runner_jump')
             end
             airborneTimer = 0.0
         end
@@ -810,17 +810,20 @@ Citizen.CreateThread(function()
                     end
                 end
 
-                if myRole == 'chaser' and vd.speedKmh > 30 then
+                if myRole == 'chaser' then
                     local wasBrakeChecked = telem.lastBrakeCheck
                         and (now - telem.lastBrakeCheck.time) < 3000
 
                     if wasBrakeChecked then
                         local bcGap = now - telem.lastBrakeCheck.time
-                        acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser penalized unfairly?'):format(
+                        acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
                             bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
                     end
 
-                    TriggerServerEvent('blacklist:reportViolation', 'ram')
+                    if analysis.intent == 'LIKELY_INTENTIONAL' then
+                        acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
+                        TriggerServerEvent('blacklist:reportViolation', 'chaser_pit')
+                    end
                 end
 
             else

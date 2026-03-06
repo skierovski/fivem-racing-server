@@ -13,9 +13,7 @@ local ChaseConfig = {
 
     ARREST_MAX_SPEED = 8.94, -- 20 mph in m/s
 
-    MAX_AIRBORNE_TIME = 2.0,
-    RAM_SPEED_THRESHOLD = 30.0,
-    MAX_WARNINGS = 2,
+    MAX_PIT_STRIKES = 3,
 
     REMATCH_WINDOW = 15,
 }
@@ -57,7 +55,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
 
         catchTimer = 0,
         escapeTimer = 0,
-        warnings = {},
+        pitStrikes = {},
         result = nil,
     }
 
@@ -261,40 +259,36 @@ AddEventHandler('blacklist:reportViolation', function(violationType)
     local match = activeMatches[matchId]
     if not match or match.state ~= 'active' then return end
 
-    match.warnings[source] = (match.warnings[source] or 0) + 1
-    local count = match.warnings[source]
-
     local playerName = GetPlayerName(source)
+    local allSources = getAllMatchSources(match)
 
-    if violationType == 'jump' then
-        local allSources = getAllMatchSources(match)
+    if violationType == 'runner_jump' then
         for _, src in ipairs(allSources) do
             TriggerClientEvent('blacklist:chaseHUD', src, {
                 action = 'warning',
-                message = playerName .. ': Illegal jump! (' .. count .. '/' .. ChaseConfig.MAX_WARNINGS .. ')',
+                message = playerName .. ': Illegal jump — DISQUALIFIED!',
             })
         end
-    elseif violationType == 'ram' then
-        local allSources = getAllMatchSources(match)
+        print(('[Chase] Match #%d: %s DQ — runner illegal jump'):format(matchId, playerName))
+        endMatch(matchId, 'chaser', 'runner_disqualified_jump')
+
+    elseif violationType == 'chaser_pit' then
+        match.pitStrikes[source] = (match.pitStrikes[source] or 0) + 1
+        local count = match.pitStrikes[source]
+
         for _, src in ipairs(allSources) do
             TriggerClientEvent('blacklist:chaseHUD', src, {
                 action = 'warning',
-                message = playerName .. ': Ramming violation! (' .. count .. '/' .. ChaseConfig.MAX_WARNINGS .. ')',
+                message = playerName .. ': Pit violation! (' .. count .. '/' .. ChaseConfig.MAX_PIT_STRIKES .. ')',
             })
         end
-    end
 
-    if count >= ChaseConfig.MAX_WARNINGS then
-        local isRunner = (source == match.runner.source)
-        if isRunner then
-            endMatch(matchId, 'chaser', 'runner_disqualified')
-        else
-            endMatch(matchId, 'runner', 'chaser_disqualified')
+        print(('[Chase] Match #%d: %s pit strike %d/%d'):format(matchId, playerName, count, ChaseConfig.MAX_PIT_STRIKES))
+
+        if count >= ChaseConfig.MAX_PIT_STRIKES then
+            endMatch(matchId, 'runner', 'chaser_disqualified_pit')
         end
     end
-
-    print(('[Chase] Violation in match #%d: %s from %s (warning %d/%d)'):format(
-        matchId, violationType, playerName, count, ChaseConfig.MAX_WARNINGS))
 end)
 
 -- ========================
