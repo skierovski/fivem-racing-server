@@ -9,66 +9,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Post changelog to Discord
         env:
           WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
-            echo "::error::Secret DISCORD_WEBHOOK_URL is not set!"
+            echo "::error::Secret DISCORD_WEBHOOK_URL is not set"
             exit 1
           fi
 
-          echo "Webhook URL is set (length: ${#WEBHOOK_URL})"
-
-          BEFORE="${{ github.event.before }}"
-          AFTER="${{ github.event.after }}"
-          PUSHER="${{ github.actor }}"
-
-          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            COMMITS=$(git log --oneline -10 "$AFTER")
-          else
-            COMMITS=$(git log --oneline "$BEFORE".."$AFTER")
+          if [ ! -f "CHANGELOG_NEXT.md" ]; then
+            echo "No CHANGELOG_NEXT.md found, skipping Discord post"
+            exit 0
           fi
 
-          echo "Commits found:"
-          echo "$COMMITS"
+          CONTENT=$(cat CHANGELOG_NEXT.md)
 
-          FORMATTED=$(echo "$COMMITS" | sed 's/^/- /')
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          if [ -z "$CONTENT" ]; then
+            echo "CHANGELOG_NEXT.md is empty, skipping"
+            exit 0
+          fi
+
+          MENTION="<@&1477347394600308972>"
 
           jq -n \
-            --arg formatted "$FORMATTED" \
-            --arg pusher "$PUSHER" \
-            --arg ts "$TIMESTAMP" \
-            --arg mention "<@&1477347394600308972>" \
+            --arg content "$MENTION" \
+            --arg desc "$CONTENT" \
             '{
-              content: $mention,
+              content: $content,
               allowed_mentions: { roles: ["1477347394600308972"] },
               embeds: [{
                 title: "Changelog - Racing Server",
-                description: ($formatted + "\n\n_Wyslane przez **" + $pusher + "** - " + $ts + "_"),
+                description: $desc,
                 color: 3447003
               }]
             }' > /tmp/payload.json
 
-          echo "Payload:"
-          cat /tmp/payload.json
-
+          echo "Posting to Discord..."
           HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
             -H "Content-Type: application/json" \
             -d @/tmp/payload.json \
             "$WEBHOOK_URL")
 
-          echo "HTTP response code: $HTTP_CODE"
+          echo "HTTP: $HTTP_CODE"
           cat /tmp/response.txt
           echo ""
 
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "::error::Discord webhook returned HTTP $HTTP_CODE"
+            echo "::error::Discord returned HTTP $HTTP_CODE"
             exit 1
           fi
 
-          echo "Changelog posted successfully!"
+          echo "Changelog posted!"
