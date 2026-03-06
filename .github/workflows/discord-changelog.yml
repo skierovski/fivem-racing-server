@@ -32,15 +32,18 @@ jobs:
           fi
 
           MENTION="<@&1477347394600308972>"
+          TODAY=$(date -u +"%d.%m.%Y")
+          TITLE="BlackList Racing : Changelog ${TODAY}"
 
           jq -n \
             --arg content "$MENTION" \
             --arg desc "$CONTENT" \
+            --arg title "$TITLE" \
             '{
               content: $content,
               allowed_mentions: { roles: ["1477347394600308972"] },
               embeds: [{
-                title: "Changelog - Racing Server",
+                title: $title,
                 description: $desc,
                 color: 3447003
               }]

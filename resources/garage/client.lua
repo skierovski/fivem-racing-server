@@ -485,25 +485,36 @@ end)
 -- Doors / Hood / Trunk
 -- ========================
 
+local doorAnimating = false
+
 RegisterNUICallback('toggleDoor', function(data, cb)
     if not garageVehicle then cb({}) return end
     local doorIdx = tonumber(data.door)
     local open = data.open == true
+    local veh = garageVehicle
 
-    if doorIdx == -1 then
-        for i = 0, 5 do
-            if open then
-                SetVehicleDoorOpen(garageVehicle, i, false, false)
-            else
-                SetVehicleDoorShut(garageVehicle, i, false)
-            end
-        end
+    FreezeEntityPosition(veh, false)
+
+    if open then
+        SetVehicleDoorOpen(veh, doorIdx, false, false)
     else
-        if open then
-            SetVehicleDoorOpen(garageVehicle, doorIdx, false, false)
-        else
-            SetVehicleDoorShut(garageVehicle, doorIdx, false)
-        end
+        SetVehicleDoorShut(veh, doorIdx, false)
+    end
+
+    if not doorAnimating then
+        doorAnimating = true
+        Citizen.CreateThread(function()
+            local endTime = GetGameTimer() + 1500
+            while GetGameTimer() < endTime do
+                if not veh or not DoesEntityExist(veh) then break end
+                SetEntityVelocity(veh, 0.0, 0.0, 0.0)
+                Citizen.Wait(0)
+            end
+            if veh and DoesEntityExist(veh) then
+                FreezeEntityPosition(veh, true)
+            end
+            doorAnimating = false
+        end)
     end
     cb({})
 end)

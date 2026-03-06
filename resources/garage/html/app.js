@@ -28,7 +28,6 @@
         wheels: '\u{2699}', wheelColor: '\u{1F3A8}',
         livery: '\u{1F3AD}', windowTint: '\u{1F576}',
         neon: '\u{1F4A1}', turbo: '\u{26A1}', extras: '\u{1F6E0}',
-        doors: '\u{1F6AA}',
         engine: '\u{1F527}', brakes: '\u{1F6D1}', transmission: '\u{2699}', suspension: '\u{1F4CF}',
     };
 
@@ -47,10 +46,12 @@
             activeCategory = null;
             doorStates = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
             buildCategories();
+            buildDoorToolbar();
             app.classList.remove('hidden');
             optionsPanel.classList.add('hidden');
         } else if (data.action === 'closeTuning') {
             app.classList.add('hidden');
+            removeDoorToolbar();
             tuningData = null;
         }
     });
@@ -86,8 +87,6 @@
         if ((tuningData.extras || []).length > 0) {
             addCategory('extras', 'Extras', CATEGORY_ICONS.extras);
         }
-        addCategory('doors', 'Doors / Hood / Trunk', CATEGORY_ICONS.doors);
-
         addSectionHeader('PERFORMANCE');
         const perfMods = (tuningData.mods || []).filter(m =>
             ['engine', 'brakes', 'transmission', 'suspension'].includes(m.id)
@@ -149,8 +148,6 @@
             renderTurbo();
         } else if (catId === 'extras') {
             renderExtras();
-        } else if (catId === 'doors') {
-            renderDoors();
         } else {
             renderModSlot(catId);
         }
@@ -481,60 +478,46 @@
     }
 
     // ========================
-    // Doors / Hood / Trunk
+    // Doors / Hood / Trunk — floating toolbar
     // ========================
 
-    const DOOR_PANELS = [
-        { idx: 4, label: 'Hood' },
-        { idx: 5, label: 'Trunk' },
-        { idx: 0, label: 'Front Left Door' },
-        { idx: 1, label: 'Front Right Door' },
-        { idx: 2, label: 'Rear Left Door' },
-        { idx: 3, label: 'Rear Right Door' },
+    const DOOR_BTNS = [
+        { idx: 4, icon: '\u{1F3CE}', tip: 'Hood' },
+        { idx: 5, icon: '\u{1F4E6}', tip: 'Trunk' },
+        { idx: 0, icon: '\u{1F6AA}', tip: 'FL' },
+        { idx: 1, icon: '\u{1F6AA}', tip: 'FR' },
+        { idx: 2, icon: '\u{1F6AA}', tip: 'RL' },
+        { idx: 3, icon: '\u{1F6AA}', tip: 'RR' },
     ];
 
-    function renderDoors() {
-        optionsList.innerHTML = '';
+    let doorToolbar = null;
 
-        DOOR_PANELS.forEach(panel => {
-            const isOpen = !!doorStates[panel.idx];
-            const toggleRow = document.createElement('div');
-            toggleRow.className = 'toggle-row';
-            toggleRow.innerHTML = `<span>${panel.label}</span><div class="toggle-switch ${isOpen ? 'on' : ''}"></div>`;
-            toggleRow.querySelector('.toggle-switch').addEventListener('click', () => {
+    function buildDoorToolbar() {
+        if (doorToolbar) doorToolbar.remove();
+        doorToolbar = document.createElement('div');
+        doorToolbar.className = 'door-toolbar';
+
+        DOOR_BTNS.forEach(panel => {
+            const btn = document.createElement('button');
+            btn.className = 'door-toolbar-btn';
+            btn.title = panel.tip;
+            btn.innerHTML = `<span class="dt-icon">${panel.icon}</span><span class="dt-label">${panel.tip}</span>`;
+            btn.addEventListener('click', () => {
                 doorStates[panel.idx] = !doorStates[panel.idx];
+                btn.classList.toggle('active', doorStates[panel.idx]);
                 fetch('https://garage/toggleDoor', {
                     method: 'POST',
                     body: JSON.stringify({ door: panel.idx, open: doorStates[panel.idx] })
                 });
-                renderDoors();
             });
-            optionsList.appendChild(toggleRow);
+            doorToolbar.appendChild(btn);
         });
 
-        const actions = document.createElement('div');
-        actions.className = 'door-actions';
-        actions.innerHTML =
-            '<button class="door-btn door-btn-open">OPEN ALL</button>' +
-            '<button class="door-btn door-btn-close">CLOSE ALL</button>';
+        document.body.appendChild(doorToolbar);
+    }
 
-        actions.querySelector('.door-btn-open').addEventListener('click', () => {
-            DOOR_PANELS.forEach(p => { doorStates[p.idx] = true; });
-            fetch('https://garage/toggleDoor', {
-                method: 'POST',
-                body: JSON.stringify({ door: -1, open: true })
-            });
-            renderDoors();
-        });
-        actions.querySelector('.door-btn-close').addEventListener('click', () => {
-            DOOR_PANELS.forEach(p => { doorStates[p.idx] = false; });
-            fetch('https://garage/toggleDoor', {
-                method: 'POST',
-                body: JSON.stringify({ door: -1, open: false })
-            });
-            renderDoors();
-        });
-        optionsList.appendChild(actions);
+    function removeDoorToolbar() {
+        if (doorToolbar) { doorToolbar.remove(); doorToolbar = null; }
     }
 
     // ========================
