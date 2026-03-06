@@ -21,18 +21,15 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
 
-          # Collect commits from this push
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.event.after }}"
 
-          # If this is the first push (no before), show last 10 commits
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             COMMITS=$(git log --oneline -10 "$AFTER")
           else
             COMMITS=$(git log --oneline "$BEFORE".."$AFTER")
           fi
 
-          # Format commit list as bullet points
           COMMIT_LIST=""
           while IFS= read -r line; do
             if [ -n "$line" ]; then
@@ -43,14 +40,15 @@ jobs:
           done <<< "$COMMITS"
 
           if [ -z "$COMMIT_LIST" ]; then
-            COMMIT_LIST="No new commits"
+            COMMIT_LIST="Brak nowych commitow"
           fi
 
-          DESCRIPTION="${COMMIT_LIST}\\n_Pushed by **${PUSHER}** to \`${BRANCH}\` — ${TIMESTAMP}_"
+          DESCRIPTION="<@&1477347394600308972>\\n\\n${COMMIT_LIST}\\n_Wyslane przez **${PUSHER}** na \`${BRANCH}\` — ${TIMESTAMP}_"
 
-          # Post to Discord webhook as an embed
           PAYLOAD=$(cat <<ENDJSON
           {
+            "content": "<@&1477347394600308972>",
+            "allowed_mentions": { "roles": ["1477347394600308972"] },
             "embeds": [{
               "title": "Changelog — Racing Server",
               "description": "${DESCRIPTION}",
