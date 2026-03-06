@@ -482,12 +482,12 @@
     // ========================
 
     const DOOR_BTNS = [
-        { idx: 4, icon: '\u{1F3CE}', tip: 'Hood' },
-        { idx: 5, icon: '\u{1F4E6}', tip: 'Trunk' },
-        { idx: 0, icon: '\u{1F6AA}', tip: 'FL' },
-        { idx: 1, icon: '\u{1F6AA}', tip: 'FR' },
-        { idx: 2, icon: '\u{1F6AA}', tip: 'RL' },
-        { idx: 3, icon: '\u{1F6AA}', tip: 'RR' },
+        { idx: 4, tip: 'Hood', svg: '<svg viewBox="0 0 24 24"><path d="M3 14h18v-2c0-1-1-2-2-2H5c-1 0-2 1-2 2v2z"/><path d="M5 14v3h14v-3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7 10V8c0-1 1-2 2-2h6c1 0 2 1 2 2v2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>' },
+        { idx: 5, tip: 'Trunk', svg: '<svg viewBox="0 0 24 24"><path d="M3 12h18v2c0 1-1 2-2 2H5c-1 0-2-1-2-2v-2z"/><path d="M5 12V9h14v3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7 16v2h10v-2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>' },
+        { idx: 0, tip: 'Front Left', svg: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 7h12M4 17h12" stroke="currentColor" stroke-width="1" opacity=".4"/><circle cx="16" cy="5" r="1.2"/><circle cx="16" cy="21" r="0" fill="none"/><path d="M16 3v4M16 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' },
+        { idx: 1, tip: 'Front Right', svg: '<svg viewBox="0 0 24 24"><rect x="8" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7h12M8 17h12" stroke="currentColor" stroke-width="1" opacity=".4"/><circle cx="8" cy="5" r="1.2"/><path d="M8 3v4M8 17v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' },
+        { idx: 2, tip: 'Rear Left', svg: '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 7h12M4 17h12" stroke="currentColor" stroke-width="1" opacity=".4"/><circle cx="16" cy="5" r="1.2"/><path d="M10 9v6" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".3"/></svg>' },
+        { idx: 3, tip: 'Rear Right', svg: '<svg viewBox="0 0 24 24"><rect x="8" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7h12M8 17h12" stroke="currentColor" stroke-width="1" opacity=".4"/><circle cx="8" cy="5" r="1.2"/><path d="M14 9v6" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".3"/></svg>' },
     ];
 
     let doorToolbar = null;
@@ -501,7 +501,7 @@
             const btn = document.createElement('button');
             btn.className = 'door-toolbar-btn';
             btn.title = panel.tip;
-            btn.innerHTML = `<span class="dt-icon">${panel.icon}</span><span class="dt-label">${panel.tip}</span>`;
+            btn.innerHTML = panel.svg;
             btn.addEventListener('click', () => {
                 doorStates[panel.idx] = !doorStates[panel.idx];
                 btn.classList.toggle('active', doorStates[panel.idx]);

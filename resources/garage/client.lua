@@ -144,11 +144,10 @@ AddEventHandler('blacklist:enterGarage', function(model)
     garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetEntityInvincible(garageVehicle, true)
-    FreezeEntityPosition(garageVehicle, true)
     SetVehicleOnGroundProperly(garageVehicle)
     SetEntityCoords(garageVehicle, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, false, false, false, false)
     SetEntityHeading(garageVehicle, GARAGE_POS.w)
-    FreezeEntityPosition(garageVehicle, true)
+    SetVehicleHandbrake(garageVehicle, true)
     SetVehicleDoorsLocked(garageVehicle, 2)
     SetVehicleLights(garageVehicle, 2)
     SetVehicleModKit(garageVehicle, 0)
@@ -299,6 +298,13 @@ function updateCameraPosition()
     if not garageCam or not garageVehicle then return end
 
     local vehPos = GetEntityCoords(garageVehicle)
+    local spawnPos = vector3(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3)
+    if #(vehPos - spawnPos) > 0.5 then
+        SetEntityCoords(garageVehicle, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, false)
+        SetEntityHeading(garageVehicle, GARAGE_POS.w)
+        vehPos = spawnPos
+    end
+
     local center = vector3(vehPos.x, vehPos.y, vehPos.z + CAM_HEIGHT_OFFSET)
 
     local x = center.x + camRadius * math.cos(camAngleV) * math.cos(camAngleH)
@@ -485,36 +491,13 @@ end)
 -- Doors / Hood / Trunk
 -- ========================
 
-local doorAnimating = false
-
 RegisterNUICallback('toggleDoor', function(data, cb)
     if not garageVehicle then cb({}) return end
     local doorIdx = tonumber(data.door)
-    local open = data.open == true
-    local veh = garageVehicle
-
-    FreezeEntityPosition(veh, false)
-
-    if open then
-        SetVehicleDoorOpen(veh, doorIdx, false, false)
+    if data.open == true then
+        SetVehicleDoorOpen(garageVehicle, doorIdx, false, false)
     else
-        SetVehicleDoorShut(veh, doorIdx, false)
-    end
-
-    if not doorAnimating then
-        doorAnimating = true
-        Citizen.CreateThread(function()
-            local endTime = GetGameTimer() + 1500
-            while GetGameTimer() < endTime do
-                if not veh or not DoesEntityExist(veh) then break end
-                SetEntityVelocity(veh, 0.0, 0.0, 0.0)
-                Citizen.Wait(0)
-            end
-            if veh and DoesEntityExist(veh) then
-                FreezeEntityPosition(veh, true)
-            end
-            doorAnimating = false
-        end)
+        SetVehicleDoorShut(garageVehicle, doorIdx, false)
     end
     cb({})
 end)
@@ -605,9 +588,6 @@ function exitGarage()
     SendNUIMessage({ action = 'closeTuning' })
 
     if garageVehicle and DoesEntityExist(garageVehicle) then
-        for i = 0, 5 do
-            SetVehicleDoorShut(garageVehicle, i, false)
-        end
         DeleteEntity(garageVehicle)
     end
     garageVehicle = nil
