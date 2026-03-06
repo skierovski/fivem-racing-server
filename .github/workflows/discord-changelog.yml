@@ -16,11 +16,9 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          REPO_NAME="${{ github.repository }}"
           PUSHER="${{ github.actor }}"
           BRANCH="${{ github.ref_name }}"
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.event.after }}"
 
@@ -30,37 +28,31 @@ jobs:
             COMMITS=$(git log --oneline "$BEFORE".."$AFTER")
           fi
 
-          COMMIT_LIST=""
+          LINES=""
           while IFS= read -r line; do
             if [ -n "$line" ]; then
               HASH=$(echo "$line" | cut -d' ' -f1)
               MSG=$(echo "$line" | cut -d' ' -f2-)
-              COMMIT_LIST="${COMMIT_LIST}• \`${HASH}\` ${MSG}\\n"
+              LINES="${LINES}$(printf '\u2022') \`${HASH}\` ${MSG}"$'\n'
             fi
           done <<< "$COMMITS"
 
-          if [ -z "$COMMIT_LIST" ]; then
-            COMMIT_LIST="Brak nowych commitow"
+          if [ -z "$LINES" ]; then
+            LINES="Brak nowych commitow"
           fi
 
-          DESCRIPTION="<@&1477347394600308972>\\n\\n${COMMIT_LIST}\\n_Wyslane przez **${PUSHER}** na \`${BRANCH}\` — ${TIMESTAMP}_"
+          MENTION="<@&1477347394600308972>"
+          DESC=$(printf "%s\n\n%s\n_Wyslane przez **%s** na \`%s\` -- %s_" "$MENTION" "$LINES" "$PUSHER" "$BRANCH" "$TIMESTAMP")
 
-          PAYLOAD=$(cat <<ENDJSON
-          {
-            "content": "<@&1477347394600308972>",
-            "allowed_mentions": { "roles": ["1477347394600308972"] },
-            "embeds": [{
-              "title": "Changelog — Racing Server",
-              "description": "${DESCRIPTION}",
-              "color": 3447003,
-              "footer": {
-                "text": "${REPO_NAME}"
-              }
-            }]
-          }
-          ENDJSON
-          )
-
-          curl -s -H "Content-Type: application/json" \
-               -d "$PAYLOAD" \
-               "$DISCORD_WEBHOOK"
+          jq -n \
+            --arg content "$MENTION" \
+            --arg desc "$DESC" \
+            '{
+              content: $content,
+              allowed_mentions: { roles: ["1477347394600308972"] },
+              embeds: [{
+                title: "Changelog - Racing Server",
+                description: $desc,
+                color: 3447003
+              }]
+            }' | curl -sf -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
