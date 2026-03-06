@@ -32,9 +32,11 @@ data_file 'HANDLING_FILE' 'gbgresleystx.meta'
 data_file 'HANDLING_FILE' 'gbargento7f.meta'
 data_file 'HANDLING_FILE' 'gbsolace.meta'
 data_file 'HANDLING_FILE' 'gbsultanrsx.meta'
+data_file 'HANDLING_FILE' 'sentinel5.meta'
 
 -- Diamond
 data_file 'HANDLING_FILE' 'gbtr3s.meta'
+data_file 'HANDLING_FILE' 'elegyrh5.meta'
 
 -- Blacklist
 data_file 'HANDLING_FILE' 'gsttoros1.meta'

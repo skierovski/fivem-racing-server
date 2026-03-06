@@ -81,8 +81,8 @@ local TIER_ASSIGNMENTS = {
     bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo' },
     silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2' },
     gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
-    platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx' },
-    diamond   = { 'gbtr3s' },
+    platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx', 'sentinel5' },
+    diamond   = { 'gbtr3s', 'elegyrh5' },
     blacklist = { 'gsttoros1', 'gbcomets2r' },
 }
 
@@ -93,6 +93,12 @@ Citizen.CreateThread(function()
     exports.oxmysql:execute('UPDATE vehicle_catalog SET tier = ? WHERE tier != ?', { 'custom', 'custom' })
     Citizen.Wait(200)
     for tier, models in pairs(TIER_ASSIGNMENTS) do
+        for _, m in ipairs(models) do
+            exports.oxmysql:execute(
+                'INSERT IGNORE INTO vehicle_catalog (model, label, tier, class) VALUES (?, ?, ?, ?)',
+                { m, m, tier, 'sports' }
+            )
+        end
         local placeholders = {}
         for _ in ipairs(models) do table.insert(placeholders, '?') end
         local params = { tier }

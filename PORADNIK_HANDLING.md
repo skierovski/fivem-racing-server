@@ -24,8 +24,10 @@ twoj-folder/
     gb_argento7f.meta
     gb_solace.meta
     gb_sultanrsx.meta
+    sentinel5.meta
   diamond/
     gb_tr3s.meta
+    elegyrh5.meta
   blacklist/
     gsttoros1.meta
     gb_comets2r.meta
@@ -81,6 +83,6 @@ Usuń obecne auto i zrespawnuj nowe — nowy handling załaduje się automatyczn
 | Bronze | 105 mph | futo, gb_cometcl, rh4, ballerc |
 | Silver | 115 mph | gb_cometclf, gb_retinueloz, gb_schrauber |
 | Gold | 125 mph | roxanne, buffaloh, jester5, sent6, gb_gresleystx |
-| Platinum | 135 mph | gb_argento7f, gb_solace, gb_sultanrsx |
-| Diamond | 145 mph | gb_tr3s |
+| Platinum | 135 mph | gb_argento7f, gb_solace, gb_sultanrsx, sentinel5 |
+| Diamond | 145 mph | gb_tr3s, elegyrh5 |
 | Blacklist | 155 mph | gsttoros1, gb_comets2r |
