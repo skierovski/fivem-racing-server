@@ -283,7 +283,7 @@ AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
         currentWheelType = curWheelType,
         currentWheelIndex = GetVehicleMod(garageVehicle, 23),
         currentWindowTint = GetVehicleWindowTint(garageVehicle),
-        currentLivery = GetVehicleLivery(garageVehicle),
+        currentLivery = GetVehicleLivery(garageVehicle) >= 0 and GetVehicleLivery(garageVehicle) or GetVehicleMod(garageVehicle, 48),
         currentWheelColor = trackedWheelColor,
         paintType1 = trackedPaintType1,
         paintType2 = trackedPaintType2,
@@ -482,6 +482,33 @@ RegisterNUICallback('applyExtra', function(data, cb)
 end)
 
 -- ========================
+-- Doors / Hood / Trunk
+-- ========================
+
+RegisterNUICallback('toggleDoor', function(data, cb)
+    if not garageVehicle then cb({}) return end
+    local doorIdx = tonumber(data.door)
+    local open = data.open == true
+
+    if doorIdx == -1 then
+        for i = 0, 5 do
+            if open then
+                SetVehicleDoorOpen(garageVehicle, i, false, false)
+            else
+                SetVehicleDoorShut(garageVehicle, i, false)
+            end
+        end
+    else
+        if open then
+            SetVehicleDoorOpen(garageVehicle, doorIdx, false, false)
+        else
+            SetVehicleDoorShut(garageVehicle, doorIdx, false)
+        end
+    end
+    cb({})
+end)
+
+-- ========================
 -- Save & Exit / Cancel
 -- ========================
 
@@ -533,8 +560,10 @@ function collectTuningFromVehicle()
     t.wheelIndex = GetVehicleMod(garageVehicle, 23)
     t.wheelColor = trackedWheelColor
 
-    -- Livery
-    t.livery = GetVehicleLivery(garageVehicle)
+    -- Livery (some cars use GetVehicleLivery, others use mod slot 48)
+    local livNative = GetVehicleLivery(garageVehicle)
+    local livMod    = GetVehicleMod(garageVehicle, 48)
+    t.livery = (livNative >= 0) and livNative or livMod
 
     -- Window tint
     t.windowTint = GetVehicleWindowTint(garageVehicle)
@@ -565,6 +594,9 @@ function exitGarage()
     SendNUIMessage({ action = 'closeTuning' })
 
     if garageVehicle and DoesEntityExist(garageVehicle) then
+        for i = 0, 5 do
+            SetVehicleDoorShut(garageVehicle, i, false)
+        end
         DeleteEntity(garageVehicle)
     end
     garageVehicle = nil
@@ -634,8 +666,9 @@ function applyFullTuning(vehicle, t)
         SetVehicleExtraColours(vehicle, pearl, t.wheelColor)
     end
 
-    if t.livery then
+    if t.livery and t.livery >= 0 then
         SetVehicleLivery(vehicle, t.livery)
+        SetVehicleMod(vehicle, 48, t.livery, false)
     end
 
     if t.windowTint then

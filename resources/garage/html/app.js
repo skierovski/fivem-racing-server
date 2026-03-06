@@ -28,8 +28,11 @@
         wheels: '\u{2699}', wheelColor: '\u{1F3A8}',
         livery: '\u{1F3AD}', windowTint: '\u{1F576}',
         neon: '\u{1F4A1}', turbo: '\u{26A1}', extras: '\u{1F6E0}',
+        doors: '\u{1F6AA}',
         engine: '\u{1F527}', brakes: '\u{1F6D1}', transmission: '\u{2699}', suspension: '\u{1F4CF}',
     };
+
+    let doorStates = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
 
     // WHEEL_COLORS is loaded from data/colors.json above
 
@@ -42,6 +45,7 @@
         if (data.action === 'openTuning') {
             tuningData = data;
             activeCategory = null;
+            doorStates = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
             buildCategories();
             app.classList.remove('hidden');
             optionsPanel.classList.add('hidden');
@@ -82,6 +86,7 @@
         if ((tuningData.extras || []).length > 0) {
             addCategory('extras', 'Extras', CATEGORY_ICONS.extras);
         }
+        addCategory('doors', 'Doors / Hood / Trunk', CATEGORY_ICONS.doors);
 
         addSectionHeader('PERFORMANCE');
         const perfMods = (tuningData.mods || []).filter(m =>
@@ -144,6 +149,8 @@
             renderTurbo();
         } else if (catId === 'extras') {
             renderExtras();
+        } else if (catId === 'doors') {
+            renderDoors();
         } else {
             renderModSlot(catId);
         }
@@ -209,7 +216,6 @@
         const ptKey = target === 'color1' ? 'paintType1' : 'paintType2';
         const activePT = tuningData[ptKey] || 0;
 
-        // Paint type selector
         const ptRow = document.createElement('div');
         ptRow.className = 'paint-type-selector';
         PAINT_TYPES.forEach(pt => {
@@ -229,54 +235,10 @@
         });
         area.appendChild(ptRow);
 
-        // Swatches
-        const swatches = document.createElement('div');
-        swatches.className = 'color-swatches';
-        COLOR_PRESETS.forEach(hex => {
-            const s = document.createElement('div');
-            s.className = 'color-swatch';
-            s.style.background = hex;
-            const rgb = hexToRgb(hex);
-            if (rgb.r === cur.r && rgb.g === cur.g && rgb.b === cur.b) {
-                s.classList.add('active');
-            }
-            s.addEventListener('click', () => {
-                applyColor(target, rgb.r, rgb.g, rgb.b);
-                cur.r = rgb.r; cur.g = rgb.g; cur.b = rgb.b;
-                renderColorPicker(target);
-            });
-            swatches.appendChild(s);
+        buildHSVPicker(area, cur, (r, g, b) => {
+            cur.r = r; cur.g = g; cur.b = b;
+            applyColor(target, r, g, b);
         });
-        area.appendChild(swatches);
-
-        // RGB sliders
-        const sliders = document.createElement('div');
-        sliders.className = 'color-sliders';
-        ['R', 'G', 'B'].forEach(ch => {
-            const val = ch === 'R' ? cur.r : ch === 'G' ? cur.g : cur.b;
-            const row = document.createElement('div');
-            row.className = 'color-slider-row';
-            row.innerHTML = `<label>${ch}</label><input type="range" min="0" max="255" value="${val}"><span class="color-val">${val}</span>`;
-            const slider = row.querySelector('input');
-            const display = row.querySelector('.color-val');
-            slider.addEventListener('input', () => {
-                display.textContent = slider.value;
-                if (ch === 'R') cur.r = parseInt(slider.value);
-                else if (ch === 'G') cur.g = parseInt(slider.value);
-                else cur.b = parseInt(slider.value);
-                preview.style.background = `rgb(${cur.r},${cur.g},${cur.b})`;
-                applyColor(target, cur.r, cur.g, cur.b);
-                swatches.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-            });
-            sliders.appendChild(row);
-        });
-        area.appendChild(sliders);
-
-        // Preview bar
-        const preview = document.createElement('div');
-        preview.className = 'color-preview';
-        preview.style.background = `rgb(${cur.r},${cur.g},${cur.b})`;
-        area.appendChild(preview);
 
         optionsList.appendChild(area);
     }
@@ -458,64 +420,17 @@
         optionsList.appendChild(toggleRow);
 
         if (isOn) {
-            // Color swatches for neon
             const area = document.createElement('div');
             area.className = 'color-picker-area';
 
-            const swatches = document.createElement('div');
-            swatches.className = 'color-swatches';
-            COLOR_PRESETS.forEach(hex => {
-                const s = document.createElement('div');
-                s.className = 'color-swatch';
-                s.style.background = hex;
-                const rgb = hexToRgb(hex);
-                if (rgb.r === nColor.r && rgb.g === nColor.g && rgb.b === nColor.b) {
-                    s.classList.add('active');
-                }
-                s.addEventListener('click', () => {
-                    nColor.r = rgb.r; nColor.g = rgb.g; nColor.b = rgb.b;
-                    tuningData.neonColor = nColor;
-                    fetch('https://garage/applyNeonColor', {
-                        method: 'POST',
-                        body: JSON.stringify({ r: rgb.r, g: rgb.g, b: rgb.b })
-                    });
-                    renderNeon();
+            buildHSVPicker(area, nColor, (r, g, b) => {
+                nColor.r = r; nColor.g = g; nColor.b = b;
+                tuningData.neonColor = nColor;
+                fetch('https://garage/applyNeonColor', {
+                    method: 'POST',
+                    body: JSON.stringify({ r, g, b })
                 });
-                swatches.appendChild(s);
             });
-            area.appendChild(swatches);
-
-            // RGB sliders
-            const sliders = document.createElement('div');
-            sliders.className = 'color-sliders';
-            ['R', 'G', 'B'].forEach(ch => {
-                const val = ch === 'R' ? nColor.r : ch === 'G' ? nColor.g : nColor.b;
-                const row = document.createElement('div');
-                row.className = 'color-slider-row';
-                row.innerHTML = `<label>${ch}</label><input type="range" min="0" max="255" value="${val}"><span class="color-val">${val}</span>`;
-                const slider = row.querySelector('input');
-                const display = row.querySelector('.color-val');
-                slider.addEventListener('input', () => {
-                    display.textContent = slider.value;
-                    if (ch === 'R') nColor.r = parseInt(slider.value);
-                    else if (ch === 'G') nColor.g = parseInt(slider.value);
-                    else nColor.b = parseInt(slider.value);
-                    tuningData.neonColor = nColor;
-                    preview.style.background = `rgb(${nColor.r},${nColor.g},${nColor.b})`;
-                    fetch('https://garage/applyNeonColor', {
-                        method: 'POST',
-                        body: JSON.stringify({ r: nColor.r, g: nColor.g, b: nColor.b })
-                    });
-                    swatches.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-                });
-                sliders.appendChild(row);
-            });
-            area.appendChild(sliders);
-
-            const preview = document.createElement('div');
-            preview.className = 'color-preview';
-            preview.style.background = `rgb(${nColor.r},${nColor.g},${nColor.b})`;
-            area.appendChild(preview);
 
             optionsList.appendChild(area);
         }
@@ -563,6 +478,63 @@
             });
             optionsList.appendChild(toggleRow);
         });
+    }
+
+    // ========================
+    // Doors / Hood / Trunk
+    // ========================
+
+    const DOOR_PANELS = [
+        { idx: 4, label: 'Hood' },
+        { idx: 5, label: 'Trunk' },
+        { idx: 0, label: 'Front Left Door' },
+        { idx: 1, label: 'Front Right Door' },
+        { idx: 2, label: 'Rear Left Door' },
+        { idx: 3, label: 'Rear Right Door' },
+    ];
+
+    function renderDoors() {
+        optionsList.innerHTML = '';
+
+        DOOR_PANELS.forEach(panel => {
+            const isOpen = !!doorStates[panel.idx];
+            const toggleRow = document.createElement('div');
+            toggleRow.className = 'toggle-row';
+            toggleRow.innerHTML = `<span>${panel.label}</span><div class="toggle-switch ${isOpen ? 'on' : ''}"></div>`;
+            toggleRow.querySelector('.toggle-switch').addEventListener('click', () => {
+                doorStates[panel.idx] = !doorStates[panel.idx];
+                fetch('https://garage/toggleDoor', {
+                    method: 'POST',
+                    body: JSON.stringify({ door: panel.idx, open: doorStates[panel.idx] })
+                });
+                renderDoors();
+            });
+            optionsList.appendChild(toggleRow);
+        });
+
+        const actions = document.createElement('div');
+        actions.className = 'door-actions';
+        actions.innerHTML =
+            '<button class="door-btn door-btn-open">OPEN ALL</button>' +
+            '<button class="door-btn door-btn-close">CLOSE ALL</button>';
+
+        actions.querySelector('.door-btn-open').addEventListener('click', () => {
+            DOOR_PANELS.forEach(p => { doorStates[p.idx] = true; });
+            fetch('https://garage/toggleDoor', {
+                method: 'POST',
+                body: JSON.stringify({ door: -1, open: true })
+            });
+            renderDoors();
+        });
+        actions.querySelector('.door-btn-close').addEventListener('click', () => {
+            DOOR_PANELS.forEach(p => { doorStates[p.idx] = false; });
+            fetch('https://garage/toggleDoor', {
+                method: 'POST',
+                body: JSON.stringify({ door: -1, open: false })
+            });
+            renderDoors();
+        });
+        optionsList.appendChild(actions);
     }
 
     // ========================
@@ -637,5 +609,165 @@
             g: parseInt(result[2], 16),
             b: parseInt(result[3], 16)
         } : { r: 0, g: 0, b: 0 };
+    }
+
+    function rgbToHex(r, g, b) {
+        return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+    }
+
+    function rgbToHsv(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const d = max - min;
+        let h = 0, s = max === 0 ? 0 : d / max, v = max;
+        if (d !== 0) {
+            if (max === r)      h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+            else if (max === g) h = ((b - r) / d + 2) / 6;
+            else                h = ((r - g) / d + 4) / 6;
+        }
+        return { h: h * 360, s, v };
+    }
+
+    function hsvToRgb(h, s, v) {
+        h = ((h % 360) + 360) % 360 / 360;
+        const i = Math.floor(h * 6);
+        const f = h * 6 - i;
+        const p = v * (1 - s);
+        const q = v * (1 - f * s);
+        const t = v * (1 - (1 - f) * s);
+        let r, g, b;
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+        return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+    }
+
+    // ========================
+    // Reusable HSV Picker
+    // ========================
+
+    let _hsvPicker = null;
+
+    document.addEventListener('mousemove', (e) => {
+        if (!_hsvPicker) return;
+        if (_hsvPicker.svDrag)  _hsvPicker.onSV(e);
+        if (_hsvPicker.hueDrag) _hsvPicker.onHue(e);
+    });
+    document.addEventListener('mouseup', () => {
+        if (_hsvPicker) { _hsvPicker.svDrag = false; _hsvPicker.hueDrag = false; }
+    });
+
+    function buildHSVPicker(parentEl, curRgb, onChange) {
+        const SV_W = 272, SV_H = 180, HUE_H = 16;
+        let hsv = rgbToHsv(curRgb.r, curRgb.g, curRgb.b);
+
+        const state = { svDrag: false, hueDrag: false, onSV: null, onHue: null };
+        _hsvPicker = state;
+
+        // -- SV Canvas --
+        const svCanvas = document.createElement('canvas');
+        svCanvas.className = 'color-sv-canvas';
+        svCanvas.width = SV_W; svCanvas.height = SV_H;
+        const svCtx = svCanvas.getContext('2d');
+
+        function drawSV() {
+            svCtx.fillStyle = `hsl(${hsv.h}, 100%, 50%)`;
+            svCtx.fillRect(0, 0, SV_W, SV_H);
+            const wGrad = svCtx.createLinearGradient(0, 0, SV_W, 0);
+            wGrad.addColorStop(0, '#fff');
+            wGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            svCtx.fillStyle = wGrad;
+            svCtx.fillRect(0, 0, SV_W, SV_H);
+            const bGrad = svCtx.createLinearGradient(0, 0, 0, SV_H);
+            bGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            bGrad.addColorStop(1, '#000');
+            svCtx.fillStyle = bGrad;
+            svCtx.fillRect(0, 0, SV_W, SV_H);
+
+            const cx = hsv.s * (SV_W - 1);
+            const cy = (1 - hsv.v) * (SV_H - 1);
+            svCtx.beginPath(); svCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+            svCtx.strokeStyle = '#fff'; svCtx.lineWidth = 2; svCtx.stroke();
+            svCtx.beginPath(); svCtx.arc(cx, cy, 7, 0, Math.PI * 2);
+            svCtx.strokeStyle = '#000'; svCtx.lineWidth = 1; svCtx.stroke();
+        }
+
+        state.onSV = function (e) {
+            const rect = svCanvas.getBoundingClientRect();
+            hsv.s = Math.max(0, Math.min(1, (e.clientX - rect.left) / (rect.width - 1)));
+            hsv.v = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / (rect.height - 1)));
+            refresh();
+        };
+        svCanvas.addEventListener('mousedown', (e) => {
+            state.svDrag = true; state.onSV(e); e.preventDefault();
+        });
+        parentEl.appendChild(svCanvas);
+
+        // -- Hue Strip --
+        const hueCanvas = document.createElement('canvas');
+        hueCanvas.className = 'color-hue-strip';
+        hueCanvas.width = SV_W; hueCanvas.height = HUE_H;
+        const hueCtx = hueCanvas.getContext('2d');
+
+        function drawHue() {
+            const grad = hueCtx.createLinearGradient(0, 0, SV_W, 0);
+            for (let i = 0; i <= 6; i++) grad.addColorStop(i / 6, `hsl(${i * 60}, 100%, 50%)`);
+            hueCtx.fillStyle = grad;
+            hueCtx.fillRect(0, 0, SV_W, HUE_H);
+            const hx = (hsv.h / 360) * (SV_W - 1);
+            hueCtx.fillStyle = '#fff';
+            hueCtx.fillRect(hx - 1, 0, 3, HUE_H);
+            hueCtx.strokeStyle = '#000'; hueCtx.lineWidth = 1;
+            hueCtx.strokeRect(hx - 2, 0, 5, HUE_H);
+        }
+
+        state.onHue = function (e) {
+            const rect = hueCanvas.getBoundingClientRect();
+            hsv.h = Math.max(0, Math.min(360, ((e.clientX - rect.left) / (rect.width - 1)) * 360));
+            refresh();
+        };
+        hueCanvas.addEventListener('mousedown', (e) => {
+            state.hueDrag = true; state.onHue(e); e.preventDefault();
+        });
+        parentEl.appendChild(hueCanvas);
+
+        // -- Hex input + preview --
+        const hexRow = document.createElement('div');
+        hexRow.className = 'color-hex-row';
+        const hexLabel = document.createElement('label');
+        hexLabel.textContent = 'HEX';
+        const hexInput = document.createElement('input');
+        hexInput.type = 'text';
+        hexInput.className = 'color-hex-input';
+        hexInput.maxLength = 7;
+        const preview = document.createElement('div');
+        preview.className = 'color-preview';
+        hexRow.appendChild(hexLabel);
+        hexRow.appendChild(hexInput);
+        hexRow.appendChild(preview);
+        parentEl.appendChild(hexRow);
+
+        hexInput.addEventListener('change', () => {
+            const parsed = hexToRgb(hexInput.value);
+            if (parsed) { hsv = rgbToHsv(parsed.r, parsed.g, parsed.b); refresh(); }
+        });
+
+        function refresh() {
+            const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+            drawSV(); drawHue();
+            hexInput.value = rgbToHex(rgb.r, rgb.g, rgb.b);
+            preview.style.background = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+            onChange(rgb.r, rgb.g, rgb.b);
+        }
+
+        drawSV(); drawHue();
+        const initRgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+        hexInput.value = rgbToHex(initRgb.r, initRgb.g, initRgb.b);
+        preview.style.background = `rgb(${initRgb.r},${initRgb.g},${initRgb.b})`;
     }
 })();

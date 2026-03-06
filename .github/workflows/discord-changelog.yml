@@ -1,0 +1,68 @@
+name: Discord Changelog
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build changelog and post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          PUSHER="${{ github.actor }}"
+          BRANCH="${{ github.ref_name }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+
+          # Collect commits from this push
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+
+          # If this is the first push (no before), show last 10 commits
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            COMMITS=$(git log --oneline -10 "$AFTER")
+          else
+            COMMITS=$(git log --oneline "$BEFORE".."$AFTER")
+          fi
+
+          # Format commit list as bullet points
+          COMMIT_LIST=""
+          while IFS= read -r line; do
+            if [ -n "$line" ]; then
+              HASH=$(echo "$line" | cut -d' ' -f1)
+              MSG=$(echo "$line" | cut -d' ' -f2-)
+              COMMIT_LIST="${COMMIT_LIST}• \`${HASH}\` ${MSG}\\n"
+            fi
+          done <<< "$COMMITS"
+
+          if [ -z "$COMMIT_LIST" ]; then
+            COMMIT_LIST="No new commits"
+          fi
+
+          DESCRIPTION="${COMMIT_LIST}\\n_Pushed by **${PUSHER}** to \`${BRANCH}\` — ${TIMESTAMP}_"
+
+          # Post to Discord webhook as an embed
+          PAYLOAD=$(cat <<ENDJSON
+          {
+            "embeds": [{
+              "title": "Changelog — Racing Server",
+              "description": "${DESCRIPTION}",
+              "color": 3447003,
+              "footer": {
+                "text": "${REPO_NAME}"
+              }
+            }]
+          }
+          ENDJSON
+          )
+
+          curl -s -H "Content-Type: application/json" \
+               -d "$PAYLOAD" \
+               "$DISCORD_WEBHOOK"

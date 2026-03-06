@@ -180,6 +180,7 @@ function applyTuning(vehicle, tuning)
     -- Livery
     if tuning.livery and tuning.livery >= 0 then
         SetVehicleLivery(vehicle, tuning.livery)
+        SetVehicleMod(vehicle, 48, tuning.livery, false)
     end
 
     -- Window tint

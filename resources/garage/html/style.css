@@ -429,3 +429,103 @@ body {
     letter-spacing: 3px;
     color: var(--text-muted);
 }
+
+/* ========================
+   HSV Color Picker
+   ======================== */
+
+.color-sv-canvas {
+    width: 100%;
+    height: 180px;
+    border-radius: 8px;
+    cursor: crosshair;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.color-hue-strip {
+    width: 100%;
+    height: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 14px;
+    display: block;
+}
+
+.color-hex-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.color-hex-row label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+.color-hex-input {
+    width: 90px;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    outline: none;
+}
+
+.color-hex-input:focus {
+    border-color: var(--accent);
+}
+
+.color-hex-row .color-preview {
+    flex: 1;
+    height: 32px;
+    margin-top: 0;
+}
+
+/* ========================
+   Door action buttons
+   ======================== */
+
+.door-actions {
+    display: flex;
+    gap: 8px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+}
+
+.door-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 6px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.door-btn-open {
+    background: rgba(0, 150, 255, 0.1);
+    border: 1px solid rgba(0, 150, 255, 0.25);
+    color: var(--accent);
+}
+
+.door-btn-open:hover { background: rgba(0, 150, 255, 0.2); }
+
+.door-btn-close {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.25);
+    color: var(--danger);
+}
+
+.door-btn-close:hover { background: rgba(255, 68, 68, 0.2); }
