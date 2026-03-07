@@ -32,44 +32,16 @@ AddEventHandler('blacklist:leaveFreeRoam', function()
     TriggerClientEvent('blacklist:enableGhostMode', source, false)
 end)
 
--- Send full vehicle catalog for freeroam car selection
+-- Send full vehicle catalog for freeroam car selection (all tiers, no restrictions)
 RegisterNetEvent('blacklist:requestVehiclesForFreeroam')
 AddEventHandler('blacklist:requestVehiclesForFreeroam', function()
     local source = source
-    local identifier = getIdentifier(source)
-    if not identifier then return end
 
     exports.oxmysql:execute(
-        'SELECT tier FROM players WHERE identifier = ?',
-        { identifier },
-        function(playerResult)
-            if not playerResult or not playerResult[1] then return end
-            local playerTier = playerResult[1].tier
-
-            local tierOrder = { 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist' }
-            local playerTierIndex = 1
-            for i, t in ipairs(tierOrder) do
-                if t == playerTier then playerTierIndex = i break end
-            end
-
-            local availableTiers = {}
-            for i = 1, playerTierIndex do
-                table.insert(availableTiers, tierOrder[i])
-            end
-            table.insert(availableTiers, 'custom')
-
-            local placeholders = {}
-            for _ in ipairs(availableTiers) do
-                table.insert(placeholders, '?')
-            end
-
-            exports.oxmysql:execute(
-                'SELECT model, label, tier FROM vehicle_catalog WHERE tier IN (' .. table.concat(placeholders, ',') .. ') ORDER BY tier, label',
-                availableTiers,
-                function(catalog)
-                    TriggerClientEvent('blacklist:receiveFreeroamVehicles', source, catalog or {})
-                end
-            )
+        'SELECT model, label, tier FROM vehicle_catalog ORDER BY FIELD(tier, "bronze","silver","gold","platinum","diamond","blacklist","custom"), label',
+        {},
+        function(catalog)
+            TriggerClientEvent('blacklist:receiveFreeroamVehicles', source, catalog or {})
         end
     )
 end)

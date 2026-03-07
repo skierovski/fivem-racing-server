@@ -86,10 +86,10 @@ function GetPlayerVehicleForTier(identifier, tier, callback)
                 -- Player has no vehicle in this tier: give default for tier
                 local defaults = {
                     bronze = { model = 'futo', label = 'Karin Futo' },
-                    silver = { model = 'gb_cometclf', label = 'Pfister Comet CLF' },
+                    silver = { model = 'gbcometclf', label = 'Pfister Comet CLF' },
                     gold = { model = 'roxanne', label = 'Roxanne' },
-                    platinum = { model = 'gb_argento7f', label = 'Argento 7F' },
-                    diamond = { model = 'gb_tr3s', label = 'TR3S' },
+                    platinum = { model = 'gbargento7f', label = 'Argento 7F' },
+                    diamond = { model = 'gbtr3s', label = 'TR3S' },
                     blacklist = { model = 'gsttoros1', label = 'GST Toros' },
                 }
                 local def = defaults[tier] or defaults.bronze
