@@ -14,6 +14,7 @@ local ChaseConfig = {
     ARREST_MAX_SPEED = 8.94, -- 20 mph in m/s
 
     MAX_PIT_STRIKES = 3,
+    MAX_BRAKE_CHECK_STRIKES = 3,
 
     REMATCH_WINDOW = 15,
 }
@@ -56,6 +57,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         catchTimer = 0,
         escapeTimer = 0,
         pitStrikes = {},
+        brakeCheckStrikes = {},
         result = nil,
     }
 
@@ -315,6 +317,78 @@ AddEventHandler('blacklist:reportViolation', function(violationType)
 
         if count >= ChaseConfig.MAX_PIT_STRIKES then
             endMatch(matchId, 'runner', 'chaser_disqualified_pit')
+        end
+
+    elseif violationType == 'runner_brake_check' then
+        local runnerSource = match.runner.source
+        match.brakeCheckStrikes[runnerSource] = (match.brakeCheckStrikes[runnerSource] or 0) + 1
+        local count = match.brakeCheckStrikes[runnerSource]
+
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'warning',
+                message = (GetPlayerName(runnerSource) or 'Runner') .. ': Brake-check violation! (' .. count .. '/' .. ChaseConfig.MAX_BRAKE_CHECK_STRIKES .. ')',
+            })
+        end
+
+        print(('[Chase] Match #%d: Runner brake-check strike %d/%d'):format(matchId, count, ChaseConfig.MAX_BRAKE_CHECK_STRIKES))
+
+        if count >= ChaseConfig.MAX_BRAKE_CHECK_STRIKES then
+            endMatch(matchId, 'chaser', 'runner_disqualified_brake_check')
+        end
+
+    elseif violationType == 'runner_water' then
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'warning',
+                message = playerName .. ': Drove into water — DISQUALIFIED!',
+            })
+        end
+        print(('[Chase] Match #%d: %s DQ — runner in water'):format(matchId, playerName))
+        endMatch(matchId, 'chaser', 'runner_disqualified_water')
+
+    elseif violationType == 'runner_terrain' then
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'warning',
+                message = playerName .. ': Illegal terrain — DISQUALIFIED!',
+            })
+        end
+        print(('[Chase] Match #%d: %s DQ — runner terrain abuse'):format(matchId, playerName))
+        endMatch(matchId, 'chaser', 'runner_disqualified_terrain')
+    end
+end)
+
+-- ========================
+-- Vehicle repair routing
+-- ========================
+
+RegisterNetEvent('blacklist:requestRepair')
+AddEventHandler('blacklist:requestRepair', function(target)
+    local source = source
+    local matchId = playerMatchMap[source]
+    if not matchId then return end
+
+    local match = activeMatches[matchId]
+    if not match or match.state ~= 'active' then return end
+
+    if target == 'self' then
+        TriggerClientEvent('blacklist:repairVehicle', source)
+        print(('[Chase] Match #%d: Repairing %s (self-request)'):format(matchId, GetPlayerName(source) or source))
+    elseif target == 'opponent' then
+        local isChaser = false
+        for _, c in ipairs(match.chasers) do
+            if c.source == source then isChaser = true break end
+        end
+
+        if isChaser then
+            TriggerClientEvent('blacklist:repairVehicle', match.runner.source)
+            print(('[Chase] Match #%d: Repairing runner (opponent-request from chaser)'):format(matchId))
+        else
+            for _, c in ipairs(match.chasers) do
+                TriggerClientEvent('blacklist:repairVehicle', c.source)
+            end
+            print(('[Chase] Match #%d: Repairing chaser(s) (opponent-request from runner)'):format(matchId))
         end
     end
 end)

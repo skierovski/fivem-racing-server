@@ -387,6 +387,14 @@ local telem = {
     spinOuts          = 0,
     wallBounces       = 0,
     lastSummaryTime   = 0,
+
+    preContactHealth  = nil,
+    waterReported     = false,
+    terrainReported   = false,
+    hillTimeAccum     = 0,
+    hillTimeLast      = 0,
+    hillWarningActive = false,
+    hillCountdown     = 10,
 }
 
 -- ========================
@@ -416,6 +424,29 @@ local function acLog(level, msg)
     TriggerServerEvent('blacklist:chaseLog', {
         message = ('[%s] [%ss] [%s] %s'):format(level, t, role, msg)
     })
+end
+
+-- ========================
+-- Vehicle health snapshot for repair system
+-- ========================
+
+local function snapshotVehicleHealth(vehicle)
+    if not vehicle or vehicle == 0 then return nil end
+    return {
+        body   = GetVehicleBodyHealth(vehicle),
+        engine = GetVehicleEngineHealth(vehicle),
+        petrol = GetVehiclePetrolTankHealth(vehicle),
+    }
+end
+
+local function restoreVehicleHealth(vehicle, snapshot)
+    if not vehicle or vehicle == 0 then return end
+    SetVehicleFixed(vehicle)
+    if snapshot then
+        SetVehicleBodyHealth(vehicle, snapshot.body)
+        SetVehicleEngineHealth(vehicle, snapshot.engine)
+        SetVehiclePetrolTankHealth(vehicle, snapshot.petrol)
+    end
 end
 
 -- ========================
@@ -585,9 +616,13 @@ local function analyzePitManeuver(myData, opp)
     end
 
     if telem.lastEnvCrash and (GetGameTimer() - telem.lastEnvCrash.time) < 3000 and myRole == 'chaser' then
-        intentScore = intentScore - 2
         local gap = GetGameTimer() - telem.lastEnvCrash.time
-        table.insert(factors, ('follow_up_%dms'):format(gap))
+        if gap <= 700 or (gap <= 1500 and telem.isBraking) then
+            intentScore = intentScore - 2
+            table.insert(factors, ('follow_up_%dms'):format(gap))
+        else
+            table.insert(factors, ('follow_up_%dms_DID_NOT_AVOID'):format(gap))
+        end
     end
 
     -- Runner brake-checked right before contact — chaser likely couldn't avoid
@@ -659,6 +694,13 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         telem.brakeCheckCount = 0
         telem.lastSummaryTime = GetGameTimer()
         telem.lastTerrainType = 'FLAT'
+        telem.preContactHealth = nil
+        telem.waterReported    = false
+        telem.terrainReported  = false
+        telem.hillTimeAccum    = 0
+        telem.hillTimeLast     = 0
+        telem.hillWarningActive = false
+        telem.hillCountdown    = 10
 
         acLog('INFO', ('========== MATCH START ==========  role=%s  duration=%ds'):format(
             data.role or '?', data.duration or 0))
@@ -710,6 +752,17 @@ Citizen.CreateThread(function()
         telem.pitch       = vd.pitch
         telem.roll        = vd.roll
 
+        -- ======== WATER DETECTION (runner only) ========
+
+        if IsEntityInWater(vehicle) and myRole == 'runner' and not telem.waterReported then
+            telem.waterReported = true
+            acLog('CRIT', 'WATER DETECTED — runner vehicle in water')
+            TriggerServerEvent('blacklist:reportViolation', 'runner_water')
+        end
+
+        -- Save vehicle health before any collision processing
+        telem.preContactHealth = snapshotVehicleHealth(vehicle)
+
         -- ======== AIRBORNE DETECTION ========
 
         if vd.inAir and not telem.wasAirborne then
@@ -746,7 +799,7 @@ Citizen.CreateThread(function()
             acLog(level, ('AIRBORNE END | dur=%.1fs | launch=%d km/h | land=%d km/h | max_hgt=%.1fm | cause=%s | landing=%s'):format(
                 dur, telem.airborneStartSpd, vd.speedKmh, telem.airborneMaxHgt, telem.airborneCause, landing))
 
-            if dur >= 2.0 and myRole == 'runner' then
+            if (dur >= 2.0 or telem.airborneMaxHgt >= 10.0) and myRole == 'runner' then
                 TriggerServerEvent('blacklist:reportViolation', 'runner_jump')
             end
             airborneTimer = 0.0
@@ -798,15 +851,24 @@ Citizen.CreateThread(function()
                 end
 
                 -- Follow-up context: runner crashed → did chaser have time to react?
+                local followUpReaction = nil
                 if telem.lastEnvCrash and myRole == 'chaser' then
                     local gap = now - telem.lastEnvCrash.time
                     if gap < 3000 then
                         local reaction = 'NO_TIME'
-                        if gap > 1500 then reaction = 'HAD_TIME'
-                        elseif gap > 700 and telem.isBraking then reaction = 'TRIED_AVOID' end
+                        if gap > 1500 then
+                            reaction = 'HAD_TIME'
+                        elseif gap > 700 then
+                            reaction = telem.isBraking and 'TRIED_AVOID' or 'DID_NOT_AVOID'
+                        end
+                        followUpReaction = reaction
 
                         acLog('ANLZ', ('  > FOLLOW-UP: runner crashed %dms ago @ %d km/h | reaction=%s | chaser_brake=%s | dist_at_crash=%.0fm'):format(
                             gap, telem.lastEnvCrash.speed, reaction, brakeInfo, opp.dist))
+
+                        if reaction == 'NO_TIME' or reaction == 'TRIED_AVOID' then
+                            TriggerServerEvent('blacklist:requestRepair', 'self')
+                        end
                     end
                 end
 
@@ -818,11 +880,28 @@ Citizen.CreateThread(function()
                         local bcGap = now - telem.lastBrakeCheck.time
                         acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
                             bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+
+                        local oppOnHill = false
+                        if opp.vehicle ~= 0 then
+                            local oppPitch = GetEntityPitch(opp.vehicle)
+                            if math.abs(oppPitch) > 10 then oppOnHill = true end
+                        end
+                        local wasEnvCrash = telem.lastEnvCrash and (now - telem.lastEnvCrash.time) < 3000
+
+                        if not oppOnHill and not wasEnvCrash then
+                            acLog('CRIT', '  > DELIBERATE BRAKE-CHECK — runner penalized')
+                            TriggerServerEvent('blacklist:reportViolation', 'runner_brake_check')
+                        else
+                            acLog('ANLZ', '  > brake-check likely caused by terrain/crash — no runner penalty')
+                        end
+
+                        TriggerServerEvent('blacklist:requestRepair', 'self')
                     end
 
                     if analysis.intent == 'LIKELY_INTENTIONAL' then
                         acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
                         TriggerServerEvent('blacklist:reportViolation', 'chaser_pit')
+                        TriggerServerEvent('blacklist:requestRepair', 'opponent')
                     end
                 end
 
@@ -920,6 +999,49 @@ Citizen.CreateThread(function()
             telem.lastTerrainType = 'FLAT'
         end
 
+        -- ---- Runner hill-time tracking (3s grace + 10s countdown) ----
+        if myRole == 'runner' and not telem.terrainReported then
+            local onHill = (terrainType == 'HILL' or terrainType == 'STEEP_HILL') and not vd.inAir
+
+            if onHill then
+                if telem.hillTimeLast > 0 then
+                    local delta = (now - telem.hillTimeLast) / 1000.0
+                    telem.hillTimeAccum = telem.hillTimeAccum + delta
+                end
+                telem.hillTimeLast = now
+
+                if telem.hillTimeAccum >= 3.0 and not telem.hillWarningActive then
+                    telem.hillWarningActive = true
+                    telem.hillCountdown = 10
+                    SendNUIMessage({ action = 'terrainWarning', countdown = 10, show = true })
+                    acLog('WARN', 'TERRAIN WARNING — runner on hills, countdown started')
+                end
+
+                if telem.hillWarningActive then
+                    telem.hillCountdown = 10.0 - (telem.hillTimeAccum - 3.0)
+                    if telem.hillCountdown <= 0 then
+                        telem.terrainReported = true
+                        telem.hillWarningActive = false
+                        SendNUIMessage({ action = 'terrainWarning', show = false })
+                        acLog('CRIT', 'TERRAIN ABUSE — runner on hills too long, DQ')
+                        TriggerServerEvent('blacklist:reportViolation', 'runner_terrain')
+                    else
+                        SendNUIMessage({ action = 'terrainWarning', countdown = math.ceil(telem.hillCountdown), show = true })
+                    end
+                end
+            else
+                if telem.hillTimeAccum > 0 then
+                    telem.hillTimeAccum = 0
+                    telem.hillTimeLast = 0
+                    if telem.hillWarningActive then
+                        telem.hillWarningActive = false
+                        telem.hillCountdown = 10
+                        SendNUIMessage({ action = 'terrainWarning', show = false })
+                    end
+                end
+            end
+        end
+
         -- ---- Spin detection (loss of control, not from direct collision) ----
         if vd.yawRate > 90 and not vd.inAir then
             acLog('WARN', ('SPIN | yaw_rate=%.0f°/s | spd=%d km/h | wheels=%s | steer=%.0f° | roll=%.1f°'):format(
@@ -990,6 +1112,20 @@ Citizen.CreateThread(function()
 
         ::skip::
     end
+end)
+
+-- ========================
+-- Vehicle repair (triggered by server after penalty events)
+-- ========================
+
+RegisterNetEvent('blacklist:repairVehicle')
+AddEventHandler('blacklist:repairVehicle', function()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 then return end
+
+    restoreVehicleHealth(vehicle, telem.preContactHealth)
+    acLog('INFO', 'VEHICLE REPAIRED to pre-contact state')
 end)
 
 -- ========================

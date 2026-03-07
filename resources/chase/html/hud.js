@@ -18,6 +18,8 @@
     const progressTime = document.getElementById('progressTime');
     const warningPopup = document.getElementById('warningPopup');
     const warningText = document.getElementById('warningText');
+    const terrainWarning = document.getElementById('terrainWarning');
+    const terrainCountdown = document.getElementById('terrainCountdown');
     const matchEnd = document.getElementById('matchEnd');
     const endResult = document.getElementById('endResult');
     const endDetails = document.getElementById('endDetails');
@@ -71,6 +73,7 @@
         chaseHud.classList.add('hidden');
         progressContainer.classList.add('hidden');
         warningPopup.classList.add('hidden');
+        terrainWarning.classList.add('hidden');
         matchEnd.classList.add('hidden');
         mmrSection.classList.add('hidden');
         mmrSection.classList.remove('visible');
@@ -205,6 +208,16 @@
                 break;
             }
 
+            case 'terrainWarning': {
+                if (data.show) {
+                    terrainWarning.classList.remove('hidden');
+                    terrainCountdown.textContent = data.countdown;
+                } else {
+                    terrainWarning.classList.add('hidden');
+                }
+                break;
+            }
+
             case 'matchEnd': {
                 hideAll();
                 matchEnd.classList.remove('hidden');
@@ -221,9 +234,14 @@
                         detail = 'Runner was caught!';
                         break;
                     case 'runner_disqualified':
+                    case 'runner_disqualified_jump':
+                    case 'runner_disqualified_water':
+                    case 'runner_disqualified_terrain':
+                    case 'runner_disqualified_brake_check':
                         detail = 'Runner was disqualified.';
                         break;
                     case 'chaser_disqualified':
+                    case 'chaser_disqualified_pit':
                         detail = 'Chaser was disqualified.';
                         break;
                     case 'runner_disconnected':
