@@ -614,6 +614,7 @@ function exitGarage()
     Citizen.Wait(100)
 
     TriggerEvent('blacklist:openMenu')
+    Citizen.Wait(300)
     DoScreenFadeIn(300)
 end
 
@@ -702,5 +703,45 @@ Citizen.CreateThread(function()
         Citizen.Wait(10000)
     end
 end)
+
+-- TEMPORARY: Find the GoM BBC Showcase interior coordinates
+RegisterCommand('findinterior', function()
+    local SCAN_POINTS = {
+        vector3(-212.55, -1325.5, 30.12),
+        vector3(-222.0, -1320.0, 30.0),
+        vector3(-204.0, -1310.0, 30.0),
+        vector3(-220.0, -1330.0, 30.0),
+        vector3(-215.0, -1315.0, 30.0),
+        vector3(-210.0, -1340.0, 30.0),
+        vector3(-225.0, -1310.0, 30.0),
+        vector3(-200.0, -1325.0, 30.0),
+        vector3(1173.0, -3196.6, -39.0),
+        vector3(1121.0, -3195.0, -40.0),
+        vector3(1165.0, -3200.0, -38.0),
+        vector3(1002.0, -3164.0, -39.0),
+        vector3(1090.0, -3190.0, -39.0),
+        vector3(-222.0, -1320.0, 25.0),
+        vector3(-222.0, -1320.0, 35.0),
+        vector3(-222.0, -1320.0, 20.0),
+    }
+
+    print('^3[FindInterior] Scanning ' .. #SCAN_POINTS .. ' points...^0')
+    for i, pos in ipairs(SCAN_POINTS) do
+        RequestCollisionAtCoord(pos.x, pos.y, pos.z)
+    end
+    Citizen.Wait(2000)
+
+    for i, pos in ipairs(SCAN_POINTS) do
+        local interior = GetInteriorAtCoords(pos.x, pos.y, pos.z)
+        if interior ~= 0 and IsValidInterior(interior) then
+            local ready = IsInteriorReady(interior)
+            print(('^2[FindInterior] FOUND interior %d at (%.1f, %.1f, %.1f) ready=%s^0'):format(
+                interior, pos.x, pos.y, pos.z, tostring(ready)))
+        else
+            print(('^8[FindInterior] No interior at (%.1f, %.1f, %.1f)^0'):format(pos.x, pos.y, pos.z))
+        end
+    end
+    print('^3[FindInterior] Scan complete. Use /coords while standing inside the interior to get exact position.^0')
+end, false)
 
 print('[Garage] ^2Client-side loaded^0')

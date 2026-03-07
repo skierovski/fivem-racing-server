@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 
 :root {
-    --bg-primary: rgba(5, 5, 15, 0.95);
+    --bg-primary: rgba(5, 5, 15, 1.0);
     --bg-secondary: rgba(15, 15, 30, 0.9);
     --bg-card: rgba(20, 20, 40, 0.8);
     --bg-card-hover: rgba(30, 30, 60, 0.9);
