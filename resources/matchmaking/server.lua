@@ -82,7 +82,7 @@ local TIER_ASSIGNMENTS = {
     silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2', 'vstr' },
     gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
     platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx', 'sentinel5' },
-    diamond   = { 'gbtr3s', 'elegyrh5', 'gst73r1', 'jester4' },
+    diamond   = { 'gbtr3s', 'elegyrh5', 'gst73r1', 'jester4', 'gbargento7fs' },
     blacklist = { 'gsttoros1', 'gbcomets2r', 'gstsentgts1', 'gsttam1', 'tenf2' },
 }
 

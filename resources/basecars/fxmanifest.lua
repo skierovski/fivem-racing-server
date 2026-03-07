@@ -40,6 +40,7 @@ data_file 'HANDLING_FILE' 'gbtr3s.meta'
 data_file 'HANDLING_FILE' 'elegyrh5.meta'
 data_file 'HANDLING_FILE' 'gst73r1.meta'
 data_file 'HANDLING_FILE' 'jester4.meta'
+data_file 'HANDLING_FILE' 'gbargento7fs.meta'
 
 -- Blacklist
 data_file 'HANDLING_FILE' 'gsttoros1.meta'
