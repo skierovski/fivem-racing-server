@@ -14,6 +14,7 @@ data_file 'HANDLING_FILE' 'futo.meta'
 data_file 'HANDLING_FILE' 'rh4.meta'
 data_file 'HANDLING_FILE' 'ballerc.meta'
 data_file 'HANDLING_FILE' 'gbcometcl.meta'
+data_file 'HANDLING_FILE' 'gbargento2f.meta'
 
 -- Silver
 data_file 'HANDLING_FILE' 'tailgater2.meta'
@@ -34,6 +35,7 @@ data_file 'HANDLING_FILE' 'gbargento7f.meta'
 data_file 'HANDLING_FILE' 'gbsolace.meta'
 data_file 'HANDLING_FILE' 'gbsultanrsx.meta'
 data_file 'HANDLING_FILE' 'sentinel5.meta'
+data_file 'HANDLING_FILE' 'gbdominatorgsx.meta'
 
 -- Diamond
 data_file 'HANDLING_FILE' 'gbtr3s.meta'

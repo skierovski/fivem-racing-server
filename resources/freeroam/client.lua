@@ -427,6 +427,7 @@ AddEventHandler('blacklist:receiveFreeroamTuning', function(model, tuning)
 
     local vehicle = CreateVehicle(hash, coords.x, coords.y, coords.z, heading, true, false)
     SetModelAsNoLongerNeeded(hash)
+    SetVehicleDirtLevel(vehicle, 0.0)
     TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
     SetVehicleModKit(vehicle, 0)
