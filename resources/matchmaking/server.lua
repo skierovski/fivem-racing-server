@@ -78,10 +78,10 @@ for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
 local tierModels = {}
 
 local TIER_ASSIGNMENTS = {
-    bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo' },
+    bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo', 'gbargento2f' },
     silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2', 'vstr' },
     gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
-    platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx', 'sentinel5' },
+    platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx', 'sentinel5', 'gbdominatorgsx' },
     diamond   = { 'gbtr3s', 'elegyrh5', 'gst73r1', 'jester4', 'gbargento7fs' },
     blacklist = { 'gsttoros1', 'gbcomets2r', 'gstsentgts1', 'gsttam1', 'tenf2' },
 }

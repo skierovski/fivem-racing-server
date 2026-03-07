@@ -52,6 +52,8 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         return
     end
 
+    SetVehicleDirtLevel(vehicle, 0.0)
+
     SetModelAsNoLongerNeeded(hash)
     FreezeEntityPosition(vehicle, true)
 
