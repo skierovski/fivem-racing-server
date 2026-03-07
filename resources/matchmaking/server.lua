@@ -79,11 +79,11 @@ local tierModels = {}
 
 local TIER_ASSIGNMENTS = {
     bronze    = { 'gbcometcl', 'rh4', 'ballerc', 'futo' },
-    silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2' },
+    silver    = { 'gbcometclf', 'gbretinueloz', 'gbschrauber', 'tailgater2', 'vstr' },
     gold      = { 'roxanne', 'buffaloh', 'jester5', 'sent6', 'gbgresleystx' },
     platinum  = { 'gbargento7f', 'gbsolace', 'gbsultanrsx', 'sentinel5' },
-    diamond   = { 'gbtr3s', 'elegyrh5' },
-    blacklist = { 'gsttoros1', 'gbcomets2r' },
+    diamond   = { 'gbtr3s', 'elegyrh5', 'gst73r1', 'jester4' },
+    blacklist = { 'gsttoros1', 'gbcomets2r', 'gstsentgts1', 'gsttam1', 'tenf2' },
 }
 
 Citizen.CreateThread(function()

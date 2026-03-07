@@ -1,10 +1,8 @@
-- Rozbudowa systemu anti-cheat o nowe wykrywanie naruszeń
-- Naprawa pojazdu ofiary po celowym PIT-cie (chaser dostaje karę, runner dostaje naprawę auta)
-- Naprawa pojazdu chasera gdy runner się rozbił i chaser nie miał czasu zareagować
-- Kara za brake-check: runner który celowo hamuje dostaje ostrzeżenie (1/3), 3 ostrzeżenia = dyskwalifikacja
-- Wykrywanie wody: runner wjeżdżający do wody = natychmiastowa dyskwalifikacja
-- Ulepszone wykrywanie nielegalnych skoków: teraz również na podstawie wysokości (>10m = DQ)
-- Wykrywanie jazdy po wzgórzach: 3s tolerancji + 10s odliczanie z ostrzeżeniem, powrót na drogę resetuje timer
-- Inteligentniejsza analiza kolizji po wypadku runnera: chaser który nie hamował mimo czasu = PIT
-- Dodano Sentinel GTS do tieru Platinum oraz RH5 do tieru Diamond
-- Nowe ikony drzwi/maski/bagażnika w menu Benny's
+- Dodano 6 nowych samochodów do systemu tierów
+- GST 73R (gst73r1) dodany do tieru Diamond
+- GST Sentinel GTS (gstsentgts1) dodany do tieru Blacklist
+- GST TAM (gsttam1) dodany do tieru Blacklist
+- Dinka Jester RR (jester4) dodany do tieru Diamond
+- Albany V-STR (vstr) dodany do tieru Silver
+- Obey 10F Widebody (tenf2) dodany do tieru Blacklist
+- Wszystkie nowe auta mają dostosowane handlingi do prędkości swojego tieru
