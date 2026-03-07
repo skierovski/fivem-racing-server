@@ -77,6 +77,8 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     local ped = PlayerPedId()
 
+    StartAudioScene('CHARACTER_CHANGE_IN_SKY_SCENE')
+
     DoScreenFadeOut(250)
     while not IsScreenFadedOut() do Citizen.Wait(0) end
 
@@ -135,12 +137,11 @@ AddEventHandler('blacklist:enterGarage', function(model)
         end
     end
 
-    garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, GARAGE_POS.w, false, false)
+    garageVehicle = CreateVehicle(hash, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z + 0.5, GARAGE_POS.w, false, false)
     SetModelAsNoLongerNeeded(hash)
     SetVehicleDirtLevel(garageVehicle, 0.0)
     SetEntityInvincible(garageVehicle, true)
     SetVehicleOnGroundProperly(garageVehicle)
-    SetEntityCoords(garageVehicle, GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3, false, false, false, false)
     SetEntityHeading(garageVehicle, GARAGE_POS.w)
     SetVehicleHandbrake(garageVehicle, true)
     SetVehicleDoorsLocked(garageVehicle, 2)
@@ -293,13 +294,6 @@ function updateCameraPosition()
     if not garageCam or not garageVehicle then return end
 
     local vehPos = GetEntityCoords(garageVehicle)
-    local spawnPos = vector3(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z - 0.3)
-    if #(vehPos - spawnPos) > 0.5 then
-        SetEntityCoords(garageVehicle, spawnPos.x, spawnPos.y, spawnPos.z, false, false, false, false)
-        SetEntityHeading(garageVehicle, GARAGE_POS.w)
-        vehPos = spawnPos
-    end
-
     local center = vector3(vehPos.x, vehPos.y, vehPos.z + CAM_HEIGHT_OFFSET)
 
     local x = center.x + camRadius * math.cos(camAngleV) * math.cos(camAngleH)
@@ -339,6 +333,10 @@ Citizen.CreateThread(function()
         Citizen.Wait(0)
         if isInGarage then
             DisableAllControlActions(0)
+            if garageVehicle and DoesEntityExist(garageVehicle) then
+                SetEntityVelocity(garageVehicle, 0.0, 0.0, 0.0)
+                SetEntityRotationVelocity(garageVehicle, 0.0, 0.0, 0.0)
+            end
         end
     end
 end)
@@ -603,6 +601,7 @@ function exitGarage()
 
     isInGarage = false
 
+    StopAudioScene('CHARACTER_CHANGE_IN_SKY_SCENE')
     TriggerServerEvent('blacklist:leaveGarageBucket')
 
     Citizen.Wait(100)

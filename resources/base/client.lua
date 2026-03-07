@@ -253,6 +253,22 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- Mute ambient game audio when in menu (no helicopters, traffic, etc.)
+local menuAudioMuted = false
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        local inMenu = (PlayerState == 'menu')
+        if inMenu and not menuAudioMuted then
+            StartAudioScene('CHARACTER_CHANGE_IN_SKY_SCENE')
+            menuAudioMuted = true
+        elseif not inMenu and menuAudioMuted then
+            StopAudioScene('CHARACTER_CHANGE_IN_SKY_SCENE')
+            menuAudioMuted = false
+        end
+    end
+end)
+
 -- Disable ambient/random NPCs in certain modes (configured by other resources)
 RegisterNetEvent('blacklist:setPlayerVisible')
 AddEventHandler('blacklist:setPlayerVisible', function(visible)
