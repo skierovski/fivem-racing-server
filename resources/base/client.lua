@@ -42,12 +42,11 @@ function onSessionReady()
         end
     end)
 
-    Citizen.Wait(200)
-    DoScreenFadeIn(1000)
-
-    Citizen.Wait(500)
     TriggerServerEvent('blacklist:ensureDefaultVehicle')
     TriggerEvent('blacklist:openMenu')
+
+    Citizen.Wait(500)
+    DoScreenFadeIn(1000)
 end
 
 -- State management exports
@@ -309,6 +308,8 @@ end)
 
 RegisterNetEvent('blacklist:returnToMenu')
 AddEventHandler('blacklist:returnToMenu', function()
+    DoScreenFadeOut(0)
+
     local ped = PlayerPedId()
 
     local vehicle = GetVehiclePedIsIn(ped, false)
@@ -326,4 +327,7 @@ AddEventHandler('blacklist:returnToMenu', function()
     PlayerState = 'menu'
     TriggerServerEvent('blacklist:resetBucket')
     TriggerEvent('blacklist:openMenu')
+
+    Citizen.Wait(300)
+    DoScreenFadeIn(500)
 end)
