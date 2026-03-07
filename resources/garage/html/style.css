@@ -525,11 +525,11 @@ body {
     padding: 0;
 }
 
-.door-toolbar-btn svg {
-    width: 22px;
-    height: 22px;
-    fill: currentColor;
-    stroke: currentColor;
+.door-toolbar-btn img {
+    width: 24px;
+    height: 24px;
+    filter: invert(1);
+    pointer-events: none;
 }
 
 .door-toolbar-btn:hover {
@@ -540,5 +540,8 @@ body {
 .door-toolbar-btn.active {
     background: rgba(0, 150, 255, 0.15);
     border-color: rgba(0, 150, 255, 0.4);
-    color: var(--accent);
+}
+
+.door-toolbar-btn.active img {
+    filter: invert(1) sepia(1) saturate(5) hue-rotate(190deg);
 }

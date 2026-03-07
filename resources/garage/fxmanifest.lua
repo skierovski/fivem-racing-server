@@ -14,6 +14,10 @@ files {
     'html/index.html',
     'html/style.css',
     'html/app.js',
+    'html/icon-hood.png',
+    'html/icon-trunk.png',
+    'html/icon-door-front.png',
+    'html/icon-door-rear.png',
     'data/colors.json',
     'data/wheel_types.json',
 }
