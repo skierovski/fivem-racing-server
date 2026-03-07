@@ -705,27 +705,21 @@ Citizen.CreateThread(function()
 end)
 
 -- TEMPORARY: Find the GoM BBC Showcase interior coordinates
+-- /findinterior  - removes old Benny's IPL first, then scans
+-- /findinterior2 - teleport to biker DLC area, load interior, check if it's BBC Showcase
 RegisterCommand('findinterior', function()
+    print('^3[FindInterior] Removing old Bennys IPL to reveal BBC Showcase...^0')
+    RemoveIpl(BENNYS_IPL)
+    Citizen.Wait(1000)
+
     local SCAN_POINTS = {
         vector3(-212.55, -1325.5, 30.12),
         vector3(-222.0, -1320.0, 30.0),
-        vector3(-204.0, -1310.0, 30.0),
-        vector3(-220.0, -1330.0, 30.0),
         vector3(-215.0, -1315.0, 30.0),
-        vector3(-210.0, -1340.0, 30.0),
-        vector3(-225.0, -1310.0, 30.0),
-        vector3(-200.0, -1325.0, 30.0),
-        vector3(1173.0, -3196.6, -39.0),
-        vector3(1121.0, -3195.0, -40.0),
-        vector3(1165.0, -3200.0, -38.0),
-        vector3(1002.0, -3164.0, -39.0),
-        vector3(1090.0, -3190.0, -39.0),
-        vector3(-222.0, -1320.0, 25.0),
-        vector3(-222.0, -1320.0, 35.0),
-        vector3(-222.0, -1320.0, 20.0),
+        vector3(-210.0, -1325.0, 30.0),
+        vector3(-220.0, -1330.0, 30.0),
     }
 
-    print('^3[FindInterior] Scanning ' .. #SCAN_POINTS .. ' points...^0')
     for i, pos in ipairs(SCAN_POINTS) do
         RequestCollisionAtCoord(pos.x, pos.y, pos.z)
     end
@@ -734,14 +728,54 @@ RegisterCommand('findinterior', function()
     for i, pos in ipairs(SCAN_POINTS) do
         local interior = GetInteriorAtCoords(pos.x, pos.y, pos.z)
         if interior ~= 0 and IsValidInterior(interior) then
-            local ready = IsInteriorReady(interior)
+            if not IsInteriorReady(interior) then
+                LoadInterior(interior)
+                Citizen.Wait(1000)
+            end
             print(('^2[FindInterior] FOUND interior %d at (%.1f, %.1f, %.1f) ready=%s^0'):format(
-                interior, pos.x, pos.y, pos.z, tostring(ready)))
+                interior, pos.x, pos.y, pos.z, tostring(IsInteriorReady(interior))))
         else
             print(('^8[FindInterior] No interior at (%.1f, %.1f, %.1f)^0'):format(pos.x, pos.y, pos.z))
         end
     end
-    print('^3[FindInterior] Scan complete. Use /coords while standing inside the interior to get exact position.^0')
+
+    print('^3[FindInterior] Re-requesting old IPL...^0')
+    RequestIpl(BENNYS_IPL)
+    print('^3[FindInterior] Done. If you saw the SAME interior ID (196609), the BBC Showcase may be at the biker area. Try /findinterior2^0')
+end, false)
+
+RegisterCommand('findinterior2', function()
+    print('^3[FindInterior2] Teleporting to biker DLC area and loading interiors...^0')
+    local ped = PlayerPedId()
+    local BIKER_POINTS = {
+        vector3(1173.0, -3196.6, -39.0),
+        vector3(1121.0, -3195.0, -40.0),
+        vector3(1165.0, -3200.0, -38.0),
+        vector3(1002.0, -3164.0, -39.0),
+        vector3(1090.0, -3190.0, -39.0),
+    }
+
+    for _, pos in ipairs(BIKER_POINTS) do
+        SetEntityCoords(ped, pos.x, pos.y, pos.z + 1.0, false, false, false, true)
+        RequestCollisionAtCoord(pos.x, pos.y, pos.z)
+        Citizen.Wait(3000)
+
+        local interior = GetInteriorAtCoords(pos.x, pos.y, pos.z)
+        if interior ~= 0 and IsValidInterior(interior) then
+            if not IsInteriorReady(interior) then
+                LoadInterior(interior)
+                PinInteriorInMemory(interior)
+                Citizen.Wait(2000)
+            end
+            print(('^2[FindInterior2] interior %d at (%.1f, %.1f, %.1f) ready=%s — LOOK AROUND^0'):format(
+                interior, pos.x, pos.y, pos.z, tostring(IsInteriorReady(interior))))
+            print('^3[FindInterior2] Waiting 5s so you can see the interior...^0')
+            Citizen.Wait(5000)
+        else
+            print(('^8[FindInterior2] No interior at (%.1f, %.1f, %.1f)^0'):format(pos.x, pos.y, pos.z))
+        end
+    end
+    print('^3[FindInterior2] Scan complete.^0')
 end, false)
 
 print('[Garage] ^2Client-side loaded^0')
