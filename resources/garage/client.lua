@@ -14,10 +14,9 @@ local trackedWheelColor = 0
 local trackedPaintType1 = 0
 local trackedPaintType2 = 0
 
--- Benny's Original Motor Works interior
-local BENNYS_IPL = 'bkr_biker_interior_placement_interior_intb_intb_dlc_int_02'
-local BENNYS_INTERIOR_COORDS = vector3(-222.0, -1320.0, 30.0)
-local GARAGE_POS = vector4(-212.55, -1325.5, 30.12, 205.0)
+-- GoM BBC Showcase interior (streamed via cfx-gom-map-bbcshowcase resource)
+local GARAGE_INTERIOR_COORDS = vector3(859.19, -2376.54, 30.35)
+local GARAGE_POS = vector4(867.05, -2376.86, 30.35, 83.52)
 
 -- Camera orbit state
 local camAngleH = 0.0    -- horizontal angle (radians)
@@ -93,34 +92,29 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
 
-    -- IPL + interior: the background thread keeps these pinned, so they're usually
-    -- already loaded after the first visit. Only wait if they genuinely need loading.
-    if not IsIplActive(BENNYS_IPL) then
-        RequestIpl(BENNYS_IPL)
-        NewLoadSceneStart(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z,
-                          BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z, 50.0, 0)
-        local deadline = GetGameTimer() + 4000
-        while GetGameTimer() < deadline do
-            if IsNewLoadSceneLoaded() and IsIplActive(BENNYS_IPL) then break end
-            RequestIpl(BENNYS_IPL)
-            Citizen.Wait(0)
-        end
-        NewLoadSceneStop()
+    -- MLO interior: auto-loaded by FiveM (this_is_a_map resource), just pin it
+    NewLoadSceneStart(GARAGE_INTERIOR_COORDS.x, GARAGE_INTERIOR_COORDS.y, GARAGE_INTERIOR_COORDS.z,
+                      GARAGE_INTERIOR_COORDS.x, GARAGE_INTERIOR_COORDS.y, GARAGE_INTERIOR_COORDS.z, 50.0, 0)
+    local deadline = GetGameTimer() + 4000
+    while GetGameTimer() < deadline do
+        if IsNewLoadSceneLoaded() then break end
+        Citizen.Wait(0)
     end
+    NewLoadSceneStop()
 
-    local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
+    local interior = GetInteriorAtCoords(GARAGE_INTERIOR_COORDS.x, GARAGE_INTERIOR_COORDS.y, GARAGE_INTERIOR_COORDS.z)
     if IsValidInterior(interior) then
         if not IsInteriorReady(interior) then
             LoadInterior(interior)
-            local deadline = GetGameTimer() + 2000
-            while not IsInteriorReady(interior) and GetGameTimer() < deadline do
+            local waitDeadline = GetGameTimer() + 2000
+            while not IsInteriorReady(interior) and GetGameTimer() < waitDeadline do
                 Citizen.Wait(0)
             end
         end
         PinInteriorInMemory(interior)
     end
 
-    -- Collision: request once more and do a short conditional wait (not a fixed timer)
+    -- Collision: request once more and do a short conditional wait
     RequestCollisionAtCoord(GARAGE_POS.x, GARAGE_POS.y, GARAGE_POS.z)
     local deadline = GetGameTimer() + 1000
     while GetGameTimer() < deadline do
@@ -687,13 +681,10 @@ function applyFullTuning(vehicle, t)
     end
 end
 
--- Keep Benny's IPL permanently loaded -- re-pin every 10s if the game unloads it
+-- Keep BBC Showcase interior pinned — re-pin every 10s if the game unloads it
 Citizen.CreateThread(function()
     while true do
-        if not IsIplActive(BENNYS_IPL) then
-            RequestIpl(BENNYS_IPL)
-        end
-        local interior = GetInteriorAtCoords(BENNYS_INTERIOR_COORDS.x, BENNYS_INTERIOR_COORDS.y, BENNYS_INTERIOR_COORDS.z)
+        local interior = GetInteriorAtCoords(GARAGE_INTERIOR_COORDS.x, GARAGE_INTERIOR_COORDS.y, GARAGE_INTERIOR_COORDS.z)
         if IsValidInterior(interior) then
             if not IsInteriorReady(interior) then
                 LoadInterior(interior)
@@ -703,69 +694,5 @@ Citizen.CreateThread(function()
         Citizen.Wait(10000)
     end
 end)
-
--- TEMPORARY: Grid scan the entire map for any unknown interior (BBC Showcase)
--- Known interior IDs to skip: 196609 (old Benny's), 246785/247809/246529/247553 (biker DLC)
-RegisterCommand('findinterior', function()
-    local KNOWN = { [196609]=true, [246785]=true, [247809]=true, [246529]=true, [247553]=true }
-    local found = {}
-
-    print('^3[FindInterior] Starting wide grid scan of the map... this may take a minute^0')
-
-    local zLevels = { -50.0, -30.0, -10.0, 10.0, 30.0, 50.0, 70.0 }
-    local count = 0
-
-    for x = -3500, 4500, 50 do
-        for y = -4000, 8000, 50 do
-            for _, z in ipairs(zLevels) do
-                local interior = GetInteriorAtCoords(x + 0.0, y + 0.0, z)
-                if interior ~= 0 and IsValidInterior(interior) and not KNOWN[interior] and not found[interior] then
-                    found[interior] = { x = x, y = y, z = z }
-                    print(('^2[FindInterior] NEW interior %d at (%d, %d, %.0f)^0'):format(interior, x, y, z))
-                end
-            end
-            count = count + 1
-            if count % 500 == 0 then
-                print(('^3[FindInterior] Scanned %d grid cells...^0'):format(count))
-                Citizen.Wait(0)
-            end
-        end
-    end
-
-    local total = 0
-    for _ in pairs(found) do total = total + 1 end
-    print(('^3[FindInterior] Scan complete. Found %d unknown interiors.^0'):format(total))
-
-    if total == 0 then
-        print('^1[FindInterior] No unknown interiors found. The BBC Showcase may not be loading its MILO.^0')
-        print('^1[FindInterior] Try /findinterior2 to teleport and visually check the Bennys area without the old IPL.^0')
-    end
-end, false)
-
--- Teleport to Benny's with old IPL removed so you can see if BBC Showcase shell loads there
-RegisterCommand('findinterior2', function()
-    local ped = PlayerPedId()
-    print('^3[FindInterior2] Removing old Bennys IPL and teleporting you to Bennys area...^0')
-    RemoveIpl(BENNYS_IPL)
-    Citizen.Wait(500)
-    SetEntityCoords(ped, -212.55, -1325.5, 31.0, false, false, false, true)
-    SetEntityVisible(ped, true, false)
-    FreezeEntityPosition(ped, false)
-    RequestCollisionAtCoord(-212.55, -1325.5, 30.0)
-    Citizen.Wait(3000)
-    print('^3[FindInterior2] Look around. Do you see the BBC Showcase (wooden planks, dark walls)?^0')
-    print('^3[FindInterior2] The old IPL is removed. Type /findinterior3 to restore it.^0')
-
-    local interior = GetInteriorAtCoords(-212.55, -1325.5, 30.0)
-    print(('^2[FindInterior2] Interior at Bennys location: ID=%d ready=%s^0'):format(
-        interior, tostring(IsInteriorReady(interior))))
-end, false)
-
-RegisterCommand('findinterior3', function()
-    print('^3[FindInterior3] Restoring old Bennys IPL...^0')
-    RequestIpl(BENNYS_IPL)
-    Citizen.Wait(1000)
-    print('^2[FindInterior3] Old IPL restored.^0')
-end, false)
 
 print('[Garage] ^2Client-side loaded^0')
