@@ -704,78 +704,68 @@ Citizen.CreateThread(function()
     end
 end)
 
--- TEMPORARY: Find the GoM BBC Showcase interior coordinates
--- /findinterior  - removes old Benny's IPL first, then scans
--- /findinterior2 - teleport to biker DLC area, load interior, check if it's BBC Showcase
+-- TEMPORARY: Grid scan the entire map for any unknown interior (BBC Showcase)
+-- Known interior IDs to skip: 196609 (old Benny's), 246785/247809/246529/247553 (biker DLC)
 RegisterCommand('findinterior', function()
-    print('^3[FindInterior] Removing old Bennys IPL to reveal BBC Showcase...^0')
-    RemoveIpl(BENNYS_IPL)
-    Citizen.Wait(1000)
+    local KNOWN = { [196609]=true, [246785]=true, [247809]=true, [246529]=true, [247553]=true }
+    local found = {}
 
-    local SCAN_POINTS = {
-        vector3(-212.55, -1325.5, 30.12),
-        vector3(-222.0, -1320.0, 30.0),
-        vector3(-215.0, -1315.0, 30.0),
-        vector3(-210.0, -1325.0, 30.0),
-        vector3(-220.0, -1330.0, 30.0),
-    }
+    print('^3[FindInterior] Starting wide grid scan of the map... this may take a minute^0')
 
-    for i, pos in ipairs(SCAN_POINTS) do
-        RequestCollisionAtCoord(pos.x, pos.y, pos.z)
-    end
-    Citizen.Wait(2000)
+    local zLevels = { -50.0, -30.0, -10.0, 10.0, 30.0, 50.0, 70.0 }
+    local count = 0
 
-    for i, pos in ipairs(SCAN_POINTS) do
-        local interior = GetInteriorAtCoords(pos.x, pos.y, pos.z)
-        if interior ~= 0 and IsValidInterior(interior) then
-            if not IsInteriorReady(interior) then
-                LoadInterior(interior)
-                Citizen.Wait(1000)
+    for x = -3500, 4500, 50 do
+        for y = -4000, 8000, 50 do
+            for _, z in ipairs(zLevels) do
+                local interior = GetInteriorAtCoords(x + 0.0, y + 0.0, z)
+                if interior ~= 0 and IsValidInterior(interior) and not KNOWN[interior] and not found[interior] then
+                    found[interior] = { x = x, y = y, z = z }
+                    print(('^2[FindInterior] NEW interior %d at (%d, %d, %.0f)^0'):format(interior, x, y, z))
+                end
             end
-            print(('^2[FindInterior] FOUND interior %d at (%.1f, %.1f, %.1f) ready=%s^0'):format(
-                interior, pos.x, pos.y, pos.z, tostring(IsInteriorReady(interior))))
-        else
-            print(('^8[FindInterior] No interior at (%.1f, %.1f, %.1f)^0'):format(pos.x, pos.y, pos.z))
+            count = count + 1
+            if count % 500 == 0 then
+                print(('^3[FindInterior] Scanned %d grid cells...^0'):format(count))
+                Citizen.Wait(0)
+            end
         end
     end
 
-    print('^3[FindInterior] Re-requesting old IPL...^0')
-    RequestIpl(BENNYS_IPL)
-    print('^3[FindInterior] Done. If you saw the SAME interior ID (196609), the BBC Showcase may be at the biker area. Try /findinterior2^0')
+    local total = 0
+    for _ in pairs(found) do total = total + 1 end
+    print(('^3[FindInterior] Scan complete. Found %d unknown interiors.^0'):format(total))
+
+    if total == 0 then
+        print('^1[FindInterior] No unknown interiors found. The BBC Showcase may not be loading its MILO.^0')
+        print('^1[FindInterior] Try /findinterior2 to teleport and visually check the Bennys area without the old IPL.^0')
+    end
 end, false)
 
+-- Teleport to Benny's with old IPL removed so you can see if BBC Showcase shell loads there
 RegisterCommand('findinterior2', function()
-    print('^3[FindInterior2] Teleporting to biker DLC area and loading interiors...^0')
     local ped = PlayerPedId()
-    local BIKER_POINTS = {
-        vector3(1173.0, -3196.6, -39.0),
-        vector3(1121.0, -3195.0, -40.0),
-        vector3(1165.0, -3200.0, -38.0),
-        vector3(1002.0, -3164.0, -39.0),
-        vector3(1090.0, -3190.0, -39.0),
-    }
+    print('^3[FindInterior2] Removing old Bennys IPL and teleporting you to Bennys area...^0')
+    RemoveIpl(BENNYS_IPL)
+    Citizen.Wait(500)
+    SetEntityCoords(ped, -212.55, -1325.5, 31.0, false, false, false, true)
+    SetEntityVisible(ped, true, false)
+    FreezeEntityPosition(ped, false)
+    RequestCollisionAtCoord(-212.55, -1325.5, 30.0)
+    Citizen.Wait(3000)
+    print('^3[FindInterior2] Look around. Do you see the BBC Showcase (wooden planks, dark walls)?^0')
+    print('^3[FindInterior2] The old IPL is removed. Type /findinterior3 to restore it.^0')
 
-    for _, pos in ipairs(BIKER_POINTS) do
-        SetEntityCoords(ped, pos.x, pos.y, pos.z + 1.0, false, false, false, true)
-        RequestCollisionAtCoord(pos.x, pos.y, pos.z)
-        Citizen.Wait(3000)
+    local interior = GetInteriorAtCoords(-212.55, -1325.5, 30.0)
+    print(('^2[FindInterior2] Interior at Bennys location: ID=%d ready=%s^0'):format(
+        interior, tostring(IsInteriorReady(interior))))
+end, false)
 
-        local interior = GetInteriorAtCoords(pos.x, pos.y, pos.z)
-        if interior ~= 0 and IsValidInterior(interior) then
-            if not IsInteriorReady(interior) then
-                LoadInterior(interior)
-                PinInteriorInMemory(interior)
-                Citizen.Wait(2000)
-            end
-            print(('^2[FindInterior2] interior %d at (%.1f, %.1f, %.1f) ready=%s — LOOK AROUND^0'):format(
-                interior, pos.x, pos.y, pos.z, tostring(IsInteriorReady(interior))))
-            print('^3[FindInterior2] Waiting 5s so you can see the interior...^0')
-            Citizen.Wait(5000)
-        else
-            print(('^8[FindInterior2] No interior at (%.1f, %.1f, %.1f)^0'):format(pos.x, pos.y, pos.z))
-        end
-    end
-    print('^3[FindInterior2] Scan complete.^0')
+RegisterCommand('findinterior3', function()
+    print('^3[FindInterior3] Restoring old Bennys IPL...^0')
+    RequestIpl(BENNYS_IPL)
+    Citizen.Wait(1000)
+    print('^2[FindInterior3] Old IPL restored.^0')
 end, false)
 
 print('[Garage] ^2Client-side loaded^0')
