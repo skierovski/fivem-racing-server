@@ -1,10 +1,1 @@
-- Dodano 7 nowych samochodów do systemu tierów
-- GST 73R (gst73r1) dodany do tieru Diamond
-- GST Sentinel GTS (gstsentgts1) dodany do tieru Blacklist
-- GST TAM (gsttam1) dodany do tieru Blacklist
-- Dinka Jester RR (jester4) dodany do tieru Diamond
-- Albany V-STR (vstr) dodany do tieru Silver
-- Obey 10F Widebody (tenf2) dodany do tieru Blacklist
-- Argento 7F S (gbargento7fs) dodany do tieru Diamond
-- Wszystkie nowe auta mają dostosowane handlingi do prędkości swojego tieru
-- Naprawiono uruchamianie addonowych samochodów na serwerze
+
