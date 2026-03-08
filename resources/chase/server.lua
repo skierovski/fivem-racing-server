@@ -83,6 +83,8 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         runnerZ = matchData.runnerZ, runnerHeading = matchData.runnerHeading,
         chaserX = matchData.chaserX, chaserY = matchData.chaserY,
         chaserZ = matchData.chaserZ, chaserHeading = matchData.chaserHeading,
+        chaserSpawns = matchData.chaserSpawns,
+        heliSpawn = matchData.heliSpawn,
 
         catchTimer = 0,
         escapeTimer = 0,
@@ -243,18 +245,25 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
                 match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
         end
 
-        for _, chaser in ipairs(match.chasers) do
-            if chaser.source == match.heliPilot then
+        for i, chaser in ipairs(match.chasers) do
+            if chaser.source == match.heliPilot and match.heliSpawn then
+                local hs = match.heliSpawn
                 TriggerClientEvent('blacklist:spawnHelicopter', chaser.source,
-                    match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, ChaseConfig.HELI_MODEL)
+                    hs.x, hs.y, hs.z, hs.h, ChaseConfig.HELI_MODEL)
             else
+                local sp = match.chaserSpawns and match.chaserSpawns[i]
+                local cx = sp and sp.x or match.chaserX
+                local cy = sp and sp.y or match.chaserY
+                local cz = sp and sp.z or match.chaserZ
+                local ch = sp and sp.h or match.chaserHeading
+
                 local carModel = chaser.assignedCar
                 if carModel then
                     TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, carModel,
-                        match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading)
+                        cx, cy, cz, ch)
                 else
                     TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-                        match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading)
+                        cx, cy, cz, ch)
                 end
             end
         end
@@ -991,11 +1000,13 @@ function startRematch(oldMatch)
     local newRunner = oldMatch.chasers[1]
     local newChaser = oldMatch.runner
 
+    local newModel = exports.matchmaking:GetRandomModelForTier(oldMatch.forceTier) or oldMatch.forceModel
+
     TriggerEvent('blacklist:startChaseMatch', {
         mode = oldMatch.mode,
         isCrossTier = oldMatch.isCrossTier,
         forceTier = oldMatch.forceTier,
-        forceModel = oldMatch.forceModel,
+        forceModel = newModel,
         locationName = 'rematch',
 
         runner = { source = newRunner.source, identifier = newRunner.identifier, mmr = newRunner.mmr, tier = newRunner.tier },
