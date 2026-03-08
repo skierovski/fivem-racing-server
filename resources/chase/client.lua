@@ -1224,9 +1224,9 @@ Citizen.CreateThread(function()
         -- ---- Terrain classification ----
         local slopeAbs    = math.abs(vd.pitch)
         local terrainType = 'FLAT'
-        if slopeAbs > 15 then terrainType = 'STEEP_HILL'
-        elseif slopeAbs > 8 then terrainType = 'HILL'
-        elseif slopeAbs > 3 then terrainType = 'SLOPE' end
+        if slopeAbs > 25 then terrainType = 'STEEP_HILL'
+        elseif slopeAbs > 15 then terrainType = 'HILL'
+        elseif slopeAbs > 5 then terrainType = 'SLOPE' end
 
         local rollTag = ''
         if math.abs(vd.roll) > 20 then rollTag = ' BANKED'

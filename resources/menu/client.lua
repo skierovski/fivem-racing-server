@@ -118,6 +118,14 @@ RegisterNUICallback('openMap', function(data, cb)
     cb({})
 end)
 
+RegisterNUICallback('openGTASettings', function(data, cb)
+    isMenuOpen = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'showMenu', show = false })
+    exports.base:AllowGTAMap()
+    cb({})
+end)
+
 RegisterNUICallback('resumeFreeRoam', function(data, cb)
     isMenuOpen = false
     SetNuiFocus(false, false)
