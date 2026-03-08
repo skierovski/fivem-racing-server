@@ -355,6 +355,8 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
             role = src == match.runner.source and 'runner' or 'chaser',
             policeCode = match.policeCode,
             isHeliPilot = src == match.heliPilot,
+            mode = match.mode,
+            runnerServerId = match.runner.source,
         })
     end
 
@@ -581,7 +583,7 @@ AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
         end
 
     elseif violationType == 'chaser_pit' then
-        local pitSpeed = (extraData and extraData.speed) or 0
+        local pitSpeed = tonumber(extraData) or 0
 
         if match.policeCode then
             local allowedSpeed = ChaseConfig.PIT_SPEED_LIMITS[match.policeCode] or 0

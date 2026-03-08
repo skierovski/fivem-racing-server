@@ -13,6 +13,25 @@ local currentPoliceCode = nil
 local isHeliPilot = false
 local chaseTrafficEnabled = false
 local matchMode = nil -- 'ranked' or 'normal'
+local runnerServerId = nil
+
+-- Street light models: indestructible in ranked
+local STREET_LIGHT_HASHES = {}
+for _, m in ipairs({
+    'prop_streetlight_01', 'prop_streetlight_01b',
+    'prop_streetlight_02', 'prop_streetlight_03',
+    'prop_streetlight_03b', 'prop_streetlight_03c',
+    'prop_streetlight_03d', 'prop_streetlight_03e',
+    'prop_streetlight_04', 'prop_streetlight_05',
+    'prop_streetlight_06', 'prop_streetlight_07a',
+    'prop_streetlight_07b', 'prop_streetlight_08',
+    'prop_streetlight_09', 'prop_streetlight_10',
+    'prop_streetlight_11a', 'prop_streetlight_11b',
+    'prop_streetlight_11c', 'prop_streetlight_12a',
+    'prop_streetlight_12b', 'prop_streetlight_14a',
+    'prop_streetlight_15a', 'prop_streetlight_16a',
+    'prop_floodlight_01',
+}) do STREET_LIGHT_HASHES[GetHashKey(m)] = true end
 
 -- ========================
 -- Freeze control
@@ -89,10 +108,12 @@ AddEventHandler('blacklist:chaseHUD', function(data)
 
     elseif data.action == 'start' then
         myRole = data.role
+        matchMode = data.mode
         matchTimer = data.duration
         matchStartTime = GetGameTimer()
         currentPoliceCode = data.policeCode
         isHeliPilot = data.isHeliPilot or false
+        runnerServerId = data.runnerServerId
         SendNUIMessage({
             action = 'start',
             role = data.role,
@@ -192,8 +213,11 @@ AddEventHandler('blacklist:returnToMenu', function()
     myRole = nil
     currentPoliceCode = nil
     isHeliPilot = false
+    chaseSirenState = 'off'
     chaseTrafficEnabled = false
     matchMode = nil
+    runnerServerId = nil
+    cleanupPdBlips()
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
 end)
@@ -206,28 +230,17 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(500)
 
-        if isInMatch and myRole == 'chaser' then
+        if isInMatch and myRole == 'chaser' and runnerServerId then
             local myPed = PlayerPedId()
             local myCoords = GetEntityCoords(myPed)
 
-            local closestDist = 99999.0
-
-            for _, playerId in ipairs(GetActivePlayers()) do
-                if playerId ~= PlayerId() then
-                    local otherPed = GetPlayerPed(playerId)
-                    if otherPed ~= 0 then
-                        local otherCoords = GetEntityCoords(otherPed)
-                        local dist = #(myCoords - otherCoords)
-                        if dist < closestDist then
-                            closestDist = dist
-                        end
-                    end
+            local closestDist = 999.0
+            local runnerPlayer = GetPlayerFromServerId(runnerServerId)
+            if runnerPlayer and runnerPlayer ~= -1 then
+                local runnerPed = GetPlayerPed(runnerPlayer)
+                if runnerPed ~= 0 and DoesEntityExist(runnerPed) then
+                    closestDist = #(myCoords - GetEntityCoords(runnerPed))
                 end
-            end
-
-            -- If opponent is beyond streaming range (~400m), GTA can't track them.
-            if closestDist >= 99999.0 then
-                closestDist = 999.0
             end
 
             local myVehicle = GetVehiclePedIsIn(myPed, false)
@@ -253,6 +266,58 @@ Citizen.CreateThread(function()
                 action = 'timer',
                 remaining = math.floor(remaining),
             })
+        end
+    end
+end)
+
+-- ========================
+-- PD blips: show other chasers on minimap (normal chase mode)
+-- ========================
+
+local pdBlips = {}
+
+local function cleanupPdBlips()
+    for _, blip in pairs(pdBlips) do
+        if DoesBlipExist(blip) then RemoveBlip(blip) end
+    end
+    pdBlips = {}
+end
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        if isInMatch and myRole == 'chaser' and matchMode == 'normal' then
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        local serverId = GetPlayerServerId(playerId)
+                        if serverId ~= runnerServerId then
+                            if not pdBlips[playerId] or not DoesBlipExist(pdBlips[playerId]) then
+                                local blip = AddBlipForEntity(otherPed)
+                                SetBlipSprite(blip, 1)
+                                SetBlipColour(blip, 3)
+                                SetBlipScale(blip, 0.8)
+                                SetBlipAsShortRange(blip, false)
+                                BeginTextCommandSetBlipName('STRING')
+                                AddTextComponentSubstringPlayerName('PD')
+                                EndTextCommandSetBlipName(blip)
+                                pdBlips[playerId] = blip
+                            end
+                        end
+                    end
+                end
+            end
+
+            for pid, blip in pairs(pdBlips) do
+                local otherPed = GetPlayerPed(pid)
+                if otherPed == 0 or not DoesEntityExist(otherPed) then
+                    if DoesBlipExist(blip) then RemoveBlip(blip) end
+                    pdBlips[pid] = nil
+                end
+            end
+        elseif not isInMatch then
+            cleanupPdBlips()
         end
     end
 end)
@@ -323,6 +388,55 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
+-- Police siren controls for chasers (Q = Code 2 lights only, Alt = Code 3 lights+sound)
+-- ========================
+
+local chaseSirenState = 'off'
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if isInMatch and myRole == 'chaser' then
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+
+            if veh ~= 0 then
+                DisableControlAction(0, 44, true)
+                DisableControlAction(0, 19, true)
+
+                if IsDisabledControlJustPressed(0, 44) then
+                    if chaseSirenState == 'code2' then
+                        SetVehicleSiren(veh, false)
+                        chaseSirenState = 'off'
+                    else
+                        SetVehicleSiren(veh, true)
+                        SetVehicleHasMutedSirens(veh, true)
+                        chaseSirenState = 'code2'
+                    end
+                end
+
+                if IsDisabledControlJustPressed(0, 19) then
+                    if chaseSirenState == 'code3' then
+                        SetVehicleSiren(veh, false)
+                        chaseSirenState = 'off'
+                    else
+                        SetVehicleSiren(veh, true)
+                        SetVehicleHasMutedSirens(veh, false)
+                        chaseSirenState = 'code3'
+                    end
+                end
+
+                if chaseSirenState == 'code2' then
+                    SetVehicleHasMutedSirens(veh, true)
+                end
+            else
+                chaseSirenState = 'off'
+            end
+        end
+    end
+end)
+
+-- ========================
 -- Custom siren traffic reaction (normal chase mode)
 -- NPC vehicles slowly pull over instead of GTA panic behavior
 -- ========================
@@ -358,9 +472,10 @@ Citizen.CreateThread(function()
                     local dist = #(myCoords - vehCoords)
                     if dist < 60.0 and dist > 5.0 then
                         processedVehs[veh] = true
+                        SetBlockingOfNonTemporaryEvents(driver, true)
                         SetDriverAbility(driver, 1.0)
                         SetDriverAggressiveness(driver, 0.0)
-                        TaskVehicleTempAction(driver, veh, 32, 8000)
+                        SetVehicleMaxSpeed(veh, 2.0)
                     end
                 end
             end
@@ -469,6 +584,46 @@ AddEventHandler('blacklist:chaseTrafficMode', function(enabled)
 end)
 
 -- ========================
+-- Ranked prop protection: indestructible lights + vanishing breakable props
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(200)
+        if not isInMatch or matchMode ~= 'ranked' then goto nextPropTick end
+
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        local playerCoords = GetEntityCoords(ped)
+        local vehSpeed = vehicle ~= 0 and GetEntitySpeed(vehicle) * 3.6 or 0.0
+
+        local handle, obj = FindFirstObject()
+        local success = true
+        while success do
+            if DoesEntityExist(obj) and not IsEntityAPed(obj) and not IsEntityAVehicle(obj) then
+                local objCoords = GetEntityCoords(obj)
+                local dist = #(playerCoords - objCoords)
+
+                if dist < 150.0 then
+                    local modelHash = GetEntityModel(obj)
+
+                    if STREET_LIGHT_HASHES[modelHash] then
+                        SetDisableFragDamage(obj, true)
+                    elseif dist < 5.0 and vehicle ~= 0 and vehSpeed > 5.0 then
+                        SetEntityAsMissionEntity(obj, true, true)
+                        DeleteObject(obj)
+                    end
+                end
+            end
+            success, obj = FindNextObject(handle)
+        end
+        EndFindObject(handle)
+
+        ::nextPropTick::
+    end
+end)
+
+-- ========================
 -- Helicopter spawn (for heli pilot chaser)
 -- ========================
 
@@ -535,6 +690,63 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
+-- PD chaser death: respawn after 5s at same position with same vehicle
+-- ========================
+
+Citizen.CreateThread(function()
+    local isRespawning = false
+    while true do
+        Citizen.Wait(500)
+        if isInMatch and myRole == 'chaser' and not isRespawning then
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) then
+                isRespawning = true
+                local veh = GetVehiclePedIsIn(ped, true)
+                local coords = GetEntityCoords(veh ~= 0 and veh or ped)
+                local heading = GetEntityHeading(veh ~= 0 and veh or ped)
+                local model = veh ~= 0 and GetEntityModel(veh) or nil
+
+                Citizen.Wait(5000)
+
+                if not isInMatch then
+                    isRespawning = false
+                    goto continueRespawn
+                end
+
+                NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+                local newPed = PlayerPedId()
+                ClearPedBloodDamage(newPed)
+                SetEntityHealth(newPed, 200)
+
+                if model then
+                    if veh ~= 0 and DoesEntityExist(veh) then
+                        SetEntityAsMissionEntity(veh, true, true)
+                        DeleteVehicle(veh)
+                    end
+
+                    RequestModel(model)
+                    local timeout = 50
+                    while not HasModelLoaded(model) and timeout > 0 do
+                        Citizen.Wait(100)
+                        timeout = timeout - 1
+                    end
+
+                    if HasModelLoaded(model) then
+                        local newVeh = CreateVehicle(model, coords.x, coords.y, coords.z, heading, true, false)
+                        SetPedIntoVehicle(newPed, newVeh, -1)
+                        SetVehicleEngineOn(newVeh, true, true, false)
+                        SetModelAsNoLongerNeeded(model)
+                    end
+                end
+
+                isRespawning = false
+                ::continueRespawn::
+            end
+        end
+    end
+end)
+
+-- ========================
 -- Runner ram PD detection (collision with chaser vehicles)
 -- ========================
 
@@ -552,17 +764,29 @@ Citizen.CreateThread(function()
                 local speed = GetEntitySpeed(vehicle) * 2.23694 -- m/s to mph
                 if speed < 30 then goto skipRam end
 
+                local myHeading = GetEntityHeading(vehicle)
+                local myCoords = GetEntityCoords(vehicle)
+
                 for _, playerId in ipairs(GetActivePlayers()) do
                     if playerId ~= PlayerId() then
                         local otherPed = GetPlayerPed(playerId)
                         if otherPed ~= 0 then
                             local otherVeh = GetVehiclePedIsIn(otherPed, false)
                             if otherVeh ~= 0 then
-                                local dist = #(GetEntityCoords(vehicle) - GetEntityCoords(otherVeh))
+                                local otherCoords = GetEntityCoords(otherVeh)
+                                local dist = #(myCoords - otherCoords)
                                 if dist < 6.0 then
-                                    lastRamReport = now
-                                    TriggerServerEvent('blacklist:reportViolation', 'runner_ram_pd')
-                                    break
+                                    local toOther = otherCoords - myCoords
+                                    local angleToOther = math.deg(math.atan(toOther.y, toOther.x))
+                                    local headingAngle = (450.0 - myHeading) % 360.0
+                                    local diff = math.abs(headingAngle - ((angleToOther % 360 + 360) % 360))
+                                    if diff > 180 then diff = 360 - diff end
+
+                                    if diff < 60 then
+                                        lastRamReport = now
+                                        TriggerServerEvent('blacklist:reportViolation', 'runner_ram_pd')
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -1145,7 +1369,8 @@ Citizen.CreateThread(function()
 
                     if analysis.intent == 'LIKELY_INTENTIONAL' then
                         acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
-                        TriggerServerEvent('blacklist:reportViolation', 'chaser_pit')
+                        local pitSpeedMph = vd.speedKmh * 0.621371
+                        TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
                         TriggerServerEvent('blacklist:requestRepair', 'opponent')
                     end
                 end
@@ -1255,7 +1480,7 @@ Citizen.CreateThread(function()
                 end
                 telem.hillTimeLast = now
 
-                if telem.hillTimeAccum >= 3.0 and not telem.hillWarningActive then
+                if telem.hillTimeAccum >= 5.0 and not telem.hillWarningActive then
                     telem.hillWarningActive = true
                     telem.hillCountdown = 10
                     SendNUIMessage({ action = 'terrainWarning', countdown = 10, show = true })
@@ -1263,7 +1488,7 @@ Citizen.CreateThread(function()
                 end
 
                 if telem.hillWarningActive then
-                    telem.hillCountdown = 10.0 - (telem.hillTimeAccum - 3.0)
+                    telem.hillCountdown = 10.0 - (telem.hillTimeAccum - 5.0)
                     if telem.hillCountdown <= 0 then
                         telem.terrainReported = true
                         telem.hillWarningActive = false
