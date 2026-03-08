@@ -48,6 +48,7 @@
 
     // Sidebar action buttons
     const btnOpenMap = document.getElementById('btnOpenMap');
+    const btnGTASettings = document.getElementById('btnGTASettings');
     const btnResumeFreeRoam = document.getElementById('btnResumeFreeRoam');
     let isInFreeRoam = false;
 
@@ -126,6 +127,10 @@
 
     btnOpenMap.addEventListener('click', () => {
         fetch('https://menu/openMap', { method: 'POST', body: '{}' });
+    });
+
+    btnGTASettings.addEventListener('click', () => {
+        fetch('https://menu/openGTASettings', { method: 'POST', body: '{}' });
     });
 
     btnResumeFreeRoam.addEventListener('click', () => {
@@ -358,6 +363,7 @@
                     app.classList.remove('hidden');
                     isInFreeRoam = !!data.fromFreeRoam;
                     btnOpenMap.classList.toggle('hidden', !isInFreeRoam);
+                    btnGTASettings.classList.toggle('hidden', !isInFreeRoam);
                     btnResumeFreeRoam.classList.toggle('hidden', !isInFreeRoam);
                 } else {
                     app.classList.add('hidden');

@@ -56,14 +56,20 @@ end
 exports('SetPlayerState', SetPlayerState)
 exports('GetPlayerState', function() return PlayerState end)
 
--- GTA pause menu is ALWAYS blocked. Our own menus replace it entirely.
-local allowMapUntil = 0
+-- GTA pause menu is blocked unless explicitly allowed via keybind or menu button.
+local allowGTAPause = false
 
 function AllowGTAMap()
-    allowMapUntil = GetGameTimer() + 800
+    allowGTAPause = true
     ActivateFrontendMenu(GetHashKey('FE_MENU_VERSION_MP_PAUSE'), false, -1)
 end
 exports('AllowGTAMap', AllowGTAMap)
+
+RegisterCommand('gtapause', function()
+    if PlayerState == 'menu' then return end
+    AllowGTAMap()
+end, false)
+RegisterKeyMapping('gtapause', 'GTA Settings', 'keyboard', 'P')
 
 Citizen.CreateThread(function()
     while true do
@@ -99,9 +105,13 @@ Citizen.CreateThread(function()
         DisableControlAction(0, 199, true)
         DisableControlAction(0, 200, true)
 
-        -- Kill any GTA pause menu that sneaks through (except when map is explicitly allowed)
-        if IsPauseMenuActive() and GetGameTimer() > allowMapUntil then
-            SetPauseMenuActive(false)
+        -- Kill any GTA pause menu that sneaks through (except when explicitly allowed)
+        if IsPauseMenuActive() then
+            if not allowGTAPause then
+                SetPauseMenuActive(false)
+            end
+        else
+            allowGTAPause = false
         end
 
         if IsDisabledControlJustPressed(0, 200) then
