@@ -91,7 +91,7 @@ end)
 
 RegisterNUICallback('joinRanked', function(data, cb)
     TriggerEvent('blacklist:enableGhostMode', false)
-    TriggerServerEvent('blacklist:joinQueue', 'ranked', data.crossTier == true)
+    TriggerServerEvent('blacklist:joinQueue', 'ranked', data.crossTier == true, data.testMode == true)
     cb({})
 end)
 

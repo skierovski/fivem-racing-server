@@ -1,10 +1,6 @@
-- Dodano 7 nowych samochodów do systemu tierów
-- GST 73R (gst73r1) dodany do tieru Diamond
-- GST Sentinel GTS (gstsentgts1) dodany do tieru Blacklist
-- GST TAM (gsttam1) dodany do tieru Blacklist
-- Dinka Jester RR (jester4) dodany do tieru Diamond
-- Albany V-STR (vstr) dodany do tieru Silver
-- Obey 10F Widebody (tenf2) dodany do tieru Blacklist
-- Argento 7F S (gbargento7fs) dodany do tieru Diamond
-- Wszystkie nowe auta mają dostosowane handlingi do prędkości swojego tieru
-- Naprawiono uruchamianie addonowych samochodów na serwerze
+- Dodano tryb "Test Ranked" — testerzy mogą kolejkować się bez ograniczeń MMR, losowy samochód z dowolnego tieru dla obu graczy
+- Nowe wnętrze Benny's — zmieniono warsztat na BBC Showcase z drewnianą podłogą i ciemnym tłem
+- Naprawiono miganie Maze Bank Tower przy wchodzeniu na serwer i wychodzeniu z Benny's
+- Wyciszono dźwięki otoczenia (helikoptery itp.) w menu głównym i garażu
+- Naprawiono "skakanie" samochodów w garażu — stabilniejsze spawnowanie i trzymanie pojazdów
+- Samochody nie są już brudne przy spawnie
