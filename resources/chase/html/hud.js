@@ -33,11 +33,34 @@
     const rematchBtn = document.getElementById('rematchBtn');
     const rematchStatusEl = document.getElementById('rematchStatus');
     const endReturning = document.getElementById('endReturning');
+    const policeCodeEl = document.getElementById('policeCode');
+    const policeCodeValue = document.getElementById('policeCodeValue');
+    const pitLimitEl = document.getElementById('pitLimit');
+    const pitLimitValue = document.getElementById('pitLimitValue');
+    const codeChangePopup = document.getElementById('codeChangePopup');
+    const codeChangeValue = document.getElementById('codeChangeValue');
+    const codeChangeReason = document.getElementById('codeChangeReason');
+    const heliVoteOverlay = document.getElementById('heliVoteOverlay');
+    const heliVoteTimer = document.getElementById('heliVoteTimer');
+    const heliVoteYes = document.getElementById('heliVoteYes');
+    const heliVoteNo = document.getElementById('heliVoteNo');
+    const carPickOverlay = document.getElementById('carPickOverlay');
+    const carPickTitle = document.getElementById('carPickTitle');
+    const carPickTimer = document.getElementById('carPickTimer');
+    const carPickGrid = document.getElementById('carPickGrid');
+    const carPickConfirm = document.getElementById('carPickConfirm');
+    const carPickSelected = document.getElementById('carPickSelected');
+    const carPickConfirmBtn = document.getElementById('carPickConfirmBtn');
 
     let warningTimeout = null;
     let progressHideTimeout = null;
+    let codeChangeTimeout = null;
+    let heliVoteInterval = null;
+    let carPickInterval = null;
+    let carPickSelection = null;
     let currentRole = null;
     let rematchRequested = false;
+    let currentPoliceCode = null;
 
     const TIER_LABELS = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
@@ -58,7 +81,9 @@
     }
 
     const CATCH_TIME = 9.0;
-    const ESCAPE_TIME = 5.0;
+    let ESCAPE_TIME = 5.0;
+
+    const PIT_SPEED_LIMITS = { green: 0, yellow: 50, orange: 80, red: 110 };
 
     function formatTime(seconds) {
         const m = Math.floor(seconds / 60);
@@ -82,10 +107,20 @@
         mmrPlacement.classList.add('hidden');
         rematchArea.classList.add('hidden');
         rematchStatusEl.classList.add('hidden');
+        policeCodeEl.classList.add('hidden');
+        pitLimitEl.classList.add('hidden');
+        codeChangePopup.classList.add('hidden');
+        heliVoteOverlay.classList.add('hidden');
+        carPickOverlay.classList.add('hidden');
         rematchRequested = false;
         rematchBtn.textContent = 'REMATCH';
         rematchBtn.disabled = false;
         rematchBtn.classList.remove('waiting');
+        currentPoliceCode = null;
+        if (codeChangeTimeout) { clearTimeout(codeChangeTimeout); codeChangeTimeout = null; }
+        if (heliVoteInterval) { clearInterval(heliVoteInterval); heliVoteInterval = null; }
+        if (carPickInterval) { clearInterval(carPickInterval); carPickInterval = null; }
+        carPickSelection = null;
     }
 
     window.addEventListener('message', (event) => {
@@ -153,6 +188,23 @@
                 hudRole.className = 'hud-role ' + data.role;
                 hudTimer.textContent = formatTime(data.duration);
                 distanceValue.textContent = '---';
+
+                if (data.policeCode) {
+                    currentPoliceCode = data.policeCode;
+                    ESCAPE_TIME = 10.0;
+                    updatePoliceCodeDisplay(data.policeCode);
+                    policeCodeEl.classList.remove('hidden');
+                    if (data.role === 'chaser') {
+                        pitLimitEl.classList.remove('hidden');
+                        pitLimitValue.textContent = (PIT_SPEED_LIMITS[data.policeCode] || 0) + ' MPH';
+                    }
+                } else {
+                    ESCAPE_TIME = 5.0;
+                }
+
+                if (data.isHeliPilot) {
+                    hudRole.textContent = 'HELI PILOT';
+                }
                 break;
             }
 
@@ -218,6 +270,92 @@
                 break;
             }
 
+            case 'carPick': {
+                carPickOverlay.classList.remove('hidden');
+                carPickSelection = null;
+                carPickConfirm.classList.add('hidden');
+                carPickTitle.textContent = data.role === 'runner' ? 'PICK YOUR CAR' : 'PICK YOUR PD CAR';
+
+                carPickGrid.innerHTML = '';
+                (data.cars || []).forEach(model => {
+                    const item = document.createElement('div');
+                    item.className = 'car-pick-item';
+                    item.textContent = model;
+                    item.addEventListener('click', () => {
+                        carPickGrid.querySelectorAll('.car-pick-item').forEach(el => el.classList.remove('selected'));
+                        item.classList.add('selected');
+                        carPickSelection = model;
+                        carPickSelected.textContent = model.toUpperCase();
+                        carPickConfirm.classList.remove('hidden');
+                    });
+                    carPickGrid.appendChild(item);
+                });
+
+                let pickRemaining = data.timeout || 15;
+                carPickTimer.textContent = pickRemaining;
+                if (carPickInterval) clearInterval(carPickInterval);
+                carPickInterval = setInterval(() => {
+                    pickRemaining--;
+                    carPickTimer.textContent = pickRemaining;
+                    if (pickRemaining <= 0) {
+                        clearInterval(carPickInterval);
+                        carPickInterval = null;
+                        if (!carPickSelection) {
+                            carPickOverlay.classList.add('hidden');
+                        }
+                    }
+                }, 1000);
+                break;
+            }
+
+            case 'carPickDone': {
+                carPickOverlay.classList.add('hidden');
+                if (carPickInterval) { clearInterval(carPickInterval); carPickInterval = null; }
+                carPickSelection = null;
+                break;
+            }
+
+            case 'codeChange': {
+                if (data.policeCode) {
+                    currentPoliceCode = data.policeCode;
+                    updatePoliceCodeDisplay(data.policeCode);
+
+                    if (currentRole === 'chaser') {
+                        pitLimitValue.textContent = (data.pitLimit || 0) + ' MPH';
+                    }
+
+                    codeChangeValue.textContent = data.policeCode.toUpperCase();
+                    codeChangeValue.className = 'code-change-value ' + data.policeCode;
+                    codeChangeReason.textContent = data.reason || '';
+                    codeChangePopup.classList.remove('hidden');
+
+                    if (codeChangeTimeout) clearTimeout(codeChangeTimeout);
+                    codeChangeTimeout = setTimeout(() => {
+                        codeChangePopup.classList.add('hidden');
+                        codeChangeTimeout = null;
+                    }, 4000);
+                }
+                break;
+            }
+
+            case 'heliVote': {
+                heliVoteOverlay.classList.remove('hidden');
+                let remaining = data.timeout || 15;
+                heliVoteTimer.textContent = remaining;
+
+                if (heliVoteInterval) clearInterval(heliVoteInterval);
+                heliVoteInterval = setInterval(() => {
+                    remaining--;
+                    heliVoteTimer.textContent = remaining;
+                    if (remaining <= 0) {
+                        clearInterval(heliVoteInterval);
+                        heliVoteInterval = null;
+                        heliVoteOverlay.classList.add('hidden');
+                    }
+                }, 1000);
+                break;
+            }
+
             case 'matchEnd': {
                 hideAll();
                 matchEnd.classList.remove('hidden');
@@ -252,6 +390,12 @@
                         break;
                     case 'escaped':
                         detail = 'Runner escaped! Too far away.';
+                        break;
+                    case 'boxed':
+                        detail = 'Runner was boxed in by PD!';
+                        break;
+                    case 'runner_died':
+                        detail = 'Runner was eliminated!';
                         break;
                     case 'forfeit':
                         detail = 'Opponent forfeited the match.';
@@ -341,6 +485,11 @@
         }
     });
 
+    function updatePoliceCodeDisplay(code) {
+        policeCodeValue.textContent = code.toUpperCase();
+        policeCodeValue.className = 'code-value ' + code;
+    }
+
     rematchBtn.addEventListener('click', () => {
         if (rematchRequested) return;
         rematchRequested = true;
@@ -348,5 +497,25 @@
         rematchBtn.disabled = true;
         rematchBtn.classList.add('waiting');
         fetch('https://chase/requestRematch', { method: 'POST', body: '{}' });
+    });
+
+    carPickConfirmBtn.addEventListener('click', () => {
+        if (!carPickSelection) return;
+        carPickOverlay.classList.add('hidden');
+        if (carPickInterval) { clearInterval(carPickInterval); carPickInterval = null; }
+        fetch('https://chase/carPick', { method: 'POST', body: JSON.stringify({ model: carPickSelection }) });
+        carPickSelection = null;
+    });
+
+    heliVoteYes.addEventListener('click', () => {
+        heliVoteOverlay.classList.add('hidden');
+        if (heliVoteInterval) { clearInterval(heliVoteInterval); heliVoteInterval = null; }
+        fetch('https://chase/heliVote', { method: 'POST', body: JSON.stringify({ vote: true }) });
+    });
+
+    heliVoteNo.addEventListener('click', () => {
+        heliVoteOverlay.classList.add('hidden');
+        if (heliVoteInterval) { clearInterval(heliVoteInterval); heliVoteInterval = null; }
+        fetch('https://chase/heliVote', { method: 'POST', body: JSON.stringify({ vote: false }) });
     });
 })();

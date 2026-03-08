@@ -144,6 +144,55 @@ body {
 .hud-role.runner { background: rgba(68, 255, 136, 0.15); color: #44ff88; }
 .hud-role.chaser { background: rgba(255, 68, 68, 0.15); color: #ff4444; }
 
+/* Police code badge */
+.police-code {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.code-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.code-value.green  { color: #44ff88; text-shadow: 0 0 10px rgba(68, 255, 136, 0.5); }
+.code-value.yellow { color: #ffcc00; text-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+.code-value.orange { color: #ff8800; text-shadow: 0 0 10px rgba(255, 136, 0, 0.5); }
+.code-value.red    { color: #ff2222; text-shadow: 0 0 10px rgba(255, 34, 34, 0.5); }
+
+/* PIT speed limit display */
+.pit-limit {
+    margin-top: 4px;
+    text-align: center;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.pit-limit-value {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+}
+
 .hud-distance {
     margin-top: 8px;
     background: rgba(0, 0, 0, 0.6);
@@ -558,4 +607,282 @@ body {
     color: #ffcc44;
     text-shadow: 0 0 10px rgba(255, 204, 68, 0.4);
     animation: mmrFadeIn 0.4s ease-out forwards;
+}
+
+/* ========================
+   Police code change popup
+   ======================== */
+
+.code-change-popup {
+    position: fixed;
+    top: 160px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid rgba(255, 136, 0, 0.6);
+    padding: 16px 40px;
+    border-radius: 10px;
+    z-index: 65;
+    animation: codeChangeIn 0.4s ease-out;
+}
+
+@keyframes codeChangeIn {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+.code-change-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 6px;
+}
+
+.code-change-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: 6px;
+}
+
+.code-change-value.yellow { color: #ffcc00; text-shadow: 0 0 30px rgba(255, 204, 0, 0.6); }
+.code-change-value.orange { color: #ff8800; text-shadow: 0 0 30px rgba(255, 136, 0, 0.6); }
+.code-change-value.red    { color: #ff2222; text-shadow: 0 0 30px rgba(255, 34, 34, 0.6); }
+
+.code-change-reason {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-top: 6px;
+}
+
+/* ========================
+   Car pick overlay
+   ======================== */
+
+.car-pick-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 140;
+    pointer-events: auto;
+}
+
+.car-pick-box {
+    width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(10, 10, 30, 0.95);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(0, 80, 180, 0.2);
+    overflow: hidden;
+}
+
+.car-pick-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.car-pick-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: #0096ff;
+    text-shadow: 0 0 15px rgba(0, 150, 255, 0.4);
+}
+
+.car-pick-timer {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.3);
+    min-width: 50px;
+    text-align: right;
+}
+
+.car-pick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 16px 24px;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.car-pick-grid::-webkit-scrollbar {
+    width: 4px;
+}
+
+.car-pick-grid::-webkit-scrollbar-thumb {
+    background: rgba(0, 150, 255, 0.3);
+    border-radius: 2px;
+}
+
+.car-pick-item {
+    padding: 12px 8px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+}
+
+.car-pick-item:hover {
+    background: rgba(0, 150, 255, 0.1);
+    border-color: rgba(0, 150, 255, 0.3);
+    color: #fff;
+}
+
+.car-pick-item.selected {
+    background: rgba(0, 150, 255, 0.2);
+    border-color: rgba(0, 150, 255, 0.6);
+    color: #0096ff;
+    box-shadow: 0 0 12px rgba(0, 150, 255, 0.2);
+}
+
+.car-pick-confirm {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.car-pick-selected {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #0096ff;
+}
+
+.car-pick-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #44ff88;
+    background: rgba(68, 255, 136, 0.1);
+    border: 1px solid rgba(68, 255, 136, 0.4);
+    padding: 10px 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.car-pick-btn:hover {
+    background: rgba(68, 255, 136, 0.25);
+    box-shadow: 0 0 20px rgba(68, 255, 136, 0.3);
+}
+
+/* ========================
+   Helicopter vote
+   ======================== */
+
+.heli-vote-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 150;
+    pointer-events: auto;
+}
+
+.heli-vote-box {
+    text-align: center;
+    background: rgba(10, 10, 30, 0.95);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    padding: 32px 48px;
+    border-radius: 12px;
+    box-shadow: 0 0 40px rgba(0, 80, 180, 0.2);
+}
+
+.heli-vote-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    color: #0096ff;
+    text-shadow: 0 0 20px rgba(0, 150, 255, 0.4);
+}
+
+.heli-vote-desc {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 2px;
+    margin-top: 8px;
+}
+
+.heli-vote-timer {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 40px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 16px 0;
+}
+
+.heli-vote-buttons {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+}
+
+.heli-vote-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    padding: 14px 48px;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.heli-vote-btn.heli-yes {
+    color: #44ff88;
+    background: rgba(68, 255, 136, 0.1);
+    border-color: rgba(68, 255, 136, 0.4);
+}
+
+.heli-vote-btn.heli-yes:hover {
+    background: rgba(68, 255, 136, 0.25);
+    box-shadow: 0 0 20px rgba(68, 255, 136, 0.3);
+}
+
+.heli-vote-btn.heli-no {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    border-color: rgba(255, 68, 68, 0.4);
+}
+
+.heli-vote-btn.heli-no:hover {
+    background: rgba(255, 68, 68, 0.25);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
 }

@@ -87,6 +87,53 @@ local TIER_ASSIGNMENTS = {
     blacklist = { 'gsttoros1', 'gbcomets2r', 'gstsentgts1', 'gsttam1', 'tenf2' },
 }
 
+-- Tiers eligible for runner car in normal chase mode (Silver+)
+local RUNNER_ELIGIBLE_TIERS = { 'silver', 'gold', 'platinum', 'diamond', 'blacklist' }
+
+-- PD car pools for chaser assignment in normal chase mode
+local PD_CAR_POOL = {
+    offroad = { 'gbpolscoutgsx', 'gbpolbisonhf' },
+    fast    = { 'gbpolsultanrsx', 'gbpolprospero', 'gbpolsentinelgts', 'gbpoltr3s' },
+    normal  = { 'gbpolargento7f', 'gbpoldomgsx', 'gbpolcomets2r', 'gbpolstanier' },
+}
+
+function selectRunnerCar()
+    local eligibleModels = {}
+    for _, tier in ipairs(RUNNER_ELIGIBLE_TIERS) do
+        for _, model in ipairs(tierModels[tier] or {}) do
+            table.insert(eligibleModels, model)
+        end
+    end
+    if #eligibleModels == 0 then return nil end
+    return eligibleModels[math.random(#eligibleModels)]
+end
+
+function selectPDCars(numChasers)
+    local cars = {}
+    local used = {}
+
+    local function pickRandom(pool)
+        local available = {}
+        for _, m in ipairs(pool) do
+            if not used[m] then table.insert(available, m) end
+        end
+        if #available == 0 then return pool[math.random(#pool)] end
+        local pick = available[math.random(#available)]
+        used[pick] = true
+        return pick
+    end
+
+    table.insert(cars, pickRandom(PD_CAR_POOL.offroad))
+    if numChasers >= 2 then
+        table.insert(cars, pickRandom(PD_CAR_POOL.fast))
+    end
+    for i = #cars + 1, numChasers do
+        table.insert(cars, pickRandom(PD_CAR_POOL.normal))
+    end
+
+    return cars
+end
+
 Citizen.CreateThread(function()
     Citizen.Wait(2000)
 
@@ -441,6 +488,26 @@ end
 function startNormalChaseMatch(runner, chasers)
     local loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
 
+    -- Build available car pools for player picking
+    local runnerCarPool = {}
+    for _, tier in ipairs(TIER_ORDER) do
+        for _, model in ipairs(tierModels[tier] or {}) do
+            table.insert(runnerCarPool, model)
+        end
+    end
+
+    local chaserCarPool = {}
+    for _, pool in pairs(PD_CAR_POOL) do
+        for _, model in ipairs(pool) do
+            chaserCarPool[model] = true
+        end
+    end
+    local chaserCarList = {}
+    for model in pairs(chaserCarPool) do
+        table.insert(chaserCarList, model)
+    end
+    table.sort(chaserCarList)
+
     local matchData = {
         mode = 'normal',
         chasers = {},
@@ -448,6 +515,8 @@ function startNormalChaseMatch(runner, chasers)
             source = runner.source,
             identifier = runner.identifier,
         },
+        runnerCarPool = runnerCarPool,
+        chaserCarPool = chaserCarList,
         locationName = loc.name,
         runnerX = loc.runner.x, runnerY = loc.runner.y, runnerZ = loc.runner.z, runnerHeading = loc.runner.h,
         chaserX = loc.chaser.x, chaserY = loc.chaser.y, chaserZ = loc.chaser.z, chaserHeading = loc.chaser.h,
@@ -467,7 +536,8 @@ function startNormalChaseMatch(runner, chasers)
         TriggerClientEvent('blacklist:queueUpdate', c.source, { status = 'matched', message = 'Match found!' })
     end
 
-    print(('[Matchmaking] Normal chase at %s: 1 runner vs %d chasers'):format(loc.name, #chasers))
+    print(('[Matchmaking] Normal chase at %s: 1 runner vs %d chasers | %d runner cars | %d PD cars available'):format(
+        loc.name, #chasers, #runnerCarPool, #chaserCarList))
 end
 
 -- ========================
