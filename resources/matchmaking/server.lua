@@ -67,6 +67,32 @@ local CHASE_LOCATIONS = {
     },
 }
 
+-- Chase-mode locations with per-chaser spawn points and helicopter spawn
+local NORMAL_CHASE_LOCATIONS = {
+    {
+        name = 'Bobcat',
+        runner = { x = 928.15, y = -2098.84, z = 30.32, h = 347.96 },
+        chasers = {
+            { x = 927.51, y = -2116.74, z = 30.36, h = 353.06 },
+            { x = 921.90, y = -2116.07, z = 30.38, h = 336.10 },
+            { x = 933.85, y = -2117.75, z = 30.36, h = 12.84 },
+            { x = 925.52, y = -2130.44, z = 30.30, h = 353.03 },
+        },
+        heli = { x = 908.73, y = -2116.18, z = 45.15, h = 266.14 },
+    },
+    {
+        name = 'Sandy Shores',
+        runner = { x = 3450.45, y = 3771.62, z = 30.52, h = 102.98 },
+        chasers = {
+            { x = 3462.98, y = 3775.96, z = 30.33, h = 108.99 },
+            { x = 3464.23, y = 3784.77, z = 30.43, h = 121.93 },
+            { x = 3466.90, y = 3769.51, z = 30.20, h = 85.79 },
+            { x = 3480.71, y = 3778.82, z = 30.20, h = 105.51 },
+        },
+        heli = { x = 3523.06, y = 3794.43, z = 30.15, h = 101.68 },
+    },
+}
+
 -- ========================
 -- Join / leave queue
 -- ========================
@@ -486,7 +512,7 @@ function startRankedMatch(chaser, runner, isCrossTier, forceTier)
 end
 
 function startNormalChaseMatch(runner, chasers)
-    local loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
+    local loc = NORMAL_CHASE_LOCATIONS[math.random(#NORMAL_CHASE_LOCATIONS)]
 
     -- Build available car pools for player picking
     local runnerCarPool = {}
@@ -519,7 +545,8 @@ function startNormalChaseMatch(runner, chasers)
         chaserCarPool = chaserCarList,
         locationName = loc.name,
         runnerX = loc.runner.x, runnerY = loc.runner.y, runnerZ = loc.runner.z, runnerHeading = loc.runner.h,
-        chaserX = loc.chaser.x, chaserY = loc.chaser.y, chaserZ = loc.chaser.z, chaserHeading = loc.chaser.h,
+        chaserSpawns = loc.chasers,
+        heliSpawn = loc.heli,
     }
 
     for _, c in ipairs(chasers) do
@@ -605,6 +632,12 @@ end
 
 exports('GetPlayerState', function(source)
     return playerStates[source] or 'menu'
+end)
+
+exports('GetRandomModelForTier', function(tier)
+    local models = tierModels[tier] or {}
+    if #models == 0 then return nil end
+    return models[math.random(#models)]
 end)
 
 print('[Matchmaking] ^2Queue system loaded^0')
