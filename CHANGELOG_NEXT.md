@@ -1,1 +1,6 @@
-
+- Dodano tryb "Test Ranked" — testerzy mogą kolejkować się bez ograniczeń MMR, losowy samochód z dowolnego tieru dla obu graczy
+- Nowe wnętrze Benny's — zmieniono warsztat na BBC Showcase z drewnianą podłogą i ciemnym tłem
+- Naprawiono miganie Maze Bank Tower przy wchodzeniu na serwer i wychodzeniu z Benny's
+- Wyciszono dźwięki otoczenia (helikoptery itp.) w menu głównym i garażu
+- Naprawiono "skakanie" samochodów w garażu — stabilniejsze spawnowanie i trzymanie pojazdów
+- Samochody nie są już brudne przy spawnie

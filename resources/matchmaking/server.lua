@@ -17,9 +17,10 @@ local Config = {
 -- Queue storage (unified: no separate runner/chaser queues)
 local rankedQueue = {} -- { source, identifier, mmr, tier, crossTier, chases, escapes, joinedAt, searchRange }
 local normalQueue = {}  -- { source, identifier, mmr, tier, chases, escapes }
+local testRankedQueue = {} -- { source, identifier, mmr, tier, chases, escapes }
 
 -- Player states
-local playerStates = {} -- [source] = 'menu' | 'ranked_queue' | 'normal_queue' | 'in_match' | 'freeroam'
+local playerStates = {} -- [source] = 'menu' | 'ranked_queue' | 'normal_queue' | 'test_ranked_queue' | 'in_match' | 'freeroam'
 
 -- Shared chase locations for both ranked and normal mode (tester-provided coords)
 local CHASE_LOCATIONS = {
@@ -126,7 +127,7 @@ Citizen.CreateThread(function()
 end)
 
 RegisterNetEvent('blacklist:joinQueue')
-AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
+AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
     local source = source
     local identifier = getIdentifier(source)
     if not identifier then return end
@@ -143,7 +144,24 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier)
             if not result or not result[1] then return end
             local player = result[1]
 
-            if mode == 'ranked' then
+            if mode == 'ranked' and testMode == true then
+                table.insert(testRankedQueue, {
+                    source = source,
+                    identifier = identifier,
+                    mmr = player.mmr,
+                    tier = player.tier,
+                    chases = player.chases_played or 0,
+                    escapes = player.escapes_played or 0,
+                })
+                playerStates[source] = 'test_ranked_queue'
+                TriggerClientEvent('blacklist:queueUpdate', source, {
+                    status = 'waiting',
+                    message = 'Searching for test match...'
+                })
+                print(('[Matchmaking] %s joined TEST ranked queue (MMR: %d, tier: %s)'):format(
+                    GetPlayerName(source), player.mmr, player.tier))
+
+            elseif mode == 'ranked' then
                 table.insert(rankedQueue, {
                     source = source,
                     identifier = identifier,
@@ -206,6 +224,7 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(Config.MATCH_CHECK_INTERVAL)
         processRankedQueue()
+        processTestRankedQueue()
         processNormalQueue()
     end
 end)
@@ -305,6 +324,35 @@ function processRankedQueue()
     end
 
     startRankedMatch(chaser, runner, bestPair.isCrossTier, forceTier)
+end
+
+function processTestRankedQueue()
+    if #testRankedQueue < 2 then return end
+
+    local a = table.remove(testRankedQueue, 1)
+    local b = table.remove(testRankedQueue, 1)
+
+    local chaser, runner = assignRoles(a, b)
+
+    playerStates[chaser.source] = 'in_match'
+    playerStates[runner.source] = 'in_match'
+
+    local randomTier = TIER_ORDER[math.random(#TIER_ORDER)]
+    local models = tierModels[randomTier] or {}
+    if #models == 0 then
+        for _, tier in ipairs(TIER_ORDER) do
+            if tierModels[tier] and #tierModels[tier] > 0 then
+                randomTier = tier
+                models = tierModels[tier]
+                break
+            end
+        end
+    end
+
+    startRankedMatch(chaser, runner, false, randomTier)
+
+    print(('[Matchmaking] TEST ranked match: %s vs %s | random tier: %s'):format(
+        GetPlayerName(chaser.source), GetPlayerName(runner.source), randomTier))
 end
 
 function processNormalQueue()
@@ -462,6 +510,11 @@ function removeFromAllQueues(source)
     for i = #rankedQueue, 1, -1 do
         if rankedQueue[i].source == source then
             table.remove(rankedQueue, i)
+        end
+    end
+    for i = #testRankedQueue, 1, -1 do
+        if testRankedQueue[i].source == source then
+            table.remove(testRankedQueue, i)
         end
     end
     for i = #normalQueue, 1, -1 do
