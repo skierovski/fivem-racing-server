@@ -1,9 +1,12 @@
-### Nowe: Tryb Pościgu (WIP)
-- Dodano tryb pościgu: 1 uciekinier vs do 4 ścigających PD
-- Wybór samochodu przez gracza: uciekinier wybiera spośród wszystkich rankingowych tierów, ścigający wybierają z puli samochodów PD (15s timer)
-- System eskalacji kodu policyjnego (Zielony -> Żółty -> Pomarańczowy -> Czerwony) na podstawie akcji uciekiniera
-- Limity prędkości PIT powiązane z poziomem kodu policyjnego z systemem kar
-- System głosowania na helikopter dla meczów z 3+ graczami
-- Warunki wygranej: ucieczka (400m przez 10s), zablokowanie przez PD, woda/śmierć/czas
-- System ruchu drogowego: 30% gęstości, zachowanie zjazdu na syrenę
-- Dodano 10 plików handling pojazdów PD dla ścigających
+### Poprawki: Tryb Pościgu & Ranked
+- Syreny dla ścigających: Q = światła, Alt = światła + dźwięk
+- Blipy PD na minimapie: ścigający widzą innych policjantów (nie uciekiniera)
+- Respawn PD po śmierci: 5s i ten sam pojazd w tym samym miejscu
+- Dystans mierzony tylko do uciekiniera (nie do najbliższego gracza/PD)
+- NPC nie panikują przy pojazdach policyjnych bez syren
+- NPC na syrenach zwalniają płynnie na pasie zamiast skręcać i crashować
+- Poprawka winy kolizji: sprawdzanie kierunku przy taranowaniu PD przez runnera
+- Prędkość PIT wysyłana z klienta do serwera (poprawna kara vs kod policyjny)
+- Zwiększona tolerancja terenu z 3s do 5s (mniejsze fałszywe DQ na krawężnikach)
+- Usuwanie propów (kosze, hydranty itp.) w ranked z większego zasięgu (5m)
+- Latarnie uliczne niezniszczalne w ranked
