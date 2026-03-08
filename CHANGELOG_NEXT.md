@@ -1,6 +1,9 @@
-- Dodano tryb "Test Ranked" — testerzy mogą kolejkować się bez ograniczeń MMR, losowy samochód z dowolnego tieru dla obu graczy
-- Nowe wnętrze Benny's — zmieniono warsztat na BBC Showcase z drewnianą podłogą i ciemnym tłem
-- Naprawiono miganie Maze Bank Tower przy wchodzeniu na serwer i wychodzeniu z Benny's
-- Wyciszono dźwięki otoczenia (helikoptery itp.) w menu głównym i garażu
-- Naprawiono "skakanie" samochodów w garażu — stabilniejsze spawnowanie i trzymanie pojazdów
-- Samochody nie są już brudne przy spawnie
+### Nowe: Tryb Pościgu (WIP)
+- Dodano tryb pościgu: 1 uciekinier vs do 4 ścigających PD
+- Wybór samochodu przez gracza: uciekinier wybiera spośród wszystkich rankingowych tierów, ścigający wybierają z puli samochodów PD (15s timer)
+- System eskalacji kodu policyjnego (Zielony -> Żółty -> Pomarańczowy -> Czerwony) na podstawie akcji uciekiniera
+- Limity prędkości PIT powiązane z poziomem kodu policyjnego z systemem kar
+- System głosowania na helikopter dla meczów z 3+ graczami
+- Warunki wygranej: ucieczka (400m przez 10s), zablokowanie przez PD, woda/śmierć/czas
+- System ruchu drogowego: 30% gęstości, zachowanie zjazdu na syrenę
+- Dodano 10 plików handling pojazdów PD dla ścigających

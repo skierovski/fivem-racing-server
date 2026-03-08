@@ -28,10 +28,53 @@
         <div class="hud-top">
             <div class="hud-timer" id="hudTimer">5:00</div>
             <div class="hud-role" id="hudRole">CHASER</div>
+            <div class="police-code hidden" id="policeCode">
+                <span class="code-label">CODE</span>
+                <span class="code-value" id="policeCodeValue">GREEN</span>
+            </div>
         </div>
         <div class="hud-distance" id="hudDistance">
             <span class="distance-value" id="distanceValue">---</span>
             <span class="distance-unit">m</span>
+        </div>
+        <div class="pit-limit hidden" id="pitLimit">
+            <span class="pit-limit-label">PIT LIMIT:</span>
+            <span class="pit-limit-value" id="pitLimitValue">0 MPH</span>
+        </div>
+    </div>
+
+    <!-- Police code change notification -->
+    <div class="code-change-popup hidden" id="codeChangePopup">
+        <div class="code-change-title">CODE ESCALATED</div>
+        <div class="code-change-value" id="codeChangeValue">YELLOW</div>
+        <div class="code-change-reason" id="codeChangeReason"></div>
+    </div>
+
+    <!-- Car pick overlay -->
+    <div class="car-pick-overlay hidden" id="carPickOverlay">
+        <div class="car-pick-box">
+            <div class="car-pick-header">
+                <div class="car-pick-title" id="carPickTitle">PICK YOUR CAR</div>
+                <div class="car-pick-timer" id="carPickTimer">15</div>
+            </div>
+            <div class="car-pick-grid" id="carPickGrid"></div>
+            <div class="car-pick-confirm hidden" id="carPickConfirm">
+                <span class="car-pick-selected" id="carPickSelected"></span>
+                <button class="car-pick-btn" id="carPickConfirmBtn">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Helicopter vote overlay -->
+    <div class="heli-vote-overlay hidden" id="heliVoteOverlay">
+        <div class="heli-vote-box">
+            <div class="heli-vote-title">HELICOPTER SUPPORT?</div>
+            <div class="heli-vote-desc">One chaser will pilot a police helicopter</div>
+            <div class="heli-vote-timer" id="heliVoteTimer">15</div>
+            <div class="heli-vote-buttons">
+                <button class="heli-vote-btn heli-yes" id="heliVoteYes">YES</button>
+                <button class="heli-vote-btn heli-no" id="heliVoteNo">NO</button>
+            </div>
         </div>
     </div>
 

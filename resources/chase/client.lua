@@ -9,6 +9,10 @@ local matchTimer = 0
 local matchStartTime = 0
 local isFrozen = false
 local airborneTimer = 0.0
+local currentPoliceCode = nil
+local isHeliPilot = false
+local chaseTrafficEnabled = false
+local matchMode = nil -- 'ranked' or 'normal'
 
 -- ========================
 -- Freeze control
@@ -87,10 +91,23 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         myRole = data.role
         matchTimer = data.duration
         matchStartTime = GetGameTimer()
+        currentPoliceCode = data.policeCode
+        isHeliPilot = data.isHeliPilot or false
         SendNUIMessage({
             action = 'start',
             role = data.role,
             duration = data.duration,
+            policeCode = data.policeCode,
+            isHeliPilot = data.isHeliPilot,
+        })
+
+    elseif data.action == 'codeChange' then
+        currentPoliceCode = data.policeCode
+        SendNUIMessage({
+            action = 'codeChange',
+            policeCode = data.policeCode,
+            pitLimit = data.pitLimit,
+            reason = data.reason,
         })
 
     elseif data.action == 'distance' then
@@ -99,6 +116,7 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             distance = math.floor(data.distance),
             catchProgress = data.catchProgress,
             escapeProgress = data.escapeProgress,
+            policeCode = data.policeCode,
         })
 
     elseif data.action == 'warning' then
@@ -172,6 +190,10 @@ AddEventHandler('blacklist:returnToMenu', function()
     isInMatch = false
     isPostMatch = false
     myRole = nil
+    currentPoliceCode = nil
+    isHeliPilot = false
+    chaseTrafficEnabled = false
+    matchMode = nil
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
 end)
@@ -245,11 +267,20 @@ Citizen.CreateThread(function()
         Citizen.Wait(0)
 
         if isInMatch or isPostMatch then
+            -- Pedestrians: always zero
             SetPedDensityMultiplierThisFrame(0.0)
             SetScenarioPedDensityMultiplierThisFrame(0.0, 0.0)
-            SetVehicleDensityMultiplierThisFrame(0.0)
-            SetRandomVehicleDensityMultiplierThisFrame(0.0)
-            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+
+            if chaseTrafficEnabled then
+                SetVehicleDensityMultiplierThisFrame(0.3)
+                SetRandomVehicleDensityMultiplierThisFrame(0.3)
+                SetParkedVehicleDensityMultiplierThisFrame(0.3)
+            else
+                SetVehicleDensityMultiplierThisFrame(0.0)
+                SetRandomVehicleDensityMultiplierThisFrame(0.0)
+                SetParkedVehicleDensityMultiplierThisFrame(0.0)
+            end
+
             SetGarbageTrucks(false)
             SetRandomBoats(false)
             SetRandomTrains(false)
@@ -261,7 +292,7 @@ Citizen.CreateThread(function()
             DisableControlAction(0, 75, true)  -- F (exit vehicle)
             DisableControlAction(0, 23, true)  -- F (enter vehicle)
 
-            -- Per-frame ghost nuke: force full visibility + collision on ALL entities
+            -- Per-frame ghost nuke: force full visibility + collision on ALL player entities
             local myPed = PlayerPedId()
             local myVehicle = GetVehiclePedIsIn(myPed, false)
 
@@ -292,7 +323,58 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Periodic NPC cleanup during match and post-match
+-- Custom siren traffic reaction (normal chase mode)
+-- NPC vehicles slowly pull over instead of GTA panic behavior
+-- ========================
+
+Citizen.CreateThread(function()
+    local processedVehs = {}
+    while true do
+        Citizen.Wait(1000)
+
+        if not isInMatch or not chaseTrafficEnabled then
+            processedVehs = {}
+            goto nextTick
+        end
+
+        local myPed = PlayerPedId()
+        local myCoords = GetEntityCoords(myPed)
+
+        -- Clean up processed vehicles that are far away
+        for veh, _ in pairs(processedVehs) do
+            if not DoesEntityExist(veh) or #(myCoords - GetEntityCoords(veh)) > 120.0 then
+                processedVehs[veh] = nil
+            end
+        end
+
+        -- Find NPC vehicles near any player and make them pull over
+        local vHandle, veh = FindFirstVehicle()
+        local success = true
+        while success do
+            if DoesEntityExist(veh) and not processedVehs[veh] then
+                local driver = GetPedInVehicleSeat(veh, -1)
+                if driver ~= 0 and not IsPedAPlayer(driver) then
+                    local vehCoords = GetEntityCoords(veh)
+                    local dist = #(myCoords - vehCoords)
+                    if dist < 60.0 and dist > 5.0 then
+                        processedVehs[veh] = true
+                        SetDriverAbility(driver, 1.0)
+                        SetDriverAggressiveness(driver, 0.0)
+                        TaskVehicleTempAction(driver, veh, 32, 8000)
+                    end
+                end
+            end
+            success, veh = FindNextVehicle(vHandle)
+        end
+        EndFindVehicle(vHandle)
+
+        ::nextTick::
+    end
+end)
+
+-- ========================
+-- NPC ped cleanup (always delete non-player peds)
+-- NPC vehicles: only delete in ranked (no traffic), keep alive in normal (30% traffic)
 -- ========================
 
 Citizen.CreateThread(function()
@@ -306,25 +388,188 @@ Citizen.CreateThread(function()
             local success = true
             while success do
                 if ped ~= playerPed and DoesEntityExist(ped) and not IsPedAPlayer(ped) then
-                    DeleteEntity(ped)
+                    local pedVeh = GetVehiclePedIsIn(ped, false)
+                    if not chaseTrafficEnabled or pedVeh == 0 then
+                        DeleteEntity(ped)
+                    end
                 end
                 success, ped = FindNextPed(handle)
             end
             EndFindPed(handle)
 
-            local myVeh = GetVehiclePedIsIn(playerPed, false)
-            local vHandle, veh = FindFirstVehicle()
-            success = true
-            while success do
-                if veh ~= myVeh and DoesEntityExist(veh) then
-                    local driver = GetPedInVehicleSeat(veh, -1)
-                    if driver == 0 or not IsPedAPlayer(driver) then
-                        DeleteEntity(veh)
+            if not chaseTrafficEnabled then
+                local myVeh = GetVehiclePedIsIn(playerPed, false)
+                local vHandle, veh = FindFirstVehicle()
+                success = true
+                while success do
+                    if veh ~= myVeh and DoesEntityExist(veh) then
+                        local driver = GetPedInVehicleSeat(veh, -1)
+                        if driver == 0 or not IsPedAPlayer(driver) then
+                            DeleteEntity(veh)
+                        end
+                    end
+                    success, veh = FindNextVehicle(vHandle)
+                end
+                EndFindVehicle(vHandle)
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Car pick phase
+-- ========================
+
+RegisterNetEvent('blacklist:carPick')
+AddEventHandler('blacklist:carPick', function(data)
+    SendNUIMessage({
+        action = 'carPick',
+        role = data.role,
+        cars = data.cars,
+        timeout = data.timeout,
+    })
+    SetNuiFocus(true, true)
+end)
+
+RegisterNUICallback('carPick', function(data, cb)
+    TriggerServerEvent('blacklist:carPickResponse', data.model)
+    SetNuiFocus(false, false)
+    cb({})
+end)
+
+RegisterNetEvent('blacklist:carPickDone')
+AddEventHandler('blacklist:carPickDone', function()
+    SendNUIMessage({ action = 'carPickDone' })
+    SetNuiFocus(false, false)
+end)
+
+-- ========================
+-- Helicopter vote
+-- ========================
+
+RegisterNetEvent('blacklist:heliVote')
+AddEventHandler('blacklist:heliVote', function(timeout)
+    SendNUIMessage({ action = 'heliVote', timeout = timeout })
+    SetNuiFocus(true, true)
+end)
+
+RegisterNUICallback('heliVote', function(data, cb)
+    TriggerServerEvent('blacklist:heliVoteResponse', data.vote == true)
+    SetNuiFocus(false, false)
+    cb({})
+end)
+
+-- ========================
+-- Traffic mode toggle (normal chase only)
+-- ========================
+
+RegisterNetEvent('blacklist:chaseTrafficMode')
+AddEventHandler('blacklist:chaseTrafficMode', function(enabled)
+    chaseTrafficEnabled = enabled
+end)
+
+-- ========================
+-- Helicopter spawn (for heli pilot chaser)
+-- ========================
+
+RegisterNetEvent('blacklist:spawnHelicopter')
+AddEventHandler('blacklist:spawnHelicopter', function(x, y, z, heading, model)
+    local hash = GetHashKey(model)
+    RequestModel(hash)
+    local deadline = GetGameTimer() + 10000
+    while not HasModelLoaded(hash) and GetGameTimer() < deadline do
+        Citizen.Wait(100)
+    end
+
+    local roofZ = z + 40.0
+    local found, groundZ = GetGroundZFor_3dCoord(x, y, roofZ + 50.0, false)
+    if found then
+        roofZ = groundZ + 5.0
+    end
+
+    local heli = CreateVehicle(hash, x, y, roofZ, heading, true, false)
+    SetModelAsNoLongerNeeded(hash)
+
+    local ped = PlayerPedId()
+    TaskWarpPedIntoVehicle(ped, heli, -1)
+    SetVehicleEngineOn(heli, true, true, false)
+    FreezeEntityPosition(heli, true)
+
+    isHeliPilot = true
+    TriggerServerEvent('blacklist:spawnReady')
+end)
+
+-- ========================
+-- Runner speed reporting (for boxing detection)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        if isInMatch and myRole == 'runner' then
+            local ped = PlayerPedId()
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            if vehicle ~= 0 then
+                local speed = GetEntitySpeed(vehicle)
+                TriggerServerEvent('blacklist:reportRunnerSpeed', speed)
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Runner death detection
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        if isInMatch and myRole == 'runner' then
+            local ped = PlayerPedId()
+            if IsEntityDead(ped) then
+                TriggerServerEvent('blacklist:reportViolation', 'runner_died')
+                isInMatch = false
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Runner ram PD detection (collision with chaser vehicles)
+-- ========================
+
+Citizen.CreateThread(function()
+    local lastRamReport = 0
+    while true do
+        Citizen.Wait(200)
+        if isInMatch and myRole == 'runner' and currentPoliceCode then
+            local ped = PlayerPedId()
+            local vehicle = GetVehiclePedIsIn(ped, false)
+            if vehicle ~= 0 and HasEntityCollidedWithAnything(vehicle) then
+                local now = GetGameTimer()
+                if now - lastRamReport < 5000 then goto skipRam end
+
+                local speed = GetEntitySpeed(vehicle) * 2.23694 -- m/s to mph
+                if speed < 30 then goto skipRam end
+
+                for _, playerId in ipairs(GetActivePlayers()) do
+                    if playerId ~= PlayerId() then
+                        local otherPed = GetPlayerPed(playerId)
+                        if otherPed ~= 0 then
+                            local otherVeh = GetVehiclePedIsIn(otherPed, false)
+                            if otherVeh ~= 0 then
+                                local dist = #(GetEntityCoords(vehicle) - GetEntityCoords(otherVeh))
+                                if dist < 6.0 then
+                                    lastRamReport = now
+                                    TriggerServerEvent('blacklist:reportViolation', 'runner_ram_pd')
+                                    break
+                                end
+                            end
+                        end
                     end
                 end
-                success, veh = FindNextVehicle(vHandle)
+                ::skipRam::
             end
-            EndFindVehicle(vHandle)
         end
     end
 end)
