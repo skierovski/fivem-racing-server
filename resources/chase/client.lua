@@ -160,6 +160,13 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         })
         if data.isRanked then
             SetNuiFocus(true, true)
+        else
+            Citizen.SetTimeout(8000, function()
+                if isPostMatch then
+                    isPostMatch = false
+                    SendNUIMessage({ action = 'hideAll' })
+                end
+            end)
         end
     end
 end)
@@ -636,14 +643,15 @@ AddEventHandler('blacklist:spawnHelicopter', function(x, y, z, heading, model)
         Citizen.Wait(100)
     end
 
-    local roofZ = z + 40.0
-    local found, groundZ = GetGroundZFor_3dCoord(x, y, roofZ + 50.0, false)
-    if found then
-        roofZ = groundZ + 5.0
+    local spawnZ = z + 40.0
+    local found, groundZ = GetGroundZFor_3dCoord(x, y, spawnZ + 50.0, false)
+    if found and groundZ + 30.0 > spawnZ then
+        spawnZ = groundZ + 30.0
     end
 
-    local heli = CreateVehicle(hash, x, y, roofZ, heading, true, false)
+    local heli = CreateVehicle(hash, x, y, spawnZ, heading, true, false)
     SetModelAsNoLongerNeeded(hash)
+    SetVehicleLivery(heli, 0)
 
     local ped = PlayerPedId()
     TaskWarpPedIntoVehicle(ped, heli, -1)
@@ -713,7 +721,12 @@ Citizen.CreateThread(function()
                     goto continueRespawn
                 end
 
-                NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+                local spawnZ = coords.z
+                if isHeliPilot then
+                    spawnZ = coords.z + 30.0
+                end
+
+                NetworkResurrectLocalPlayer(coords.x, coords.y, spawnZ, heading, true, false)
                 local newPed = PlayerPedId()
                 ClearPedBloodDamage(newPed)
                 SetEntityHealth(newPed, 200)
@@ -732,9 +745,15 @@ Citizen.CreateThread(function()
                     end
 
                     if HasModelLoaded(model) then
-                        local newVeh = CreateVehicle(model, coords.x, coords.y, coords.z, heading, true, false)
+                        local newVeh = CreateVehicle(model, coords.x, coords.y, spawnZ, heading, true, false)
                         SetPedIntoVehicle(newPed, newVeh, -1)
                         SetVehicleEngineOn(newVeh, true, true, false)
+                        if isHeliPilot then
+                            SetVehicleLivery(newVeh, 0)
+                            FreezeEntityPosition(newVeh, true)
+                            Citizen.Wait(1000)
+                            FreezeEntityPosition(newVeh, false)
+                        end
                         SetModelAsNoLongerNeeded(model)
                     end
                 end

@@ -10,13 +10,15 @@ local Config = {
 
     NORMAL_MIN_CHASERS = 1,
     NORMAL_MAX_CHASERS = 4,
+    NORMAL_FULL_LOBBY = 5,
+    NORMAL_FILL_WAIT = 15000,
 
     MATCH_CHECK_INTERVAL = 3000, -- ms between queue checks
 }
 
 -- Queue storage (unified: no separate runner/chaser queues)
 local rankedQueue = {} -- { source, identifier, mmr, tier, crossTier, chases, escapes, joinedAt, searchRange }
-local normalQueue = {}  -- { source, identifier, mmr, tier, chases, escapes }
+local normalQueue = {}  -- { source, identifier, mmr, tier, chases, escapes, joinedAt }
 local testRankedQueue = {} -- { source, identifier, mmr, tier, chases, escapes }
 
 -- Player states
@@ -262,6 +264,7 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
                     tier = player.tier,
                     chases = player.chases_played or 0,
                     escapes = player.escapes_played or 0,
+                    joinedAt = GetGameTimer(),
                 })
                 playerStates[source] = 'normal_queue'
                 TriggerClientEvent('blacklist:queueUpdate', source, {
@@ -432,25 +435,19 @@ function processNormalQueue()
     local minPlayers = Config.NORMAL_MIN_CHASERS + 1
     if #normalQueue < minPlayers then return end
 
-    -- Pick the player with the highest escape ratio as runner (needs more chasing,
-    -- but as runner they give others chaser roles → system balances overall)
-    local bestRunnerIdx = 1
-    local bestRunnerScore = -1
+    local now = GetGameTimer()
+    local isFull = #normalQueue >= Config.NORMAL_FULL_LOBBY
 
-    for i, p in ipairs(normalQueue) do
-        local total = (p.chases or 0) + (p.escapes or 0)
-        local escRatio = total > 0 and (p.escapes / total) or 0.5
-        -- Invert: player who has CHASED the most (lowest escRatio) should be runner
-        local runnerScore = 1 - escRatio
-        -- Add small random jitter for variety
-        runnerScore = runnerScore + math.random() * 0.15
-        if runnerScore > bestRunnerScore then
-            bestRunnerScore = runnerScore
-            bestRunnerIdx = i
+    if not isFull then
+        local earliest = now
+        for _, p in ipairs(normalQueue) do
+            if p.joinedAt and p.joinedAt < earliest then earliest = p.joinedAt end
         end
+        if (now - earliest) < Config.NORMAL_FILL_WAIT then return end
     end
 
-    local runner = table.remove(normalQueue, bestRunnerIdx)
+    local runnerIdx = math.random(#normalQueue)
+    local runner = table.remove(normalQueue, runnerIdx)
 
     local numChasers = math.min(#normalQueue, Config.NORMAL_MAX_CHASERS)
     local chasers = {}

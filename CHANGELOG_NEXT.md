@@ -1,12 +1,7 @@
-### Poprawki: Tryb Pościgu & Ranked
-- Syreny dla ścigających: Q = światła, Alt = światła + dźwięk
-- Blipy PD na minimapie: ścigający widzą innych policjantów (nie uciekiniera)
-- Respawn PD po śmierci: 5s i ten sam pojazd w tym samym miejscu
-- Dystans mierzony tylko do uciekiniera (nie do najbliższego gracza/PD)
-- NPC nie panikują przy pojazdach policyjnych bez syren
-- NPC na syrenach zwalniają płynnie na pasie zamiast skręcać i crashować
-- Poprawka winy kolizji: sprawdzanie kierunku przy taranowaniu PD przez runnera
-- Prędkość PIT wysyłana z klienta do serwera (poprawna kara vs kod policyjny)
-- Zwiększona tolerancja terenu z 3s do 5s (mniejsze fałszywe DQ na krawężnikach)
-- Usuwanie propów (kosze, hydranty itp.) w ranked z większego zasięgu (5m)
-- Latarnie uliczne niezniszczalne w ranked
+### Poprawki: Tryb Pościgu - Batch 2
+- Helikopter poprawnie respawnuje po śmierci pilota (bezpieczna wysokość +30m, zamrożenie na 1s)
+- Helikopter spawnuje z liwerią PD zamiast EMS (polmav livery 0)
+- Bezpieczniejszy spawn helikoptera (minimum 30m nad ziemią zamiast 5m)
+- Ekran zwycięstwa/porażki automatycznie znika po 8s w trybie normalnym (nie zostaje w freeroam)
+- Runner jest wybierany losowo (każdy gracz ma równą szansę, nie na podstawie statystyk)
+- Kolejka czeka 15s na zebranie pełnego lobby (5 graczy) przed startem z mniejszą liczbą
