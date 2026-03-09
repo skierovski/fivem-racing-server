@@ -1,7 +1,9 @@
-### Poprawki: Tryb Pościgu - Batch 2
-- Helikopter poprawnie respawnuje po śmierci pilota (bezpieczna wysokość +30m, zamrożenie na 1s)
-- Helikopter spawnuje z liwerią PD zamiast EMS (polmav livery 0)
-- Bezpieczniejszy spawn helikoptera (minimum 30m nad ziemią zamiast 5m)
-- Ekran zwycięstwa/porażki automatycznie znika po 8s w trybie normalnym (nie zostaje w freeroam)
-- Runner jest wybierany losowo (każdy gracz ma równą szansę, nie na podstawie statystyk)
-- Kolejka czeka 15s na zebranie pełnego lobby (5 graczy) przed startem z mniejszą liczbą
+### Poprawki: Chase & Ranked - Batch 3
+- Ekran zwycięstwa/porażki automatycznie znika po 20s w ranked (zabezpieczenie jeśli returnToMenu nie dotrze)
+- Propsy niszczalne (kosze, pachołki itp.) znikają tylko przy faktycznej kolizji, nie przy samej bliskości
+- Latarnie uliczne wzmocnione: SetEntityInvincible + FreezeEntityPosition + SetDisableFragDamage
+- NPC zwalniają płynnie (stopniowe obniżanie prędkości co sekundę zamiast nagłego ucięcia silnika)
+- NPC reagują tylko gdy ścigający ma włączone syreny (Q/Alt), runner nie wywołuje reakcji ruchu
+- Cooldown 5s na kary PIT dla ścigających (zapobiega podwójnym karom z jednego zderzenia)
+- Nadużycie terenu wyłączone w trybie chase (działa tylko w ranked)
+- Poprawka winy kolizji: PD taranujący runnera od tyłu nie podnosi kodu policyjnego (sprawdzanie prędkości obu pojazdów)

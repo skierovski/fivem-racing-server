@@ -160,6 +160,13 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         })
         if data.isRanked then
             SetNuiFocus(true, true)
+            Citizen.SetTimeout(20000, function()
+                if isPostMatch then
+                    isPostMatch = false
+                    SetNuiFocus(false, false)
+                    SendNUIMessage({ action = 'hideAll' })
+                end
+            end)
         else
             Citizen.SetTimeout(8000, function()
                 if isPostMatch then
@@ -445,44 +452,46 @@ end)
 
 -- ========================
 -- Custom siren traffic reaction (normal chase mode)
--- NPC vehicles slowly pull over instead of GTA panic behavior
+-- NPCs gradually slow to a stop only when chaser has sirens active
 -- ========================
 
 Citizen.CreateThread(function()
-    local processedVehs = {}
+    local slowingVehs = {}
     while true do
         Citizen.Wait(1000)
 
-        if not isInMatch or not chaseTrafficEnabled then
-            processedVehs = {}
+        if not isInMatch or not chaseTrafficEnabled or myRole ~= 'chaser' or chaseSirenState == 'off' then
+            if not isInMatch then slowingVehs = {} end
             goto nextTick
         end
 
         local myPed = PlayerPedId()
         local myCoords = GetEntityCoords(myPed)
 
-        -- Clean up processed vehicles that are far away
-        for veh, _ in pairs(processedVehs) do
+        for veh, data in pairs(slowingVehs) do
             if not DoesEntityExist(veh) or #(myCoords - GetEntityCoords(veh)) > 120.0 then
-                processedVehs[veh] = nil
+                slowingVehs[veh] = nil
+            else
+                data.targetSpeed = math.max(0, data.targetSpeed - 5.0)
+                SetVehicleMaxSpeed(veh, data.targetSpeed)
             end
         end
 
-        -- Find NPC vehicles near any player and make them pull over
         local vHandle, veh = FindFirstVehicle()
         local success = true
         while success do
-            if DoesEntityExist(veh) and not processedVehs[veh] then
+            if DoesEntityExist(veh) and not slowingVehs[veh] then
                 local driver = GetPedInVehicleSeat(veh, -1)
                 if driver ~= 0 and not IsPedAPlayer(driver) then
                     local vehCoords = GetEntityCoords(veh)
                     local dist = #(myCoords - vehCoords)
                     if dist < 60.0 and dist > 5.0 then
-                        processedVehs[veh] = true
+                        local currentSpeed = GetEntitySpeed(veh)
+                        slowingVehs[veh] = { targetSpeed = currentSpeed, driver = driver }
                         SetBlockingOfNonTemporaryEvents(driver, true)
                         SetDriverAbility(driver, 1.0)
                         SetDriverAggressiveness(driver, 0.0)
-                        SetVehicleMaxSpeed(veh, 2.0)
+                        SetVehicleMaxSpeed(veh, currentSpeed)
                     end
                 end
             end
@@ -591,7 +600,7 @@ AddEventHandler('blacklist:chaseTrafficMode', function(enabled)
 end)
 
 -- ========================
--- Ranked prop protection: indestructible lights + vanishing breakable props
+-- Ranked prop protection: street lights indestructible, other props vanish on collision
 -- ========================
 
 Citizen.CreateThread(function()
@@ -602,7 +611,6 @@ Citizen.CreateThread(function()
         local ped = PlayerPedId()
         local vehicle = GetVehiclePedIsIn(ped, false)
         local playerCoords = GetEntityCoords(ped)
-        local vehSpeed = vehicle ~= 0 and GetEntitySpeed(vehicle) * 3.6 or 0.0
 
         local handle, obj = FindFirstObject()
         local success = true
@@ -615,8 +623,10 @@ Citizen.CreateThread(function()
                     local modelHash = GetEntityModel(obj)
 
                     if STREET_LIGHT_HASHES[modelHash] then
+                        SetEntityInvincible(obj, true)
                         SetDisableFragDamage(obj, true)
-                    elseif dist < 5.0 and vehicle ~= 0 and vehSpeed > 5.0 then
+                        FreezeEntityPosition(obj, true)
+                    elseif dist < 3.0 and vehicle ~= 0 and HasEntityCollidedWithAnything(obj) then
                         SetEntityAsMissionEntity(obj, true, true)
                         DeleteObject(obj)
                     end
@@ -801,7 +811,9 @@ Citizen.CreateThread(function()
                                     local diff = math.abs(headingAngle - ((angleToOther % 360 + 360) % 360))
                                     if diff > 180 then diff = 360 - diff end
 
-                                    if diff < 60 then
+                                    local chaserSpeed = GetEntitySpeed(otherVeh) * 2.23694
+
+                                    if diff < 60 and speed > chaserSpeed * 0.8 then
                                         lastRamReport = now
                                         TriggerServerEvent('blacklist:reportViolation', 'runner_ram_pd')
                                         break
@@ -841,6 +853,7 @@ local telem = {
     preAirborneSlope  = 0,
 
     lastCollisionTime = 0,
+    lastPitReport     = 0,
     lastEnvCrash      = nil,
     lastWallHitTime   = 0,
     lastWallHitSpeed  = 0,
@@ -1387,10 +1400,14 @@ Citizen.CreateThread(function()
                     end
 
                     if analysis.intent == 'LIKELY_INTENTIONAL' then
-                        acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
-                        local pitSpeedMph = vd.speedKmh * 0.621371
-                        TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
-                        TriggerServerEvent('blacklist:requestRepair', 'opponent')
+                        local now = GetGameTimer()
+                        if now - telem.lastPitReport >= 5000 then
+                            telem.lastPitReport = now
+                            acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
+                            local pitSpeedMph = vd.speedKmh * 0.621371
+                            TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
+                            TriggerServerEvent('blacklist:requestRepair', 'opponent')
+                        end
                     end
                 end
 
@@ -1488,8 +1505,8 @@ Citizen.CreateThread(function()
             telem.lastTerrainType = 'FLAT'
         end
 
-        -- ---- Runner hill-time tracking (3s grace + 10s countdown) ----
-        if myRole == 'runner' and not telem.terrainReported then
+        -- ---- Runner hill-time tracking (5s grace + 10s countdown, ranked only) ----
+        if myRole == 'runner' and matchMode == 'ranked' and not telem.terrainReported then
             local onHill = (terrainType == 'HILL' or terrainType == 'STEEP_HILL') and not vd.inAir
 
             if onHill then
