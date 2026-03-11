@@ -90,7 +90,7 @@ local isSoloTest = false
 local runnerServerId = nil
 local chaseSirenState = 'off'
 
--- Street light models: indestructible in ranked
+-- Street light + traffic light models: indestructible in ranked
 local STREET_LIGHT_HASHES = {}
 for _, m in ipairs({
     'prop_streetlight_01', 'prop_streetlight_01b',
@@ -106,7 +106,16 @@ for _, m in ipairs({
     'prop_streetlight_12b', 'prop_streetlight_14a',
     'prop_streetlight_15a', 'prop_streetlight_16a',
     'prop_floodlight_01',
+    'prop_traffic_01a', 'prop_traffic_01b', 'prop_traffic_01d',
+    'prop_traffic_02a', 'prop_traffic_02b',
+    'prop_traffic_03a', 'prop_traffic_03b',
 }) do STREET_LIGHT_HASHES[GetHashKey(m)] = true end
+
+local HYDRANT_HASHES = {}
+for _, m in ipairs({
+    'prop_fire_hydrant_1', 'prop_fire_hydrant_2',
+    'prop_fire_hydrant_3', 'prop_fire_hydrant_4',
+}) do HYDRANT_HASHES[GetHashKey(m)] = true end
 
 -- ========================
 -- Shared helpers
@@ -172,7 +181,9 @@ end)
 RegisterNetEvent('blacklist:chaseCountdown')
 AddEventHandler('blacklist:chaseCountdown', function(seconds)
     isInMatch = true
+    isPostMatch = false
     exports.base:SetPlayerState('in_match')
+    SetNuiFocus(false, false)
     SendNUIMessage({ action = 'countdown', seconds = seconds })
 
     -- Kill the freeroam ghost threads (root cause of blinking ghost)
@@ -687,6 +698,9 @@ Citizen.CreateThread(function()
                         SetEntityInvincible(obj, true)
                         SetDisableFragDamage(obj, true)
                         FreezeEntityPosition(obj, true)
+                    elseif HYDRANT_HASHES[modelHash] and GetEntityHealth(obj) <= 0 then
+                        SetEntityAsMissionEntity(obj, true, true)
+                        DeleteObject(obj)
                     elseif dist < CC.PROP_DELETE_RADIUS and vehicle ~= 0 and HasEntityCollidedWithAnything(obj) then
                         SetEntityAsMissionEntity(obj, true, true)
                         DeleteObject(obj)
@@ -1539,46 +1553,6 @@ local function classifyTerrain(vd)
 end
 
 local function trackHillTime(terrainType, vd, now)
-    if myRole ~= 'runner' or matchMode ~= 'ranked' or telem.terrainReported then return end
-
-    local onHill = (terrainType == 'HILL' or terrainType == 'STEEP_HILL') and not vd.inAir
-
-    if onHill then
-        if telem.hillTimeLast > 0 then
-            telem.hillTimeAccum = telem.hillTimeAccum + (now - telem.hillTimeLast) / 1000.0
-        end
-        telem.hillTimeLast = now
-
-        if telem.hillTimeAccum >= CC.HILL_GRACE_SEC and not telem.hillWarningActive then
-            telem.hillWarningActive = true
-            telem.hillCountdown = CC.HILL_COUNTDOWN_SEC
-            SendNUIMessage({ action = 'terrainWarning', countdown = CC.HILL_COUNTDOWN_SEC, show = true })
-            acLog('WARN', 'TERRAIN WARNING — runner on hills, countdown started')
-        end
-
-        if telem.hillWarningActive then
-            telem.hillCountdown = CC.HILL_COUNTDOWN_SEC - (telem.hillTimeAccum - CC.HILL_GRACE_SEC)
-            if telem.hillCountdown <= 0 then
-                telem.terrainReported = true
-                telem.hillWarningActive = false
-                SendNUIMessage({ action = 'terrainWarning', show = false })
-                acLog('CRIT', 'TERRAIN ABUSE — runner on hills too long, DQ')
-                TriggerServerEvent('blacklist:reportViolation', 'runner_terrain')
-            else
-                SendNUIMessage({ action = 'terrainWarning', countdown = math.ceil(telem.hillCountdown), show = true })
-            end
-        end
-    else
-        if telem.hillTimeAccum > 0 then
-            telem.hillTimeAccum = 0
-            telem.hillTimeLast = 0
-            if telem.hillWarningActive then
-                telem.hillWarningActive = false
-                telem.hillCountdown = CC.HILL_COUNTDOWN_SEC
-                SendNUIMessage({ action = 'terrainWarning', show = false })
-            end
-        end
-    end
 end
 
 local function detectBrakeCheck(vd, opp, now)

@@ -67,54 +67,24 @@ AddEventHandler('blacklist:requestVehicles', function()
     local identifier = getIdentifier(source)
     if not identifier then return end
 
-    -- Get player tier to determine available vehicles
+    -- All Season 1 cars available to everyone (ranked + PD)
     exports.oxmysql:execute(
-        'SELECT tier FROM players WHERE identifier = ?',
-        { identifier },
-        function(playerResult)
-            if not playerResult or not playerResult[1] then return end
-            local playerTier = playerResult[1].tier
-
-            local tierOrder = { 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist' }
-            local playerTierIndex = 1
-            for i, t in ipairs(tierOrder) do
-                if t == playerTier then
-                    playerTierIndex = i
-                    break
-                end
+        'SELECT * FROM vehicle_catalog ORDER BY FIELD(tier, "bronze","silver","gold","platinum","diamond","blacklist","custom"), label',
+        {},
+        function(catalog)
+            if not catalog then
+                print('[Menu] ^1DB error fetching vehicle catalog^0')
+                return
             end
-
-            -- Get all vehicles up to player's tier + custom (available to everyone)
-            local availableTiers = {}
-            for i = 1, playerTierIndex do
-                table.insert(availableTiers, tierOrder[i])
-            end
-            table.insert(availableTiers, 'custom')
-
-            local placeholders = {}
-            for _ in ipairs(availableTiers) do
-                table.insert(placeholders, '?')
-            end
-
             exports.oxmysql:execute(
-                'SELECT * FROM vehicle_catalog WHERE tier IN (' .. table.concat(placeholders, ',') .. ') ORDER BY tier, label',
-                availableTiers,
-                function(catalog)
-                    if not catalog then
-                        print('[Menu] ^1DB error fetching vehicle catalog^0')
+                'SELECT * FROM player_vehicles WHERE identifier = ?',
+                { identifier },
+                function(owned)
+                    if not owned then
+                        print('[Menu] ^1DB error fetching owned vehicles^0')
                         return
                     end
-                    exports.oxmysql:execute(
-                        'SELECT * FROM player_vehicles WHERE identifier = ?',
-                        { identifier },
-                        function(owned)
-                            if not owned then
-                                print('[Menu] ^1DB error fetching owned vehicles^0')
-                                return
-                            end
-                            TriggerClientEvent('blacklist:receiveVehicles', source, catalog, owned)
-                        end
-                    )
+                    TriggerClientEvent('blacklist:receiveVehicles', source, catalog, owned)
                 end
             )
         end

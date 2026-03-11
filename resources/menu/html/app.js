@@ -11,7 +11,7 @@
     const tierLabels = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
         platinum: 'PLATINUM', diamond: 'DIAMOND', blacklist: 'BLACKLIST',
-        custom: 'CUSTOM'
+        custom: 'POLICE'
     };
     const tierLetters = {
         bronze: 'B', silver: 'S', gold: 'G',
@@ -286,25 +286,23 @@
         const ownedMap = {};
         (owned || []).forEach(v => { ownedMap[v.model] = v; });
 
-        const playerTier = playerData ? playerData.tier : 'bronze';
-        const playerTierIdx = tierOrder.indexOf(playerTier);
+        const presentTiers = new Set((catalog || []).map(c => c.tier));
+        const activeTiers = tierOrder.filter(t => presentTiers.has(t));
 
-        // Tier filter buttons
-        tierOrder.forEach((tier, idx) => {
+        // Tier filter buttons (only tiers with cars)
+        let firstTier = null;
+        activeTiers.forEach((tier, idx) => {
+            if (idx === 0) firstTier = tier;
             const btn = document.createElement('button');
             btn.classList.add('tier-filter-btn');
-            const isUnlocked = tier === 'custom' || idx <= playerTierIdx;
-            if (!isUnlocked) btn.classList.add('locked');
             if (idx === 0) btn.classList.add('active');
             btn.textContent = tierLabels[tier];
             btn.dataset.tier = tier;
-            if (isUnlocked) {
-                btn.addEventListener('click', () => {
-                    garageTierFilter.querySelectorAll('.tier-filter-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    filterVehicles(tier);
-                });
-            }
+            btn.addEventListener('click', () => {
+                garageTierFilter.querySelectorAll('.tier-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                filterVehicles(tier);
+            });
             garageTierFilter.appendChild(btn);
         });
 
@@ -349,7 +347,7 @@
             vehicleGrid.appendChild(card);
         });
 
-        filterVehicles(tierOrder[0]);
+        if (firstTier) filterVehicles(firstTier);
     }
 
     function filterVehicles(tier) {

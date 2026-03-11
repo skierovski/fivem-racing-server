@@ -42,7 +42,7 @@ AddEventHandler('blacklist:requestVehiclesForFreeroam', function()
     local source = source
 
     exports.oxmysql:execute(
-        'SELECT model, label, tier FROM vehicle_catalog ORDER BY FIELD(tier, "bronze","silver","gold","platinum","diamond","blacklist","custom"), label',
+        'SELECT model, label, tier, class FROM vehicle_catalog ORDER BY FIELD(tier, "bronze","silver","gold","platinum","diamond","blacklist","custom"), label',
         {},
         function(catalog)
             if not catalog then
