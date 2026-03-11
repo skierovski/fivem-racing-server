@@ -89,6 +89,8 @@ local matchMode = nil -- 'ranked' or 'normal'
 local isSoloTest = false
 local runnerServerId = nil
 local chaseSirenState = 'off'
+local soloDummyPed = 0
+local soloDummyVehicle = 0
 
 -- Street light + traffic light models: indestructible in ranked
 local STREET_LIGHT_HASHES = {}
@@ -330,17 +332,23 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(500)
 
-        if isInMatch and myRole == 'chaser' and runnerServerId then
+        if isInMatch and myRole == 'chaser' then
             local myPed = PlayerPedId()
             local myCoords = GetEntityCoords(myPed)
 
             local closestDist = CC.FAR_DISTANCE
-            local runnerPlayer = GetPlayerFromServerId(runnerServerId)
-            if runnerPlayer and runnerPlayer ~= -1 then
-                local runnerPed = GetPlayerPed(runnerPlayer)
-                if runnerPed ~= 0 and DoesEntityExist(runnerPed) then
-                    closestDist = #(myCoords - GetEntityCoords(runnerPed))
+            if runnerServerId then
+                local runnerPlayer = GetPlayerFromServerId(runnerServerId)
+                if runnerPlayer and runnerPlayer ~= -1 then
+                    local runnerPed = GetPlayerPed(runnerPlayer)
+                    if runnerPed ~= 0 and DoesEntityExist(runnerPed) then
+                        closestDist = #(myCoords - GetEntityCoords(runnerPed))
+                    end
                 end
+            end
+
+            if closestDist >= CC.FAR_DISTANCE and soloDummyPed ~= 0 and DoesEntityExist(soloDummyPed) then
+                closestDist = #(myCoords - GetEntityCoords(soloDummyPed))
             end
 
             local myVehicle = GetVehiclePedIsIn(myPed, false)
@@ -1086,6 +1094,25 @@ local function getOpponentData()
         end
     end
 
+    if best.ped == 0 and soloDummyPed ~= 0 and DoesEntityExist(soloDummyPed) then
+        local otherCoords = GetEntityCoords(soloDummyPed)
+        local dist = #(myCoords - otherCoords)
+        best.dist   = dist
+        best.ped    = soloDummyPed
+        best.coords = otherCoords
+        local veh = soloDummyVehicle ~= 0 and DoesEntityExist(soloDummyVehicle) and soloDummyVehicle or GetVehiclePedIsIn(soloDummyPed, false)
+        best.vehicle = veh
+        if veh ~= 0 then
+            best.speed    = GetEntitySpeed(veh)
+            best.speedKmh = math.floor(best.speed * 3.6)
+            best.heading  = GetEntityHeading(veh)
+            best.fwd      = GetEntityForwardVector(veh)
+            local rv      = GetEntityRotationVelocity(veh)
+            best.yawRate  = math.abs(rv.z) * CC.RAD_TO_DEG
+            best.braking  = false
+        end
+    end
+
     return best
 end
 
@@ -1696,11 +1723,64 @@ Citizen.CreateThread(function()
     SetNuiFocus(false, false)
 end)
 
+-- ========================
+-- Solo dummy NPC spawn + cleanup
+-- ========================
+
+local function cleanupSoloDummy()
+    if soloDummyPed ~= 0 and DoesEntityExist(soloDummyPed) then
+        DeleteEntity(soloDummyPed)
+    end
+    if soloDummyVehicle ~= 0 and DoesEntityExist(soloDummyVehicle) then
+        DeleteEntity(soloDummyVehicle)
+    end
+    soloDummyPed = 0
+    soloDummyVehicle = 0
+end
+
+RegisterNetEvent('blacklist:spawnSoloDummy')
+AddEventHandler('blacklist:spawnSoloDummy', function(model, x, y, z, heading, dummyRole)
+    cleanupSoloDummy()
+
+    local vehHash = exports.lib:LoadModelWithFallback(model)
+
+    local pedModel = dummyRole == 'chaser' and 's_m_y_cop_01' or 'a_m_y_business_01'
+    local pedHash = GetHashKey(pedModel)
+    RequestModel(pedHash)
+    while not HasModelLoaded(pedHash) do Citizen.Wait(10) end
+
+    local groundZ = z
+    local found, gz = GetGroundZFor_3dCoord(x, y, z + 5.0, false)
+    if found then groundZ = gz + 0.5 end
+
+    local vehicle = CreateVehicle(vehHash, x, y, groundZ + 1.0, heading or 0.0, true, false)
+    SetModelAsNoLongerNeeded(vehHash)
+    SetVehicleEngineOn(vehicle, true, true, false)
+    SetVehicleDirtLevel(vehicle, 0.0)
+
+    local ped = CreatePed(4, pedHash, x, y, groundZ + 1.0, heading or 0.0, true, false)
+    SetModelAsNoLongerNeeded(pedHash)
+    SetPedIntoVehicle(ped, vehicle, -1)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+
+    TaskVehicleDriveWander(ped, vehicle, 15.0, 786603)
+
+    soloDummyPed = ped
+    soloDummyVehicle = vehicle
+
+    print(('[Chase] Solo dummy spawned: role=%s model=%s'):format(dummyRole, model))
+end)
+
+-- ========================
+-- Chase UI cleanup (central)
+-- ========================
+
 local function clearChaseUI()
     isInMatch = false
     isPostMatch = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
+    cleanupSoloDummy()
 end
 
 exports('ClearChaseUI', clearChaseUI)

@@ -406,6 +406,41 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
     if not runCarPickPhase(match, matchId) then return end
     if not runHeliVotePhase(match, matchId) then return end
     if not runSpawnPhase(match, matchId) then return end
+
+    if match.solo then
+        local playerSrc = getAllMatchSources(match)[1]
+        if playerSrc then
+            local isRunner = match.runner.source == playerSrc
+            local dummyRole = isRunner and 'chaser' or 'runner'
+            local dx, dy, dz, dh, dModel
+
+            if isRunner then
+                if match.mode == 'normal' and match.chaserSpawns and match.chaserSpawns[1] then
+                    local sp = match.chaserSpawns[1]
+                    dx, dy, dz, dh = sp.x, sp.y, sp.z, sp.h
+                else
+                    dx, dy, dz, dh = match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading
+                end
+                if match.mode == 'normal' then
+                    local pool = match.chaserCarPool or {}
+                    dModel = #pool > 0 and pool[math.random(#pool)] or 'police3'
+                else
+                    dModel = match.forceModel or 'sultan'
+                end
+            else
+                dx, dy, dz, dh = match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading
+                if match.mode == 'normal' then
+                    local pool = match.runnerCarPool or {}
+                    dModel = #pool > 0 and pool[math.random(#pool)] or 'sultan'
+                else
+                    dModel = match.forceModel or 'sultan'
+                end
+            end
+
+            TriggerClientEvent('blacklist:spawnSoloDummy', playerSrc, dModel, dx, dy, dz, dh, dummyRole)
+        end
+    end
+
     if not runCountdownPhase(match, matchId, matchData.locationName) then return end
 
     monitorMatch(matchId)
