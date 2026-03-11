@@ -18,6 +18,7 @@ local CC = {
     COLLISION_COOLDOWN_MS = 1500,
     PIT_REPORT_COOLDOWN   = 5000,
     RAM_REPORT_COOLDOWN   = 5000,
+    JUMP_REPORT_COOLDOWN  = 15000,
     PLAYER_CONTACT_DIST   = 8.0,
 
     -- Ram detection (runner side)
@@ -50,7 +51,7 @@ local CC = {
     PROP_SCAN_RADIUS      = 150.0,
     PROP_DELETE_RADIUS    = 3.0,
 
-    -- Brake-check detection
+    -- Brake-check detection (ranked only)
     BRAKE_CHECK_DECEL     = 25,
     BRAKE_CHECK_DIST      = 35,
     BRAKE_CHECK_REPEAT_MS = 8000,
@@ -91,6 +92,8 @@ local runnerServerId = nil
 local chaseSirenState = 'off'
 local soloDummyPed = 0
 local soloDummyVehicle = 0
+local ghostedChaserIds = {}
+local heliModel = nil
 
 -- Street light + traffic light models: indestructible in ranked
 local STREET_LIGHT_HASHES = {}
@@ -305,6 +308,39 @@ AddEventHandler('blacklist:rematchStatus', function(status)
 end)
 
 -- ========================
+-- Forfeit / quit confirmation prompt
+-- ========================
+
+local forfeitPromptActive = false
+
+AddEventHandler('blacklist:showForfeitPrompt', function()
+    if not isInMatch or forfeitPromptActive then return end
+    forfeitPromptActive = true
+
+    if matchMode == 'ranked' then
+        SendNUIMessage({ action = 'forfeitPrompt', title = 'FORFEIT?', message = 'You will lose MMR.', confirm = 'Forfeit', cancel = 'Cancel' })
+    else
+        SendNUIMessage({ action = 'forfeitPrompt', title = 'QUIT?', message = 'You will leave this chase.', confirm = 'Quit', cancel = 'Cancel' })
+    end
+    SetNuiFocus(true, true)
+end)
+
+RegisterNUICallback('forfeitConfirm', function(_, cb)
+    forfeitPromptActive = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'hideForfeitPrompt' })
+    TriggerServerEvent('blacklist:forfeitMatch')
+    cb('ok')
+end)
+
+RegisterNUICallback('forfeitCancel', function(_, cb)
+    forfeitPromptActive = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'hideForfeitPrompt' })
+    cb('ok')
+end)
+
+-- ========================
 -- Chase HUD cleanup on return to menu
 -- ========================
 
@@ -315,11 +351,14 @@ AddEventHandler('blacklist:returnToMenu', function()
     myRole = nil
     currentPoliceCode = nil
     isHeliPilot = false
+    heliModel = nil
+    forfeitPromptActive = false
     chaseSirenState = 'off'
     chaseTrafficEnabled = false
     matchMode = nil
     isSoloTest = false
     runnerServerId = nil
+    ghostedChaserIds = {}
     cleanupPdBlips()
     SendNUIMessage({ action = 'hideAll' })
 end)
@@ -471,6 +510,45 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
+-- Ghosted chaser: disable collision for PD trolls
+-- ========================
+
+RegisterNetEvent('blacklist:ghostChaser')
+AddEventHandler('blacklist:ghostChaser', function(chaserServerId)
+    ghostedChaserIds[chaserServerId] = true
+end)
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if isInMatch and next(ghostedChaserIds) then
+            local myPed = PlayerPedId()
+            local myVehicle = GetVehiclePedIsIn(myPed, false)
+            for _, playerId in ipairs(GetActivePlayers()) do
+                local sId = GetPlayerServerId(playerId)
+                if ghostedChaserIds[sId] then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        local otherVeh = GetVehiclePedIsIn(otherPed, false)
+                        SetEntityNoCollisionEntity(myPed, otherPed, true)
+                        if otherVeh ~= 0 then
+                            SetEntityNoCollisionEntity(myPed, otherVeh, true)
+                            SetEntityAlpha(otherVeh, 150, false)
+                        end
+                        if myVehicle ~= 0 then
+                            SetEntityNoCollisionEntity(myVehicle, otherPed, true)
+                            if otherVeh ~= 0 then
+                                SetEntityNoCollisionEntity(myVehicle, otherVeh, true)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========================
 -- Police siren controls for chasers (Q = Code 2 lights only, Alt = Code 3 lights+sound)
 -- ========================
 
@@ -484,6 +562,7 @@ Citizen.CreateThread(function()
             if veh ~= 0 then
                 DisableControlAction(0, 44, true)
                 DisableControlAction(0, 19, true)
+                DisableControlAction(0, 86, true)
 
                 if IsDisabledControlJustPressed(0, 44) then
                     if chaseSirenState == 'code2' then
@@ -739,6 +818,7 @@ AddEventHandler('blacklist:spawnHelicopter', function(x, y, z, heading, model)
     FreezeEntityPosition(heli, true)
 
     isHeliPilot = true
+    heliModel = hash
     TriggerServerEvent('blacklist:spawnReady')
 end)
 
@@ -792,7 +872,7 @@ Citizen.CreateThread(function()
                 local veh = GetVehiclePedIsIn(ped, true)
                 local coords = GetEntityCoords(veh ~= 0 and veh or ped)
                 local heading = GetEntityHeading(veh ~= 0 and veh or ped)
-                local model = veh ~= 0 and GetEntityModel(veh) or nil
+                local model = isHeliPilot and heliModel or (veh ~= 0 and GetEntityModel(veh) or nil)
 
                 Citizen.Wait(5000)
 
@@ -803,7 +883,7 @@ Citizen.CreateThread(function()
 
                 local spawnZ = coords.z
                 if isHeliPilot then
-                    spawnZ = coords.z + 30.0
+                    spawnZ = coords.z + CC.HELI_SPAWN_HEIGHT
                 end
 
                 NetworkResurrectLocalPlayer(coords.x, coords.y, spawnZ, heading, true, false)
@@ -811,12 +891,12 @@ Citizen.CreateThread(function()
                 ClearPedBloodDamage(newPed)
                 SetEntityHealth(newPed, CC.RESPAWN_HEALTH)
 
-                if model then
-                    if veh ~= 0 and DoesEntityExist(veh) then
-                        SetEntityAsMissionEntity(veh, true, true)
-                        DeleteVehicle(veh)
-                    end
+                if veh ~= 0 and DoesEntityExist(veh) then
+                    SetEntityAsMissionEntity(veh, true, true)
+                    DeleteVehicle(veh)
+                end
 
+                if model then
                     RequestModel(model)
                     local timeout = 50
                     while not HasModelLoaded(model) and timeout > 0 do
@@ -875,6 +955,12 @@ Citizen.CreateThread(function()
                                 local otherCoords = GetEntityCoords(otherVeh)
                                 local dist = #(myCoords - otherCoords)
                                 if dist < CC.RAM_DETECT_RADIUS then
+                                    local chaserHeading = GetEntityHeading(otherVeh)
+                                    local hdgDiff = math.abs(myHeading - chaserHeading)
+                                    if hdgDiff > 180 then hdgDiff = 360 - hdgDiff end
+
+                                    if hdgDiff < 90 then goto nextPlayer end
+
                                     local toOther = otherCoords - myCoords
                                     local angleToOther = math.deg(math.atan(toOther.y, toOther.x))
                                     local headingAngle = (450.0 - myHeading) % 360.0
@@ -889,6 +975,7 @@ Citizen.CreateThread(function()
                                         break
                                     end
                                 end
+                                ::nextPlayer::
                             end
                         end
                     end
@@ -924,6 +1011,7 @@ local telem = {
 
     lastCollisionTime = 0,
     lastPitReport     = 0,
+    lastJumpReport    = 0,
     lastEnvCrash      = nil,
     lastWallHitTime   = 0,
     lastWallHitSpeed  = 0,
@@ -1066,6 +1154,7 @@ local function getOpponentData()
         dist = CC.FAR_DISTANCE_OPP, speed = 0, speedKmh = 0, heading = 0,
         ped = 0, vehicle = 0, coords = myCoords,
         fwd = vector3(0,1,0), yawRate = 0, braking = false,
+        serverId = 0,
     }
 
     for _, playerId in ipairs(GetActivePlayers()) do
@@ -1075,9 +1164,10 @@ local function getOpponentData()
                 local otherCoords = GetEntityCoords(otherPed)
                 local dist = #(myCoords - otherCoords)
                 if dist < best.dist then
-                    best.dist    = dist
-                    best.ped     = otherPed
-                    best.coords  = otherCoords
+                    best.dist     = dist
+                    best.ped      = otherPed
+                    best.coords   = otherCoords
+                    best.serverId = GetPlayerServerId(playerId)
                     local veh = GetVehiclePedIsIn(otherPed, false)
                     best.vehicle = veh
                     if veh ~= 0 then
@@ -1173,6 +1263,11 @@ local function analyzePitManeuver(myData, opp)
     local intentScore = 0
     local factors = {}
 
+    if contactType == 'REAR_END' then
+        intentScore = intentScore + 2
+        table.insert(factors, 'rear_end')
+    end
+
     if math.abs(myData.steering) > 10 then
         intentScore = intentScore + 2
         table.insert(factors, ('steering=%.0f°'):format(myData.steering))
@@ -1205,6 +1300,13 @@ local function analyzePitManeuver(myData, opp)
         table.insert(factors, ('opp_braked_%d→%d'):format(telem.oppPrevSpeed, opp.speedKmh))
     end
 
+    if matchMode == 'ranked' and telem.lastBrakeCheck and (GetGameTimer() - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT and myRole == 'chaser' then
+        intentScore = intentScore - 3
+        local gap = GetGameTimer() - telem.lastBrakeCheck.time
+        table.insert(factors, ('BRAKE_CHECKED_%dms_ago_opp_%d→%d'):format(
+            gap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+    end
+
     if telem.lastEnvCrash and (GetGameTimer() - telem.lastEnvCrash.time) < CC.FOLLOW_UP_WINDOW and myRole == 'chaser' then
         local gap = GetGameTimer() - telem.lastEnvCrash.time
         if gap <= CC.FOLLOW_UP_NO_TIME or (gap <= CC.FOLLOW_UP_HAD_TIME and telem.isBraking) then
@@ -1213,14 +1315,6 @@ local function analyzePitManeuver(myData, opp)
         else
             table.insert(factors, ('follow_up_%dms_DID_NOT_AVOID'):format(gap))
         end
-    end
-
-    -- Runner brake-checked right before contact — chaser likely couldn't avoid
-    if telem.lastBrakeCheck and (GetGameTimer() - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT and myRole == 'chaser' then
-        intentScore = intentScore - 3
-        local gap = GetGameTimer() - telem.lastBrakeCheck.time
-        table.insert(factors, ('BRAKE_CHECKED_%dms_ago_opp_%d→%d'):format(
-            gap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
     end
 
     local intent = 'LIKELY_ACCIDENTAL'
@@ -1326,9 +1420,9 @@ local function updateInputState(vd)
 end
 
 local function detectWaterContact(vehicle)
-    if IsEntityInWater(vehicle) and myRole == 'runner' and not telem.waterReported then
+    if IsEntitySubmergedInWater(vehicle) and myRole == 'runner' and not telem.waterReported then
         telem.waterReported = true
-        acLog('CRIT', 'WATER DETECTED — runner vehicle in water')
+        acLog('CRIT', 'WATER DETECTED — runner vehicle submerged')
         TriggerServerEvent('blacklist:reportViolation', 'runner_water')
     end
 end
@@ -1369,7 +1463,11 @@ local function processAirborne(vd)
             dur, telem.airborneStartSpd, vd.speedKmh, telem.airborneMaxHgt, telem.airborneCause, landing))
 
         if (dur >= CC.AIRBORNE_LONG_SEC or telem.airborneMaxHgt >= CC.AIRBORNE_DQ_HEIGHT) and myRole == 'runner' then
-            TriggerServerEvent('blacklist:reportViolation', 'runner_jump')
+            local now = GetGameTimer()
+            if now - telem.lastJumpReport >= CC.JUMP_REPORT_COOLDOWN then
+                telem.lastJumpReport = now
+                TriggerServerEvent('blacklist:reportViolation', 'runner_jump')
+            end
         end
         airborneTimer = 0.0
     end
@@ -1469,39 +1567,47 @@ Citizen.CreateThread(function()
                 end
 
                 if myRole == 'chaser' then
-                    local wasBrakeChecked = telem.lastBrakeCheck
-                        and (now - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT
+                    if matchMode == 'ranked' then
+                        local wasBrakeChecked = telem.lastBrakeCheck
+                            and (now - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT
 
-                    if wasBrakeChecked then
-                        local bcGap = now - telem.lastBrakeCheck.time
-                        acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
-                            bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+                        if wasBrakeChecked then
+                            local bcGap = now - telem.lastBrakeCheck.time
+                            acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
+                                bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
 
-                        local oppOnHill = false
-                        if opp.vehicle ~= 0 then
-                            local oppPitch = GetEntityPitch(opp.vehicle)
-                            if math.abs(oppPitch) > 10 then oppOnHill = true end
+                            local oppOnHill = false
+                            if opp.vehicle ~= 0 then
+                                local oppPitch = GetEntityPitch(opp.vehicle)
+                                if math.abs(oppPitch) > 10 then oppOnHill = true end
+                            end
+                            local wasEnvCrash = telem.lastEnvCrash and (now - telem.lastEnvCrash.time) < CC.FOLLOW_UP_WINDOW
+
+                            if not oppOnHill and not wasEnvCrash then
+                                acLog('CRIT', '  > DELIBERATE BRAKE-CHECK — runner penalized')
+                                TriggerServerEvent('blacklist:reportViolation', 'runner_brake_check')
+                            else
+                                acLog('ANLZ', '  > brake-check likely caused by terrain/crash — no runner penalty')
+                            end
+
+                            TriggerServerEvent('blacklist:requestRepair', 'self')
                         end
-                        local wasEnvCrash = telem.lastEnvCrash and (now - telem.lastEnvCrash.time) < CC.FOLLOW_UP_WINDOW
-
-                        if not oppOnHill and not wasEnvCrash then
-                            acLog('CRIT', '  > DELIBERATE BRAKE-CHECK — runner penalized')
-                            TriggerServerEvent('blacklist:reportViolation', 'runner_brake_check')
-                        else
-                            acLog('ANLZ', '  > brake-check likely caused by terrain/crash — no runner penalty')
-                        end
-
-                        TriggerServerEvent('blacklist:requestRepair', 'self')
                     end
 
                     if analysis.intent == 'LIKELY_INTENTIONAL' then
                         local now = GetGameTimer()
                         if now - telem.lastPitReport >= CC.PIT_REPORT_COOLDOWN then
                             telem.lastPitReport = now
-                            acLog('CRIT', ('  > PIT STRIKE — intentional contact (score=%d)'):format(analysis.intentScore))
-                            local pitSpeedMph = vd.speedKmh * CC.KMH_TO_MPH
-                            TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
-                            TriggerServerEvent('blacklist:requestRepair', 'opponent')
+                            local isRunnerContact = (opp.serverId == runnerServerId)
+                            if isRunnerContact then
+                                acLog('CRIT', ('  > PIT STRIKE — intentional contact on RUNNER (score=%d)'):format(analysis.intentScore))
+                                local pitSpeedMph = vd.speedKmh * CC.KMH_TO_MPH
+                                TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
+                                TriggerServerEvent('blacklist:requestRepair', 'opponent')
+                            else
+                                acLog('CRIT', ('  > FRIENDLY FIRE — intentional contact on PD (score=%d)'):format(analysis.intentScore))
+                                TriggerServerEvent('blacklist:reportViolation', 'chaser_friendly_fire')
+                            end
                         end
                     end
                 end
@@ -1661,7 +1767,9 @@ Citizen.CreateThread(function()
                 vd.yawRate, vd.speedKmh, vd.onWheels and 'YES' or 'NO', vd.steering, vd.roll))
         end
 
-        detectBrakeCheck(vd, opp, now)
+        if matchMode == 'ranked' then
+            detectBrakeCheck(vd, opp, now)
+        end
 
         if now - telem.lastSummaryTime >= CC.SUMMARY_INTERVAL_MS then
             telem.lastSummaryTime = now

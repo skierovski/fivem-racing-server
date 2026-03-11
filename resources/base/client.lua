@@ -119,7 +119,7 @@ Citizen.CreateThread(function()
             if PlayerState == 'freeroam' then
                 TriggerEvent('blacklist:toggleMenu')
             elseif PlayerState == 'in_match' then
-                TriggerServerEvent('blacklist:forfeitMatch')
+                TriggerEvent('blacklist:showForfeitPrompt')
             end
         end
     end
