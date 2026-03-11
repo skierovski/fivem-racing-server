@@ -19,8 +19,12 @@ local ChaseConfig = {
     MAX_BRAKE_CHECK_STRIKES = 3,
 
     REMATCH_WINDOW = 15,
+    SPAWN_DEADLINE = 20000,
+    CANCEL_RETURN_DELAY = 5000,
+    REMATCH_DELAY = 1500,
+    NORMAL_RETURN_DELAY = 8000,
 
-    CAR_PICK_TIMEOUT = 15, -- seconds to pick a car before auto-randomize
+    CAR_PICK_TIMEOUT = 15,
     HELI_VOTE_TIMEOUT = 15, -- seconds to wait for helicopter vote
     HELI_MODEL = 'polmav',
 
@@ -50,6 +54,281 @@ local spawnReady = {}
 local matchIdCounter = 0
 
 -- ========================
+-- Match lookup helper (replaces repeated guard pattern)
+-- ========================
+
+local function getActiveMatch(source, requiredState)
+    local matchId = playerMatchMap[source]
+    if not matchId then return nil, nil end
+    local match = activeMatches[matchId]
+    if not match then return nil, nil end
+    if requiredState and match.state ~= requiredState then return nil, nil end
+    return match, matchId
+end
+
+-- ========================
+-- Match phase functions
+-- ========================
+
+local function runCarPickPhase(match, matchId)
+    if match.mode ~= 'normal' or #match.runnerCarPool == 0 then return true end
+
+    match.state = 'car_pick'
+
+    if match.runner.source then
+        TriggerClientEvent('blacklist:carPick', match.runner.source, {
+            role = 'runner',
+            cars = match.runnerCarPool,
+            timeout = ChaseConfig.CAR_PICK_TIMEOUT,
+        })
+    end
+    for _, chaser in ipairs(match.chasers) do
+        if chaser.source then
+            TriggerClientEvent('blacklist:carPick', chaser.source, {
+                role = 'chaser',
+                cars = match.chaserCarPool,
+                timeout = ChaseConfig.CAR_PICK_TIMEOUT,
+            })
+        end
+    end
+
+    local pickDeadline = GetGameTimer() + (ChaseConfig.CAR_PICK_TIMEOUT * 1000)
+    while GetGameTimer() < pickDeadline do
+        if match.state == 'finished' or match.state == 'cancelled' then return false end
+        local allPicked = true
+        for _, src in ipairs(getAllMatchSources(match)) do
+            if not match.carPicks[src] then allPicked = false break end
+        end
+        if allPicked then break end
+        Citizen.Wait(500)
+    end
+
+    if match.runner.source and not match.carPicks[match.runner.source] then
+        local pool = match.runnerCarPool
+        match.carPicks[match.runner.source] = pool[math.random(#pool)]
+    end
+    for _, chaser in ipairs(match.chasers) do
+        if not match.carPicks[chaser.source] then
+            local pool = match.chaserCarPool
+            match.carPicks[chaser.source] = pool[math.random(#pool)]
+        end
+    end
+
+    match.runnerModel = match.runner.source and match.carPicks[match.runner.source] or nil
+    for _, chaser in ipairs(match.chasers) do
+        chaser.assignedCar = match.carPicks[chaser.source]
+    end
+
+    for _, src in ipairs(getAllMatchSources(match)) do
+        TriggerClientEvent('blacklist:carPickDone', src)
+    end
+
+    local chaserNames = {}
+    for _, c in ipairs(match.chasers) do chaserNames[#chaserNames + 1] = c.assignedCar or '?' end
+    print(('[Chase] Match #%d: Car picks done. Runner=%s | Chasers=%s'):format(
+        matchId, match.runnerModel or '?', table.concat(chaserNames, ', ')))
+
+    match.state = 'countdown'
+    Citizen.Wait(500)
+    return true
+end
+
+local function runHeliVotePhase(match, matchId)
+    if match.mode ~= 'normal' or #match.chasers < 3 then return true end
+
+    match.state = 'heli_vote'
+    for _, chaser in ipairs(match.chasers) do
+        if chaser.source then
+            TriggerClientEvent('blacklist:heliVote', chaser.source, ChaseConfig.HELI_VOTE_TIMEOUT)
+        end
+    end
+    if match.runner.source then
+        TriggerClientEvent('blacklist:chaseHUD', match.runner.source, {
+            action = 'warning',
+            message = 'Chasers are voting on helicopter support...',
+        })
+    end
+
+    local voteDeadline = GetGameTimer() + (ChaseConfig.HELI_VOTE_TIMEOUT * 1000)
+    while GetGameTimer() < voteDeadline do
+        if match.state == 'finished' or match.state == 'cancelled' then return false end
+        local allVoted = true
+        for _, chaser in ipairs(match.chasers) do
+            if match.heliVotes[chaser.source] == nil then allVoted = false break end
+        end
+        if allVoted then break end
+        Citizen.Wait(500)
+    end
+
+    local yesVotes = 0
+    for _, chaser in ipairs(match.chasers) do
+        if match.heliVotes[chaser.source] == true then yesVotes = yesVotes + 1 end
+    end
+
+    if yesVotes > #match.chasers / 2 then
+        local heliIdx = math.random(#match.chasers)
+        match.heliPilot = match.chasers[heliIdx].source
+        print(('[Chase] Match #%d: Helicopter approved (%d/%d). Pilot: %s'):format(
+            matchId, yesVotes, #match.chasers, GetPlayerName(match.heliPilot) or match.heliPilot))
+    else
+        print(('[Chase] Match #%d: Helicopter denied (%d/%d)'):format(matchId, yesVotes, #match.chasers))
+    end
+
+    match.state = 'countdown'
+    return true
+end
+
+local function runSpawnPhase(match, matchId)
+    local isNormal = match.mode == 'normal'
+    local hasRunner = match.runner.source ~= nil
+    local hasChasers = #match.chasers > 0
+
+    if match.forceModel then
+        if hasRunner then
+            TriggerEvent('blacklist:spawnPlayerWithModel', match.runner.source, match.forceModel,
+                match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
+        end
+        for _, chaser in ipairs(match.chasers) do
+            if chaser.source then
+                TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, match.forceModel,
+                    match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading)
+            end
+        end
+    elseif isNormal then
+        if hasRunner then
+            if match.runnerModel then
+                TriggerEvent('blacklist:spawnPlayerWithModel', match.runner.source, match.runnerModel,
+                    match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
+            else
+                TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
+                    match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
+            end
+        end
+
+        for i, chaser in ipairs(match.chasers) do
+            if not chaser.source then goto continue end
+            if chaser.source == match.heliPilot and match.heliSpawn then
+                local hs = match.heliSpawn
+                TriggerClientEvent('blacklist:spawnHelicopter', chaser.source,
+                    hs.x, hs.y, hs.z, hs.h, ChaseConfig.HELI_MODEL)
+            else
+                local sp = match.chaserSpawns and match.chaserSpawns[i]
+                local cx = sp and sp.x or match.chaserX
+                local cy = sp and sp.y or match.chaserY
+                local cz = sp and sp.z or match.chaserZ
+                local ch = sp and sp.h or match.chaserHeading
+
+                if chaser.assignedCar then
+                    TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, chaser.assignedCar,
+                        cx, cy, cz, ch)
+                else
+                    TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source, cx, cy, cz, ch)
+                end
+            end
+            ::continue::
+        end
+    else
+        if hasRunner then
+            TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
+                match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading, match.forceTier)
+        end
+        for _, chaser in ipairs(match.chasers) do
+            if chaser.source then
+                TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
+                    match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, match.forceTier)
+            end
+        end
+    end
+
+    if isNormal then
+        for _, src in ipairs(getAllMatchSources(match)) do
+            TriggerClientEvent('blacklist:chaseTrafficMode', src, true)
+        end
+    end
+
+    local allSources = getAllMatchSources(match)
+    local spawnDeadline = GetGameTimer() + ChaseConfig.SPAWN_DEADLINE
+    while GetGameTimer() < spawnDeadline do
+        local allReady = true
+        for _, src in ipairs(allSources) do
+            if not spawnReady[src] then allReady = false break end
+        end
+        if allReady then break end
+        Citizen.Wait(200)
+    end
+
+    for _, src in ipairs(allSources) do
+        spawnReady[src] = nil
+    end
+
+    if match.state == 'finished' or match.state == 'cancelled' then
+        print(('[Chase] Match #%d aborted — player left during spawn'):format(matchId))
+        return false
+    end
+
+    for _, src in ipairs(allSources) do
+        if not GetPlayerName(src) then
+            cancelMatch(matchId, 'player_left_during_setup')
+            print(('[Chase] Match #%d aborted — player %d gone after spawn'):format(matchId, src))
+            return false
+        end
+    end
+
+    return true
+end
+
+local function runCountdownPhase(match, matchId, locationName)
+    local allSources = getAllMatchSources(match)
+
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseFreeze', src, true)
+    end
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseCountdown', src, ChaseConfig.COUNTDOWN_DURATION)
+    end
+
+    Citizen.Wait(ChaseConfig.COUNTDOWN_DURATION * 1000)
+
+    if match.state == 'finished' or match.state == 'cancelled' then
+        print(('[Chase] Match #%d aborted — player left during countdown'):format(matchId))
+        return false
+    end
+
+    for _, src in ipairs(allSources) do
+        if not GetPlayerName(src) then
+            cancelMatch(matchId, 'player_left_during_setup')
+            print(('[Chase] Match #%d aborted — player %d gone after countdown'):format(matchId, src))
+            return false
+        end
+    end
+
+    match.state = 'active'
+    match.startTime = GetGameTimer()
+
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseFreeze', src, false)
+    end
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:chaseHUD', src, {
+            action = 'start',
+            duration = match.duration,
+            role = src == match.runner.source and 'runner' or 'chaser',
+            policeCode = match.policeCode,
+            isHeliPilot = src == match.heliPilot,
+            mode = match.mode,
+            solo = match.solo or false,
+            runnerServerId = match.runner.source,
+        })
+    end
+
+    print(('[Chase] Match #%d started (%s mode, %ds) at %s%s'):format(
+        matchId, match.mode, match.duration, locationName or 'unknown',
+        match.heliPilot and (' | heli=' .. (GetPlayerName(match.heliPilot) or '?')) or ''))
+
+    return true
+end
+
+-- ========================
 -- Start a match (triggered by matchmaking)
 -- ========================
 
@@ -65,6 +344,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
     local match = {
         id = matchId,
         mode = matchData.mode,
+        solo = matchData.solo or false,
         isCrossTier = matchData.isCrossTier or false,
         forceTier = matchData.forceTier,
         forceModel = matchData.forceModel,
@@ -76,7 +356,9 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
 
         runner = matchData.runner,
         chasers = matchData.mode == 'ranked'
-            and { { source = matchData.chaser.source, identifier = matchData.chaser.identifier, mmr = matchData.chaser.mmr, tier = matchData.chaser.tier } }
+            and (matchData.chaser and matchData.chaser.source
+                and { { source = matchData.chaser.source, identifier = matchData.chaser.identifier, mmr = matchData.chaser.mmr, tier = matchData.chaser.tier } }
+                or {})
             or matchData.chasers,
 
         runnerX = matchData.runnerX, runnerY = matchData.runnerY,
@@ -105,264 +387,26 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
 
     activeMatches[matchId] = match
 
-    playerMatchMap[match.runner.source] = matchId
-    for _, chaser in ipairs(match.chasers) do
-        playerMatchMap[chaser.source] = matchId
+    local allSources = getAllMatchSources(match)
+    for _, src in ipairs(allSources) do
+        playerMatchMap[src] = matchId
     end
 
-    -- Move all players into a private routing bucket for this match
     local matchBucket = 1000 + matchId
-    SetPlayerRoutingBucket(match.runner.source, matchBucket)
-    for _, chaser in ipairs(match.chasers) do
-        SetPlayerRoutingBucket(chaser.source, matchBucket)
+    for _, src in ipairs(allSources) do
+        SetPlayerRoutingBucket(src, matchBucket)
     end
 
-    TriggerClientEvent('blacklist:closeMenu', match.runner.source)
-    for _, chaser in ipairs(match.chasers) do
-        TriggerClientEvent('blacklist:closeMenu', chaser.source)
+    for _, src in ipairs(allSources) do
+        TriggerClientEvent('blacklist:closeMenu', src)
     end
 
     Citizen.Wait(500)
 
-    -- === Car pick phase (normal mode only) ===
-    if isNormal and #match.runnerCarPool > 0 then
-        match.state = 'car_pick'
-
-        TriggerClientEvent('blacklist:carPick', match.runner.source, {
-            role = 'runner',
-            cars = match.runnerCarPool,
-            timeout = ChaseConfig.CAR_PICK_TIMEOUT,
-        })
-        for _, chaser in ipairs(match.chasers) do
-            TriggerClientEvent('blacklist:carPick', chaser.source, {
-                role = 'chaser',
-                cars = match.chaserCarPool,
-                timeout = ChaseConfig.CAR_PICK_TIMEOUT,
-            })
-        end
-
-        local pickDeadline = GetGameTimer() + (ChaseConfig.CAR_PICK_TIMEOUT * 1000)
-        while GetGameTimer() < pickDeadline do
-            if match.state == 'finished' or match.state == 'cancelled' then return end
-            local allPicked = true
-            local allSources = getAllMatchSources(match)
-            for _, src in ipairs(allSources) do
-                if not match.carPicks[src] then allPicked = false break end
-            end
-            if allPicked then break end
-            Citizen.Wait(500)
-        end
-
-        -- Randomize for anyone who didn't pick
-        if not match.carPicks[match.runner.source] then
-            local pool = match.runnerCarPool
-            match.carPicks[match.runner.source] = pool[math.random(#pool)]
-        end
-        for _, chaser in ipairs(match.chasers) do
-            if not match.carPicks[chaser.source] then
-                local pool = match.chaserCarPool
-                match.carPicks[chaser.source] = pool[math.random(#pool)]
-            end
-        end
-
-        match.runnerModel = match.carPicks[match.runner.source]
-        for _, chaser in ipairs(match.chasers) do
-            chaser.assignedCar = match.carPicks[chaser.source]
-        end
-
-        local allSources = getAllMatchSources(match)
-        for _, src in ipairs(allSources) do
-            TriggerClientEvent('blacklist:carPickDone', src)
-        end
-
-        print(('[Chase] Match #%d: Car picks done. Runner=%s | Chasers=%s'):format(
-            matchId, match.runnerModel or '?',
-            table.concat((function()
-                local t = {}
-                for _, c in ipairs(match.chasers) do table.insert(t, c.assignedCar or '?') end
-                return t
-            end)(), ', ')))
-
-        match.state = 'countdown'
-        Citizen.Wait(500)
-    end
-
-    -- === Helicopter vote (normal mode with 3+ chasers) ===
-    if isNormal and #match.chasers >= 3 then
-        match.state = 'heli_vote'
-        for _, chaser in ipairs(match.chasers) do
-            TriggerClientEvent('blacklist:heliVote', chaser.source, ChaseConfig.HELI_VOTE_TIMEOUT)
-        end
-        TriggerClientEvent('blacklist:chaseHUD', match.runner.source, {
-            action = 'warning',
-            message = 'Chasers are voting on helicopter support...',
-        })
-
-        local voteDeadline = GetGameTimer() + (ChaseConfig.HELI_VOTE_TIMEOUT * 1000)
-        while GetGameTimer() < voteDeadline do
-            if match.state == 'finished' or match.state == 'cancelled' then return end
-            local allVoted = true
-            for _, chaser in ipairs(match.chasers) do
-                if match.heliVotes[chaser.source] == nil then allVoted = false break end
-            end
-            if allVoted then break end
-            Citizen.Wait(500)
-        end
-
-        local yesVotes = 0
-        local totalVoters = #match.chasers
-        for _, chaser in ipairs(match.chasers) do
-            if match.heliVotes[chaser.source] == true then yesVotes = yesVotes + 1 end
-        end
-
-        if yesVotes > totalVoters / 2 then
-            local heliIdx = math.random(#match.chasers)
-            match.heliPilot = match.chasers[heliIdx].source
-            print(('[Chase] Match #%d: Helicopter approved (%d/%d). Pilot: %s'):format(
-                matchId, yesVotes, totalVoters, GetPlayerName(match.heliPilot) or match.heliPilot))
-        else
-            print(('[Chase] Match #%d: Helicopter denied (%d/%d)'):format(matchId, yesVotes, totalVoters))
-        end
-
-        match.state = 'countdown'
-    end
-
-    -- === Spawn vehicles ===
-    if match.forceModel then
-        TriggerEvent('blacklist:spawnPlayerWithModel', match.runner.source, match.forceModel,
-            match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
-
-        for _, chaser in ipairs(match.chasers) do
-            TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, match.forceModel,
-                match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading)
-        end
-    elseif isNormal then
-        if match.runnerModel then
-            TriggerEvent('blacklist:spawnPlayerWithModel', match.runner.source, match.runnerModel,
-                match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
-        else
-            TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
-                match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading)
-        end
-
-        for i, chaser in ipairs(match.chasers) do
-            if chaser.source == match.heliPilot and match.heliSpawn then
-                local hs = match.heliSpawn
-                TriggerClientEvent('blacklist:spawnHelicopter', chaser.source,
-                    hs.x, hs.y, hs.z, hs.h, ChaseConfig.HELI_MODEL)
-            else
-                local sp = match.chaserSpawns and match.chaserSpawns[i]
-                local cx = sp and sp.x or match.chaserX
-                local cy = sp and sp.y or match.chaserY
-                local cz = sp and sp.z or match.chaserZ
-                local ch = sp and sp.h or match.chaserHeading
-
-                local carModel = chaser.assignedCar
-                if carModel then
-                    TriggerEvent('blacklist:spawnPlayerWithModel', chaser.source, carModel,
-                        cx, cy, cz, ch)
-                else
-                    TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-                        cx, cy, cz, ch)
-                end
-            end
-        end
-    else
-        TriggerEvent('blacklist:spawnPlayerVehicle', match.runner.source,
-            match.runnerX, match.runnerY, match.runnerZ, match.runnerHeading, match.forceTier)
-
-        for _, chaser in ipairs(match.chasers) do
-            TriggerEvent('blacklist:spawnPlayerVehicle', chaser.source,
-                match.chaserX, match.chaserY, match.chaserZ, match.chaserHeading, match.forceTier)
-        end
-    end
-
-    -- Tell normal mode clients to enable chase traffic
-    if isNormal then
-        local allSrc = getAllMatchSources(match)
-        for _, src in ipairs(allSrc) do
-            TriggerClientEvent('blacklist:chaseTrafficMode', src, true)
-        end
-    end
-
-    -- Wait for all players to finish spawning (with timeout)
-    local allSources = getAllMatchSources(match)
-    local spawnDeadline = GetGameTimer() + 20000
-    while GetGameTimer() < spawnDeadline do
-        local allReady = true
-        for _, src in ipairs(allSources) do
-            if not spawnReady[src] then allReady = false break end
-        end
-        if allReady then break end
-        Citizen.Wait(200)
-    end
-
-    for _, src in ipairs(allSources) do
-        spawnReady[src] = nil
-    end
-
-    -- Abort if someone disconnected during spawn wait
-    if match.state == 'finished' or match.state == 'cancelled' then
-        print(('[Chase] Match #%d aborted — player left during spawn'):format(matchId))
-        return
-    end
-
-    for _, src in ipairs(allSources) do
-        if not GetPlayerName(src) then
-            cancelMatch(matchId, 'player_left_during_setup')
-            print(('[Chase] Match #%d aborted — player %d gone after spawn'):format(matchId, src))
-            return
-        end
-    end
-
-    -- Freeze everyone during countdown
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseFreeze', src, true)
-    end
-
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseCountdown', src, ChaseConfig.COUNTDOWN_DURATION)
-    end
-
-    Citizen.Wait(ChaseConfig.COUNTDOWN_DURATION * 1000)
-
-    -- Abort if someone disconnected during countdown
-    if match.state == 'finished' or match.state == 'cancelled' then
-        print(('[Chase] Match #%d aborted — player left during countdown'):format(matchId))
-        return
-    end
-
-    for _, src in ipairs(allSources) do
-        if not GetPlayerName(src) then
-            cancelMatch(matchId, 'player_left_during_setup')
-            print(('[Chase] Match #%d aborted — player %d gone after countdown'):format(matchId, src))
-            return
-        end
-    end
-
-    -- Unfreeze everyone simultaneously
-    match.state = 'active'
-    match.startTime = GetGameTimer()
-
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseFreeze', src, false)
-    end
-
-    for _, src in ipairs(allSources) do
-        TriggerClientEvent('blacklist:chaseHUD', src, {
-            action = 'start',
-            duration = match.duration,
-            role = src == match.runner.source and 'runner' or 'chaser',
-            policeCode = match.policeCode,
-            isHeliPilot = src == match.heliPilot,
-            mode = match.mode,
-            runnerServerId = match.runner.source,
-        })
-    end
-
-    print(('[Chase] Match #%d started (%s mode, %ds) at %s%s'):format(
-        matchId, match.mode, match.duration, matchData.locationName or 'unknown',
-        match.heliPilot and (' | heli=' .. (GetPlayerName(match.heliPilot) or '?')) or ''))
+    if not runCarPickPhase(match, matchId) then return end
+    if not runHeliVotePhase(match, matchId) then return end
+    if not runSpawnPhase(match, matchId) then return end
+    if not runCountdownPhase(match, matchId, matchData.locationName) then return end
 
     monitorMatch(matchId)
 end)
@@ -398,11 +442,8 @@ end
 RegisterNetEvent('blacklist:reportDistance')
 AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, chaserSpeed)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'active' then return end
+    local match, matchId = getActiveMatch(source, 'active')
+    if not match then return end
 
     local isChaser = false
     for _, c in ipairs(match.chasers) do
@@ -478,11 +519,8 @@ end)
 RegisterNetEvent('blacklist:reportRunnerSpeed')
 AddEventHandler('blacklist:reportRunnerSpeed', function(speed)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'active' then return end
+    local match = getActiveMatch(source, 'active')
+    if not match then return end
     if source ~= match.runner.source then return end
 
     match.runnerSpeed = tonumber(speed) or 0.0
@@ -531,11 +569,14 @@ end
 RegisterNetEvent('blacklist:forfeitMatch')
 AddEventHandler('blacklist:forfeitMatch', function()
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
+    local match, matchId = getActiveMatch(source)
     if not match or match.state == 'finished' then return end
+
+    if match.solo then
+        cancelMatch(matchId, 'solo_ended')
+        print(('[Chase] %s ended solo test match #%d'):format(GetPlayerName(source), matchId))
+        return
+    end
 
     local isRunner = (source == match.runner.source)
     if isRunner then
@@ -554,11 +595,9 @@ end)
 RegisterNetEvent('blacklist:reportViolation')
 AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'active' then return end
+    local match, matchId = getActiveMatch(source, 'active')
+    if not match then return end
+    if match.solo then return end
 
     local playerName = GetPlayerName(source)
     local allSources = getAllMatchSources(match)
@@ -702,11 +741,8 @@ end
 RegisterNetEvent('blacklist:heliVoteResponse')
 AddEventHandler('blacklist:heliVoteResponse', function(vote)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'heli_vote' then return end
+    local match = getActiveMatch(source, 'heli_vote')
+    if not match then return end
 
     match.heliVotes[source] = (vote == true)
 end)
@@ -718,11 +754,8 @@ end)
 RegisterNetEvent('blacklist:carPickResponse')
 AddEventHandler('blacklist:carPickResponse', function(model)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'car_pick' then return end
+    local match, matchId = getActiveMatch(source, 'car_pick')
+    if not match then return end
     if match.carPicks[source] then return end
 
     local isRunner = source == match.runner.source
@@ -746,11 +779,8 @@ end)
 RegisterNetEvent('blacklist:requestRepair')
 AddEventHandler('blacklist:requestRepair', function(target)
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'active' then return end
+    local match, matchId = getActiveMatch(source, 'active')
+    if not match then return end
 
     if target == 'self' then
         TriggerClientEvent('blacklist:repairVehicle', source)
@@ -813,7 +843,7 @@ function cancelMatch(matchId, reason)
         end
     end
 
-    Citizen.SetTimeout(5000, function()
+    Citizen.SetTimeout(ChaseConfig.CANCEL_RETURN_DELAY, function()
         returnPlayersToMenu(matchId)
     end)
 
@@ -850,7 +880,7 @@ function endMatch(matchId, winnerRole, reason)
         })
     end
 
-    if isRanked then
+    if isRanked and not match.solo then
         local winnerId, loserId
         if winnerRole == 'runner' then
             winnerId = match.runner.identifier
@@ -862,7 +892,14 @@ function endMatch(matchId, winnerRole, reason)
         exports.ranked:ProcessRankedResult(winnerId, loserId, winnerRole, elapsed, match.isCrossTier)
     end
 
-    local returnDelay = isRanked and (ChaseConfig.REMATCH_WINDOW * 1000) or 8000
+    local returnDelay
+    if match.solo then
+        returnDelay = ChaseConfig.CANCEL_RETURN_DELAY
+    elseif isRanked then
+        returnDelay = ChaseConfig.REMATCH_WINDOW * 1000
+    else
+        returnDelay = ChaseConfig.NORMAL_RETURN_DELAY
+    end
 
     match.returnTimerActive = true
     Citizen.SetTimeout(returnDelay, function()
@@ -951,11 +988,9 @@ end)
 RegisterNetEvent('blacklist:requestRematch')
 AddEventHandler('blacklist:requestRematch', function()
     local source = source
-    local matchId = playerMatchMap[source]
-    if not matchId then return end
-
-    local match = activeMatches[matchId]
-    if not match or match.state ~= 'finished' then return end
+    local match, matchId = getActiveMatch(source, 'finished')
+    if not match then return end
+    if match.solo then return end
     if match.mode ~= 'ranked' or #match.chasers ~= 1 then return end
     if not match.rematchRequests then return end
 
@@ -984,7 +1019,7 @@ AddEventHandler('blacklist:requestRematch', function()
             TriggerClientEvent('blacklist:rematchStatus', src, 'accepted')
         end
 
-        Citizen.SetTimeout(1500, function()
+        Citizen.SetTimeout(ChaseConfig.REMATCH_DELAY, function()
             startRematch(match)
         end)
 
@@ -1035,9 +1070,14 @@ end)
 -- ========================
 
 function getAllMatchSources(match)
-    local sources = { match.runner.source }
+    local sources = {}
+    if match.runner.source then
+        table.insert(sources, match.runner.source)
+    end
     for _, c in ipairs(match.chasers) do
-        table.insert(sources, c.source)
+        if c.source then
+            table.insert(sources, c.source)
+        end
     end
     return sources
 end

@@ -167,7 +167,6 @@ local function freezePlayer(id, freeze)
         end
 
         FreezeEntityPosition(ped, false)
-        --SetCharNeverTargetted(ped, false)
         SetPlayerInvincible(player, false)
     else
         if IsEntityVisible(ped) then
@@ -176,9 +175,7 @@ local function freezePlayer(id, freeze)
 
         SetEntityCollision(ped, false)
         FreezeEntityPosition(ped, true)
-        --SetCharNeverTargetted(ped, true)
         SetPlayerInvincible(player, true)
-        --RemovePtfxFromPed(ped)
 
         if not IsPedFatallyInjured(ped) then
             ClearPedTasksImmediately(ped)
@@ -194,8 +191,6 @@ function loadScene(x, y, z)
     NewLoadSceneStart(x, y, z, 0.0, 0.0, 0.0, 20.0, 0)
 
     while IsNewLoadSceneActive() do
-        networkTimer = GetNetworkTimer()
-
         NetworkUpdateLoadScene()
     end
 end
@@ -289,21 +284,8 @@ function spawnPlayer(spawnIdx, cb)
 
         -- gamelogic-style cleanup stuff
         ClearPedTasksImmediately(ped)
-        --SetEntityHealth(ped, 300) -- TODO: allow configuration of this?
-        RemoveAllPedWeapons(ped) -- TODO: make configurable (V behavior?)
+        RemoveAllPedWeapons(ped)
         ClearPlayerWantedLevel(PlayerId())
-
-        -- why is this even a flag?
-        --SetCharWillFlyThroughWindscreen(ped, false)
-
-        -- set primary camera heading
-        --SetGameCamHeading(spawn.heading)
-        --CamRestoreJumpcut(GetGameCam())
-
-        -- load the scene; streaming expects us to do it
-        --ForceLoadingScreen(true)
-        --loadScene(spawn.x, spawn.y, spawn.z)
-        --ForceLoadingScreen(false)
 
         local time = GetGameTimer()
 

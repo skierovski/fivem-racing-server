@@ -7,4 +7,4 @@ version '1.0.0'
 
 server_script 'server.lua'
 
-dependency 'oxmysql'
+dependencies { 'oxmysql', 'lib' }

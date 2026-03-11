@@ -3,12 +3,7 @@
 -- ============================================================
 
 local function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+    return exports.lib:GetIdentifier(source)
 end
 
 RegisterNetEvent('blacklist:requestTuningData')
@@ -21,8 +16,12 @@ AddEventHandler('blacklist:requestTuningData', function(model)
         'SELECT tuning FROM player_vehicles WHERE identifier = ? AND model = ? LIMIT 1',
         { identifier, model },
         function(result)
+            if not result then
+                print('[Garage] ^1DB error fetching tuning data^0')
+                return
+            end
             local savedTuning = nil
-            if result and result[1] and result[1].tuning then
+            if result[1] and result[1].tuning then
                 local raw = result[1].tuning
                 if type(raw) == 'string' then
                     savedTuning = json.decode(raw)
@@ -48,20 +47,27 @@ AddEventHandler('blacklist:saveTuning', function(model, tuning)
         'SELECT id FROM player_vehicles WHERE identifier = ? AND model = ? LIMIT 1',
         { identifier, model },
         function(result)
-            if result and result[1] then
+            if not result then
+                print('[Garage] ^1DB error checking vehicle ownership^0')
+                return
+            end
+            if result[1] then
                 exports.oxmysql:execute(
                     'UPDATE player_vehicles SET tuning = ? WHERE identifier = ? AND model = ?',
                     { tuningJson, identifier, model }
                 )
             else
-                -- Get vehicle label and tier from catalog
                 exports.oxmysql:execute(
                     'SELECT label, tier FROM vehicle_catalog WHERE model = ? LIMIT 1',
                     { model },
                     function(catResult)
+                        if not catResult then
+                            print('[Garage] ^1DB error fetching vehicle catalog info^0')
+                            return
+                        end
                         local label = 'Unknown'
                         local tier = 'bronze'
-                        if catResult and catResult[1] then
+                        if catResult[1] then
                             label = catResult[1].label
                             tier = catResult[1].tier
                         end

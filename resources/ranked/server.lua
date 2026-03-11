@@ -90,6 +90,90 @@ local CROSS_TIER_CONFIG = {
 --- @param winnerRole string - 'chaser' or 'runner'
 --- @param durationSeconds number
 --- @param isCrossTier boolean|nil
+local function calculateMatchMMR(winner, loser, isCrossTier)
+    local winnerK = getKFactor(winner)
+    local loserK = getKFactor(loser)
+    local gain, loss = CalculateMMRChange(winner.mmr, loser.mmr, winnerK, loserK)
+
+    if isCrossTier then
+        local winnerIsLowerTier = (winner.mmr < loser.mmr)
+        if winnerIsLowerTier then
+            gain = math.floor(gain * CROSS_TIER_CONFIG.UNDERDOG_WIN_BONUS + 0.5)
+            loss = math.floor(loss * CROSS_TIER_CONFIG.FAVORED_LOSE_PENALTY + 0.5)
+        else
+            gain = math.floor(gain * CROSS_TIER_CONFIG.FAVORED_WIN_REDUCTION + 0.5)
+            loss = math.floor(loss * CROSS_TIER_CONFIG.UNDERDOG_LOSE_REDUCTION + 0.5)
+        end
+        if gain < 5 then gain = 5 end
+        if loss > -5 then loss = -5 end
+    end
+
+    return gain, loss
+end
+
+local function updatePlayerRankedData(winnerId, loserId, winnerRole, gain, loss, newWinnerMMR, newWinnerTier, newLoserMMR, newLoserTier, durationSeconds)
+    exports.oxmysql:execute(
+        'UPDATE players SET mmr = ?, tier = ?, wins = wins + 1 WHERE identifier = ?',
+        { newWinnerMMR, newWinnerTier, winnerId }
+    )
+    exports.oxmysql:execute(
+        'UPDATE players SET mmr = ?, tier = ?, losses = losses + 1 WHERE identifier = ?',
+        { newLoserMMR, newLoserTier, loserId }
+    )
+
+    local chaserRole = winnerRole == 'chaser' and winnerId or loserId
+    local runnerRole = winnerRole == 'runner' and winnerId or loserId
+
+    exports.oxmysql:execute(
+        'UPDATE players SET chases_played = chases_played + 1 WHERE identifier = ?',
+        { chaserRole }
+    )
+    exports.oxmysql:execute(
+        'UPDATE players SET escapes_played = escapes_played + 1 WHERE identifier = ?',
+        { runnerRole }
+    )
+
+    local chaserMMRChange = chaserRole == winnerId and gain or loss
+    local runnerMMRChange = runnerRole == winnerId and gain or loss
+
+    exports.oxmysql:execute(
+        [[INSERT INTO match_history
+            (mode, chaser_ids, runner_id, winner_role, winner_id,
+             duration_seconds, mmr_change_chaser, mmr_change_runner)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)]],
+        {
+            'ranked',
+            json.encode({ chaserRole }),
+            runnerRole,
+            winnerRole,
+            winnerId,
+            durationSeconds,
+            chaserMMRChange,
+            runnerMMRChange,
+        }
+    )
+end
+
+local function notifyMatchResult(identifier, result, mmrChange, newMMR, newTier, oldTier, player)
+    local source = getSourceFromIdentifier(identifier)
+    if not source then return end
+
+    local totalAfter = (player.wins or 0) + (player.losses or 0) + 1
+
+    TriggerClientEvent('blacklist:matchResult', source, {
+        result = result,
+        mmrChange = mmrChange,
+        newMMR = newMMR,
+        newTier = newTier,
+        oldTier = oldTier,
+        promoted = result == 'win' and newTier ~= oldTier or nil,
+        demoted = result == 'loss' and newTier ~= oldTier or nil,
+        isPlacement = totalAfter <= RankedConfig.PLACEMENT_MATCHES,
+        placementMatch = math.min(totalAfter, RankedConfig.PLACEMENT_MATCHES),
+        placementTotal = RankedConfig.PLACEMENT_MATCHES,
+    })
+end
+
 function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isCrossTier)
     exports.oxmysql:execute(
         'SELECT identifier, mmr, tier, wins, losses, chases_played, escapes_played FROM players WHERE identifier IN (?, ?)',
@@ -109,109 +193,17 @@ function ProcessRankedResult(winnerId, loserId, winnerRole, durationSeconds, isC
 
             if not winner or not loser then return end
 
-            local winnerK = getKFactor(winner)
-            local loserK = getKFactor(loser)
-            local gain, loss = CalculateMMRChange(winner.mmr, loser.mmr, winnerK, loserK)
-
-            if isCrossTier then
-                local winnerIsLowerTier = (winner.mmr < loser.mmr)
-                if winnerIsLowerTier then
-                    gain = math.floor(gain * CROSS_TIER_CONFIG.UNDERDOG_WIN_BONUS + 0.5)
-                    loss = math.floor(loss * CROSS_TIER_CONFIG.FAVORED_LOSE_PENALTY + 0.5)
-                else
-                    gain = math.floor(gain * CROSS_TIER_CONFIG.FAVORED_WIN_REDUCTION + 0.5)
-                    loss = math.floor(loss * CROSS_TIER_CONFIG.UNDERDOG_LOSE_REDUCTION + 0.5)
-                end
-                if gain < 5 then gain = 5 end
-                if loss > -5 then loss = -5 end
-            end
-
+            local gain, loss = calculateMatchMMR(winner, loser, isCrossTier)
             local newWinnerMMR = math.max(winner.mmr + gain, RankedConfig.MIN_MMR)
             local newLoserMMR = math.max(loser.mmr + loss, RankedConfig.MIN_MMR)
-
             local newWinnerTier = GetTierForMMR(newWinnerMMR)
             local newLoserTier = GetTierForMMR(newLoserMMR)
 
-            -- Update winner
-            exports.oxmysql:execute(
-                'UPDATE players SET mmr = ?, tier = ?, wins = wins + 1 WHERE identifier = ?',
-                { newWinnerMMR, newWinnerTier, winnerId }
-            )
+            updatePlayerRankedData(winnerId, loserId, winnerRole, gain, loss,
+                newWinnerMMR, newWinnerTier, newLoserMMR, newLoserTier, durationSeconds)
 
-            -- Update loser
-            exports.oxmysql:execute(
-                'UPDATE players SET mmr = ?, tier = ?, losses = losses + 1 WHERE identifier = ?',
-                { newLoserMMR, newLoserTier, loserId }
-            )
-
-            -- Update chase/escape counters
-            local chaserRole = winnerRole == 'chaser' and winnerId or loserId
-            local runnerRole = winnerRole == 'runner' and winnerId or loserId
-
-            exports.oxmysql:execute(
-                'UPDATE players SET chases_played = chases_played + 1 WHERE identifier = ?',
-                { chaserRole }
-            )
-            exports.oxmysql:execute(
-                'UPDATE players SET escapes_played = escapes_played + 1 WHERE identifier = ?',
-                { runnerRole }
-            )
-
-            -- Record match history
-            local chaserMMRChange = chaserRole == winnerId and gain or loss
-            local runnerMMRChange = runnerRole == winnerId and gain or loss
-
-            exports.oxmysql:execute(
-                [[INSERT INTO match_history
-                    (mode, chaser_ids, runner_id, winner_role, winner_id,
-                     duration_seconds, mmr_change_chaser, mmr_change_runner)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)]],
-                {
-                    'ranked',
-                    json.encode({ chaserRole }),
-                    runnerRole,
-                    winnerRole,
-                    winnerId,
-                    durationSeconds,
-                    chaserMMRChange,
-                    runnerMMRChange,
-                }
-            )
-
-            -- Notify both players of result
-            local winnerSource = getSourceFromIdentifier(winnerId)
-            local loserSource = getSourceFromIdentifier(loserId)
-
-            local winnerTotalAfter = (winner.wins or 0) + (winner.losses or 0) + 1
-            local loserTotalAfter = (loser.wins or 0) + (loser.losses or 0) + 1
-
-            if winnerSource then
-                TriggerClientEvent('blacklist:matchResult', winnerSource, {
-                    result = 'win',
-                    mmrChange = gain,
-                    newMMR = newWinnerMMR,
-                    newTier = newWinnerTier,
-                    oldTier = winner.tier,
-                    promoted = newWinnerTier ~= winner.tier,
-                    isPlacement = winnerTotalAfter <= RankedConfig.PLACEMENT_MATCHES,
-                    placementMatch = math.min(winnerTotalAfter, RankedConfig.PLACEMENT_MATCHES),
-                    placementTotal = RankedConfig.PLACEMENT_MATCHES,
-                })
-            end
-
-            if loserSource then
-                TriggerClientEvent('blacklist:matchResult', loserSource, {
-                    result = 'loss',
-                    mmrChange = loss,
-                    newMMR = newLoserMMR,
-                    newTier = newLoserTier,
-                    oldTier = loser.tier,
-                    demoted = newLoserTier ~= loser.tier,
-                    isPlacement = loserTotalAfter <= RankedConfig.PLACEMENT_MATCHES,
-                    placementMatch = math.min(loserTotalAfter, RankedConfig.PLACEMENT_MATCHES),
-                    placementTotal = RankedConfig.PLACEMENT_MATCHES,
-                })
-            end
+            notifyMatchResult(winnerId, 'win', gain, newWinnerMMR, newWinnerTier, winner.tier, winner)
+            notifyMatchResult(loserId, 'loss', loss, newLoserMMR, newLoserTier, loser.tier, loser)
 
             print(('[Ranked]%s Match result: %s (+%d -> %d %s) beat %s (%d -> %d %s)'):format(
                 isCrossTier and ' [CROSS-TIER]' or '',
@@ -231,7 +223,12 @@ function GetBlacklistTop20(callback)
         'SELECT identifier, name, mmr, tier, wins, losses FROM players ORDER BY mmr DESC LIMIT ?',
         { RankedConfig.BLACKLIST_SIZE },
         function(result)
-            callback(result or {})
+            if not result then
+                print('[Ranked] ^1DB error fetching blacklist top 20^0')
+                callback({})
+                return
+            end
+            callback(result)
         end
     )
 end

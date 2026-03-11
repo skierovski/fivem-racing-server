@@ -126,13 +126,8 @@ end)
 
 exports('GetPlayerVehicle', GetPlayerVehicle)
 
-function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
 end
 
 print('[Vehicles] ^2Server-side loaded^0')

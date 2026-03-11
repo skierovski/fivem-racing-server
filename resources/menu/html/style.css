@@ -232,9 +232,9 @@ body {
 
 .mode-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    max-width: 900px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 1000px;
 }
 
 .mode-card {
@@ -319,6 +319,88 @@ body {
 .mode-freeroam:hover { border-color: var(--success); }
 .mode-freeroam:hover::before { background: var(--success); }
 .mode-freeroam:hover .mode-icon { color: var(--success); }
+
+.mode-solo-test:hover { border-color: #ff8800; }
+.mode-solo-test:hover::before { background: #ff8800; }
+.mode-solo-test:hover .mode-icon { color: #ff8800; }
+
+/* Solo test config */
+.solo-test-config {
+    margin-top: 20px;
+    max-width: 500px;
+    padding: 20px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.solo-test-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.solo-test-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.solo-test-btns {
+    display: flex;
+    gap: 8px;
+}
+
+.solo-opt-btn {
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.solo-opt-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.solo-opt-btn.active {
+    background: rgba(255, 136, 0, 0.15);
+    border-color: #ff8800;
+    color: #ff8800;
+}
+
+.solo-start-btn {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #ff8800, #ff6600);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    align-self: flex-start;
+}
+
+.solo-start-btn:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
 
 /* Cross-tier toggle */
 .cross-tier-option {

@@ -25,9 +25,7 @@ end)
 AddEventHandler('blacklist:toggleMenu', function()
     if isMenuOpen then
         if wasInFreeRoam then
-            isMenuOpen = false
-            SetNuiFocus(false, false)
-            SendNUIMessage({ action = 'showMenu', show = false })
+            closeMenu()
             exports.base:SetPlayerState('freeroam')
         end
     else
@@ -101,35 +99,39 @@ RegisterNUICallback('joinNormalChase', function(data, cb)
     cb({})
 end)
 
-RegisterNUICallback('joinFreeRoam', function(data, cb)
-    TriggerServerEvent('blacklist:joinFreeRoam')
+RegisterNUICallback('joinSoloTest', function(data, cb)
+    TriggerEvent('blacklist:enableGhostMode', false)
+    TriggerServerEvent('blacklist:joinSoloTest', data.mode or 'ranked', data.role or 'runner', data.tier)
+    cb({})
+end)
+
+local function closeMenu()
     isMenuOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'showMenu', show = false })
+end
+
+RegisterNUICallback('joinFreeRoam', function(data, cb)
+    TriggerServerEvent('blacklist:joinFreeRoam')
+    closeMenu()
     exports.base:SetPlayerState('freeroam')
     cb({})
 end)
 
 RegisterNUICallback('openMap', function(data, cb)
-    isMenuOpen = false
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'showMenu', show = false })
+    closeMenu()
     exports.base:AllowGTAMap()
     cb({})
 end)
 
 RegisterNUICallback('openGTASettings', function(data, cb)
-    isMenuOpen = false
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'showMenu', show = false })
+    closeMenu()
     exports.base:AllowGTAMap()
     cb({})
 end)
 
 RegisterNUICallback('resumeFreeRoam', function(data, cb)
-    isMenuOpen = false
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'showMenu', show = false })
+    closeMenu()
     exports.base:SetPlayerState('freeroam')
     cb({})
 end)
@@ -146,9 +148,7 @@ end)
 
 RegisterNUICallback('enterGarage', function(data, cb)
     if not data.model then cb({}) return end
-    isMenuOpen = false
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'showMenu', show = false })
+    closeMenu()
     TriggerEvent('blacklist:enterGarage', data.model)
     cb({})
 end)

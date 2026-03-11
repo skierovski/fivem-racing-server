@@ -22,4 +22,4 @@ files {
     'data/wheel_types.json',
 }
 
-dependency 'oxmysql'
+dependencies { 'oxmysql', 'lib' }

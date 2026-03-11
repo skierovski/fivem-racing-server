@@ -14,22 +14,7 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         currentVehicle = nil
     end
 
-    local hash = GetHashKey(model)
-    RequestModel(hash)
-
-    local timeout = GetGameTimer() + 10000
-    while not HasModelLoaded(hash) do
-        Citizen.Wait(100)
-        if GetGameTimer() > timeout then
-            print('[Vehicles] ^1Failed to load model: ' .. model .. ', falling back to sultan^0')
-            hash = GetHashKey('sultan')
-            RequestModel(hash)
-            while not HasModelLoaded(hash) do
-                Citizen.Wait(100)
-            end
-            break
-        end
-    end
+    local hash = exports.lib:LoadModelWithFallback(model)
 
     local ped = PlayerPedId()
     local spawnZ = z + 15.0
@@ -72,35 +57,9 @@ AddEventHandler('blacklist:doSpawnVehicle', function(vehicleData, x, y, z, headi
         print('[Vehicles] ^3Ped warp required multiple attempts^0')
     end
 
-    -- Stream the area and load collision
+    -- Stream the area and resolve ground Z
     SetFocusPosAndVel(x, y, z, 0.0, 0.0, 0.0)
-    RequestCollisionAtCoord(x, y, z)
-
-    timeout = GetGameTimer() + 8000
-    while not HasCollisionLoadedAroundEntity(vehicle) do
-        Citizen.Wait(50)
-        RequestCollisionAtCoord(x, y, z)
-        if GetGameTimer() > timeout then break end
-    end
-
-    -- Find solid ground: tight probe first, wider fallback second
-    local found, groundZ = false, z
-    for attempt = 1, 30 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 5.0, false)
-        if found and math.abs(groundZ - z) < 10.0 then break end
-        found = false
-        Citizen.Wait(100)
-    end
-
-    if not found then
-        for attempt = 1, 15 do
-            found, groundZ = GetGroundZFor_3dCoord(x, y, z + 50.0, false)
-            if found then break end
-            Citizen.Wait(100)
-        end
-    end
-
-    local finalZ = found and (groundZ + 0.3) or z
+    local finalZ = exports.lib:ResolveGroundZ(vehicle, x, y, z, 50.0, 30)
     SetEntityCoords(vehicle, x, y, finalZ, false, false, false, true)
     SetEntityHeading(vehicle, heading or 0.0)
     ClearFocus()

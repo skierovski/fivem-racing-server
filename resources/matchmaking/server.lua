@@ -13,7 +13,13 @@ local Config = {
     NORMAL_FULL_LOBBY = 5,
     NORMAL_FILL_WAIT = 15000,
 
-    MATCH_CHECK_INTERVAL = 3000, -- ms between queue checks
+    MATCH_CHECK_INTERVAL = 3000,
+
+    ROLE_CHANCE_MIN = 0.10,
+    ROLE_CHANCE_MAX = 0.90,
+    ROLE_CHANCE_BASE = 0.5,
+    ROLE_CHANCE_SCALE = 0.8,
+    CROSS_TIER_SCORE_PENALTY = 1000,
 }
 
 -- Queue storage (unified: no separate runner/chaser queues)
@@ -51,12 +57,6 @@ local CHASE_LOCATIONS = {
         runner = { x = 920.72, y = -2114.48, z = 29.79, h = 314.45 },
         chaser = { x = 920.74, y = -2119.19, z = 29.75, h = 307.74 },
     },
-    -- Kasyno disabled: coords are on casino roof, need street-level coords
-    -- {
-    --     name = 'Kasyno',
-    --     runner = { x = 914.91, y = 42.08, z = 80.42, h = 127.38 },
-    --     chaser = { x = 927.25, y = 45.18, z = 80.63, h = 95.52 },
-    -- },
     {
         name = 'Fleeca Urzednicza',
         runner = { x = 326.85, y = -264.21, z = 53.48, h = 312.89 },
@@ -101,7 +101,9 @@ local NORMAL_CHASE_LOCATIONS = {
 
 local TIER_ORDER = { 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist' }
 local TIER_INDEX = {}
-for i, name in ipairs(TIER_ORDER) do TIER_INDEX[name] = i end
+for i, name in ipairs(TIER_ORDER) do
+    TIER_INDEX[name] = i
+end
 
 -- Cache of models per tier for random car selection in ranked
 local tierModels = {}
@@ -124,43 +126,6 @@ local PD_CAR_POOL = {
     fast    = { 'gbpolsultanrsx', 'gbpolprospero', 'gbpolsentinelgts', 'gbpoltr3s' },
     normal  = { 'gbpolargento7f', 'gbpoldomgsx', 'gbpolcomets2r', 'gbpolstanier' },
 }
-
-function selectRunnerCar()
-    local eligibleModels = {}
-    for _, tier in ipairs(RUNNER_ELIGIBLE_TIERS) do
-        for _, model in ipairs(tierModels[tier] or {}) do
-            table.insert(eligibleModels, model)
-        end
-    end
-    if #eligibleModels == 0 then return nil end
-    return eligibleModels[math.random(#eligibleModels)]
-end
-
-function selectPDCars(numChasers)
-    local cars = {}
-    local used = {}
-
-    local function pickRandom(pool)
-        local available = {}
-        for _, m in ipairs(pool) do
-            if not used[m] then table.insert(available, m) end
-        end
-        if #available == 0 then return pool[math.random(#pool)] end
-        local pick = available[math.random(#available)]
-        used[pick] = true
-        return pick
-    end
-
-    table.insert(cars, pickRandom(PD_CAR_POOL.offroad))
-    if numChasers >= 2 then
-        table.insert(cars, pickRandom(PD_CAR_POOL.fast))
-    end
-    for i = #cars + 1, numChasers do
-        table.insert(cars, pickRandom(PD_CAR_POOL.normal))
-    end
-
-    return cars
-end
 
 Citizen.CreateThread(function()
     Citizen.Wait(2000)
@@ -192,7 +157,11 @@ Citizen.CreateThread(function()
     exports.oxmysql:execute(
         'SELECT model, tier FROM vehicle_catalog WHERE tier != ?', { 'custom' },
         function(result)
-            for _, row in ipairs(result or {}) do
+            if not result then
+                print('[Matchmaking] ^1DB error caching vehicle catalog^0')
+                return
+            end
+            for _, row in ipairs(result) do
                 if not tierModels[row.tier] then tierModels[row.tier] = {} end
                 table.insert(tierModels[row.tier], row.model)
             end
@@ -318,7 +287,7 @@ function assignRoles(a, b)
 
     -- diff > 0 means A has escaped more → A should chase
     local diff = aEscRatio - bEscRatio
-    local chanceAChases = math.max(0.10, math.min(0.90, 0.5 + diff * 0.8))
+    local chanceAChases = math.max(Config.ROLE_CHANCE_MIN, math.min(Config.ROLE_CHANCE_MAX, Config.ROLE_CHANCE_BASE + diff * Config.ROLE_CHANCE_SCALE))
 
     if math.random() < chanceAChases then
         return a, b  -- a = chaser, b = runner
@@ -371,7 +340,7 @@ function processRankedQueue()
             end
 
             -- Lower score = better match; same-tier strongly preferred
-            local score = mmrDiff + (isCrossTier and 1000 or 0)
+            local score = mmrDiff + (isCrossTier and Config.CROSS_TIER_SCORE_PENALTY or 0)
 
             if score < bestScore then
                 bestScore = score
@@ -565,6 +534,125 @@ function startNormalChaseMatch(runner, chasers)
 end
 
 -- ========================
+-- Solo test (bypasses queue, single player)
+-- ========================
+
+RegisterNetEvent('blacklist:joinSoloTest')
+AddEventHandler('blacklist:joinSoloTest', function(mode, role, tier)
+    local source = source
+    local identifier = getIdentifier(source)
+    if not identifier then return end
+
+    if playerStates[source] and playerStates[source] ~= 'menu' then
+        TriggerClientEvent('blacklist:queueUpdate', source, { status = 'error', message = 'Already in queue or match' })
+        return
+    end
+
+    role = (role == 'runner' or role == 'chaser') and role or 'runner'
+    mode = (mode == 'normal' or mode == 'ranked') and mode or 'ranked'
+
+    exports.oxmysql:execute(
+        'SELECT mmr, tier FROM players WHERE identifier = ?',
+        { identifier },
+        function(result)
+            if not result or not result[1] then return end
+            local player = result[1]
+
+            playerStates[source] = 'in_match'
+
+            local forceTier = tier or player.tier or 'bronze'
+            local isNormal = mode == 'normal'
+
+            local loc
+            if isNormal then
+                loc = NORMAL_CHASE_LOCATIONS[math.random(#NORMAL_CHASE_LOCATIONS)]
+            else
+                loc = CHASE_LOCATIONS[math.random(#CHASE_LOCATIONS)]
+            end
+
+            local models = tierModels[forceTier] or {}
+            local forceModel = #models > 0 and models[math.random(#models)] or nil
+
+            local playerInfo = {
+                source = source,
+                identifier = identifier,
+                mmr = player.mmr,
+                tier = player.tier,
+            }
+
+            local matchData = {
+                mode = mode,
+                solo = true,
+                isCrossTier = false,
+                forceTier = forceTier,
+                locationName = loc.name,
+            }
+
+            if isNormal then
+                local runnerCarPool = {}
+                for _, t in ipairs(TIER_ORDER) do
+                    for _, m in ipairs(tierModels[t] or {}) do
+                        table.insert(runnerCarPool, m)
+                    end
+                end
+                local chaserCarPool = {}
+                for _, pool in pairs(PD_CAR_POOL) do
+                    for _, m in ipairs(pool) do
+                        chaserCarPool[m] = true
+                    end
+                end
+                local chaserCarList = {}
+                for m in pairs(chaserCarPool) do
+                    table.insert(chaserCarList, m)
+                end
+                table.sort(chaserCarList)
+
+                matchData.runnerCarPool = runnerCarPool
+                matchData.chaserCarPool = chaserCarList
+                matchData.runnerX = loc.runner.x
+                matchData.runnerY = loc.runner.y
+                matchData.runnerZ = loc.runner.z
+                matchData.runnerHeading = loc.runner.h
+                matchData.chaserSpawns = loc.chasers
+                matchData.heliSpawn = loc.heli
+
+                if role == 'runner' then
+                    matchData.runner = playerInfo
+                    matchData.chasers = {}
+                else
+                    matchData.runner = { source = nil, identifier = nil }
+                    matchData.chasers = { playerInfo }
+                end
+            else
+                matchData.forceModel = forceModel
+                matchData.runnerX = loc.runner.x
+                matchData.runnerY = loc.runner.y
+                matchData.runnerZ = loc.runner.z
+                matchData.runnerHeading = loc.runner.h
+                matchData.chaserX = loc.chaser.x
+                matchData.chaserY = loc.chaser.y
+                matchData.chaserZ = loc.chaser.z
+                matchData.chaserHeading = loc.chaser.h
+
+                if role == 'runner' then
+                    matchData.runner = playerInfo
+                    matchData.chaser = { source = nil, identifier = nil }
+                else
+                    matchData.runner = { source = nil, identifier = nil }
+                    matchData.chaser = playerInfo
+                end
+            end
+
+            TriggerEvent('blacklist:startChaseMatch', matchData)
+            TriggerClientEvent('blacklist:queueUpdate', source, { status = 'matched', message = 'Solo test starting!' })
+
+            print(('[Matchmaking] %s started SOLO TEST (%s mode, role=%s, tier=%s)'):format(
+                GetPlayerName(source), mode, role, forceTier))
+        end
+    )
+end)
+
+-- ========================
 -- Free roam
 -- ========================
 
@@ -600,31 +688,22 @@ end)
 -- Utility
 -- ========================
 
-function removeFromAllQueues(source)
-    for i = #rankedQueue, 1, -1 do
-        if rankedQueue[i].source == source then
-            table.remove(rankedQueue, i)
-        end
-    end
-    for i = #testRankedQueue, 1, -1 do
-        if testRankedQueue[i].source == source then
-            table.remove(testRankedQueue, i)
-        end
-    end
-    for i = #normalQueue, 1, -1 do
-        if normalQueue[i].source == source then
-            table.remove(normalQueue, i)
+local function removeFromQueue(queue, source)
+    for i = #queue, 1, -1 do
+        if queue[i].source == source then
+            table.remove(queue, i)
         end
     end
 end
 
-function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+function removeFromAllQueues(source)
+    removeFromQueue(rankedQueue, source)
+    removeFromQueue(testRankedQueue, source)
+    removeFromQueue(normalQueue, source)
+end
+
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
 end
 
 exports('GetPlayerState', function(source)

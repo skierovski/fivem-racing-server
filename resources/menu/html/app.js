@@ -125,6 +125,42 @@
         fetch('https://menu/joinFreeRoam', { method: 'POST', body: '{}' });
     });
 
+    // Solo test
+    const btnSoloTest = document.getElementById('btnSoloTest');
+    const soloTestConfig = document.getElementById('soloTestConfig');
+    const btnSoloStart = document.getElementById('btnSoloStart');
+    let soloMode = 'ranked';
+    let soloRole = 'runner';
+
+    btnSoloTest.addEventListener('click', () => {
+        soloTestConfig.classList.toggle('hidden');
+    });
+
+    soloTestConfig.querySelectorAll('[data-solo-mode]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            soloTestConfig.querySelectorAll('[data-solo-mode]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            soloMode = btn.dataset.soloMode;
+        });
+    });
+
+    soloTestConfig.querySelectorAll('[data-solo-role]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            soloTestConfig.querySelectorAll('[data-solo-role]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            soloRole = btn.dataset.soloRole;
+        });
+    });
+
+    btnSoloStart.addEventListener('click', () => {
+        if (isQueuing) return;
+        fetch('https://menu/joinSoloTest', {
+            method: 'POST',
+            body: JSON.stringify({ mode: soloMode, role: soloRole })
+        });
+        showQueue('Starting solo test...');
+    });
+
     btnOpenMap.addEventListener('click', () => {
         fetch('https://menu/openMap', { method: 'POST', body: '{}' });
     });

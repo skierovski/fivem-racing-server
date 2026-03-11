@@ -22,26 +22,9 @@ AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
     SetEntityCoords(ped, x, y, z + 50.0, false, false, false, true)
     SetEntityHeading(ped, heading)
 
-    -- 3. Stream the area and load collision
+    -- 3. Stream the area and find solid ground
     SetFocusPosAndVel(x, y, z + 50.0, 0.0, 0.0, 0.0)
-    RequestCollisionAtCoord(x, y, z)
-
-    local timeout = GetGameTimer() + 8000
-    while not HasCollisionLoadedAroundEntity(ped) do
-        Citizen.Wait(50)
-        RequestCollisionAtCoord(x, y, z)
-        if GetGameTimer() > timeout then break end
-    end
-
-    -- 4. Find solid ground
-    local found, groundZ = false, z
-    for attempt = 1, 50 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 200.0, false)
-        if found then break end
-        Citizen.Wait(100)
-    end
-
-    local finalZ = found and (groundZ + 1.0) or z
+    local finalZ = exports.lib:ResolveGroundZ(ped, x, y, z, 200.0, 50)
     SetEntityCoords(ped, x, y, finalZ, false, false, false, true)
     ClearFocus()
 
@@ -393,7 +376,7 @@ RegisterNUICallback('selectFreeroamCar', function(data, cb)
     if not model then cb({}) return end
 
     -- Ask server for saved tuning, then spawn with it
-    freeroamPendingModel = model
+    local freeroamPendingModel = model
     TriggerServerEvent('blacklist:requestFreeroamTuning', model)
     cb({})
 end)
@@ -411,19 +394,7 @@ AddEventHandler('blacklist:receiveFreeroamTuning', function(model, tuning)
         DeleteEntity(currentVeh)
     end
 
-    local hash = GetHashKey(model)
-    RequestModel(hash)
-
-    local timeout = GetGameTimer() + 10000
-    while not HasModelLoaded(hash) do
-        Citizen.Wait(100)
-        if GetGameTimer() > timeout then
-            hash = GetHashKey('sultan')
-            RequestModel(hash)
-            while not HasModelLoaded(hash) do Citizen.Wait(100) end
-            break
-        end
-    end
+    local hash = exports.lib:LoadModelWithFallback(model)
 
     local vehicle = CreateVehicle(hash, coords.x, coords.y, coords.z, heading, true, false)
     SetModelAsNoLongerNeeded(hash)
@@ -467,24 +438,7 @@ RegisterNUICallback('teleportToWaypoint', function(data, cb)
     FreezeEntityPosition(entity, true)
     SetEntityCoordsNoOffset(entity, x, y, 300.0, false, false, false)
 
-    -- Load collision at destination
-    RequestCollisionAtCoord(x, y, 300.0)
-    local timeout = GetGameTimer() + 10000
-    while not HasCollisionLoadedAroundEntity(entity) do
-        Citizen.Wait(50)
-        RequestCollisionAtCoord(x, y, 300.0)
-        if GetGameTimer() > timeout then break end
-    end
-
-    -- Find solid ground
-    local found, groundZ = false, 300.0
-    for attempt = 1, 40 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, 1000.0, false)
-        if found then break end
-        Citizen.Wait(100)
-    end
-
-    local finalZ = found and (groundZ + 1.0) or 300.0
+    local finalZ = exports.lib:ResolveGroundZ(entity, x, y, 300.0, 700.0, 40)
     SetEntityCoordsNoOffset(entity, x, y, finalZ, false, false, false)
 
     FreezeEntityPosition(entity, false)
