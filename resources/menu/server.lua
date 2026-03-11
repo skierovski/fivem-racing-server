@@ -1,3 +1,11 @@
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
+local function getDiscordIdentifier(source)
+    return exports.lib:GetDiscordIdentifier(source)
+end
+
 -- Player data request handler
 RegisterNetEvent('blacklist:requestPlayerData')
 AddEventHandler('blacklist:requestPlayerData', function()
@@ -165,13 +173,5 @@ AddEventHandler('playerDropped', function()
         exports.oxmysql:execute('UPDATE players SET is_online = 0, last_seen = NOW() WHERE identifier = ?', { identifier })
     end
 end)
-
-local function getIdentifier(source)
-    return exports.lib:GetIdentifier(source)
-end
-
-local function getDiscordIdentifier(source)
-    return exports.lib:GetDiscordIdentifier(source)
-end
 
 print('[Menu] ^2Server-side loaded^0')

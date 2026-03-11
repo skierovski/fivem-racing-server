@@ -2,6 +2,10 @@
 -- Vehicle management: spawn, tuning, tier access
 -- ============================================================
 
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
 --- Get player's selected vehicle and tuning from DB
 --- @param identifier string
 --- @param callback function(vehicleData)
@@ -125,9 +129,5 @@ AddEventHandler('blacklist:ensureDefaultVehicle', function()
 end)
 
 exports('GetPlayerVehicle', GetPlayerVehicle)
-
-local function getIdentifier(source)
-    return exports.lib:GetIdentifier(source)
-end
 
 print('[Vehicles] ^2Server-side loaded^0')
