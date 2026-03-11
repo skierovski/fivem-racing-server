@@ -61,6 +61,9 @@
     let currentRole = null;
     let rematchRequested = false;
     let currentPoliceCode = null;
+    let rematchShowTimeout = null;
+    let mmrShowTimeout = null;
+    let rankShowTimeout = null;
 
     const TIER_LABELS = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
@@ -120,6 +123,9 @@
         if (codeChangeTimeout) { clearTimeout(codeChangeTimeout); codeChangeTimeout = null; }
         if (heliVoteInterval) { clearInterval(heliVoteInterval); heliVoteInterval = null; }
         if (carPickInterval) { clearInterval(carPickInterval); carPickInterval = null; }
+        if (rematchShowTimeout) { clearTimeout(rematchShowTimeout); rematchShowTimeout = null; }
+        if (mmrShowTimeout) { clearTimeout(mmrShowTimeout); mmrShowTimeout = null; }
+        if (rankShowTimeout) { clearTimeout(rankShowTimeout); rankShowTimeout = null; }
         carPickSelection = null;
     }
 
@@ -271,6 +277,7 @@
             }
 
             case 'carPick': {
+                hideAll();
                 carPickOverlay.classList.remove('hidden');
                 carPickSelection = null;
                 carPickConfirm.classList.add('hidden');
@@ -407,7 +414,8 @@
                 endDetails.textContent = detail;
 
                 if (data.isRanked) {
-                    setTimeout(() => {
+                    rematchShowTimeout = setTimeout(() => {
+                        rematchShowTimeout = null;
                         rematchArea.classList.remove('hidden');
                     }, 3000);
                 }
@@ -458,7 +466,8 @@
                     mmrChange.classList.add('negative');
                 }
 
-                setTimeout(() => {
+                mmrShowTimeout = setTimeout(() => {
+                    mmrShowTimeout = null;
                     mmrSection.classList.add('visible');
                     animateMMR(oldMMR, data.newMMR, mmrValue, 2000);
                 }, 1500);
@@ -475,7 +484,8 @@
                         rankChange.classList.add('demoted');
                     }
 
-                    setTimeout(() => {
+                    rankShowTimeout = setTimeout(() => {
+                        rankShowTimeout = null;
                         rankChange.classList.remove('hidden');
                         rankChange.classList.add('visible');
                     }, 4000);

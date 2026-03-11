@@ -134,9 +134,11 @@ local PD_CAR_POOL = {
 Citizen.CreateThread(function()
     Citizen.Wait(2000)
 
-    -- Auto-apply tier assignments so DB is always in sync with code
-    exports.oxmysql:execute('UPDATE vehicle_catalog SET tier = ? WHERE tier != ?', { 'custom', 'custom' })
+    -- Wipe catalog and rebuild from code (single source of truth)
+    exports.oxmysql:execute('DELETE FROM vehicle_catalog')
     Citizen.Wait(200)
+
+    -- Insert ranked cars
     for tier, models in pairs(TIER_ASSIGNMENTS) do
         for _, m in ipairs(models) do
             exports.oxmysql:execute(
@@ -144,22 +146,25 @@ Citizen.CreateThread(function()
                 { m, m, tier, 'sports' }
             )
         end
-        local placeholders = {}
-        for _ in ipairs(models) do table.insert(placeholders, '?') end
-        local params = { tier }
-        for _, m in ipairs(models) do table.insert(params, m) end
-        exports.oxmysql:execute(
-            'UPDATE vehicle_catalog SET tier = ? WHERE model IN (' .. table.concat(placeholders, ',') .. ')',
-            params
-        )
     end
-    print('[Matchmaking] ^2Tier assignments synced to DB^0')
+
+    -- Insert PD cars
+    for category, models in pairs(PD_CAR_POOL) do
+        for _, m in ipairs(models) do
+            exports.oxmysql:execute(
+                'INSERT IGNORE INTO vehicle_catalog (model, label, tier, class) VALUES (?, ?, ?, ?)',
+                { m, m, 'custom', 'police' }
+            )
+        end
+    end
+
+    print('[Matchmaking] ^2Vehicle catalog synced (ranked + PD)^0')
 
     Citizen.Wait(500)
 
-    -- Now cache the result
+    -- Cache ranked tiers for matchmaking
     exports.oxmysql:execute(
-        'SELECT model, tier FROM vehicle_catalog WHERE tier != ?', { 'custom' },
+        'SELECT model, tier FROM vehicle_catalog WHERE class != ?', { 'police' },
         function(result)
             if not result then
                 print('[Matchmaking] ^1DB error caching vehicle catalog^0')

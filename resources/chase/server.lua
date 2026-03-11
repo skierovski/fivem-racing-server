@@ -678,20 +678,6 @@ AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
         print(('[Chase] Match #%d: %s DQ — runner in water'):format(matchId, playerName))
         endMatch(matchId, 'chaser', 'runner_disqualified_water')
 
-    elseif violationType == 'runner_terrain' then
-        if match.policeCode then
-            escalatePoliceCode(matchId, 'Runner off-road abuse')
-        else
-            for _, src in ipairs(allSources) do
-                TriggerClientEvent('blacklist:chaseHUD', src, {
-                    action = 'warning',
-                    message = playerName .. ': Illegal terrain — DISQUALIFIED!',
-                })
-            end
-            print(('[Chase] Match #%d: %s DQ — runner terrain abuse'):format(matchId, playerName))
-            endMatch(matchId, 'chaser', 'runner_disqualified_terrain')
-        end
-
     elseif violationType == 'runner_died' then
         for _, src in ipairs(allSources) do
             TriggerClientEvent('blacklist:chaseHUD', src, {
