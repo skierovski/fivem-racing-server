@@ -6,3 +6,5 @@ description 'Discord role verification - players must have verified role to conn
 version '1.0.0'
 
 server_script 'server.lua'
+
+dependency 'lib'

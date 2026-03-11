@@ -41,7 +41,11 @@ AddEventHandler('blacklist:requestVehiclesForFreeroam', function()
         'SELECT model, label, tier FROM vehicle_catalog ORDER BY FIELD(tier, "bronze","silver","gold","platinum","diamond","blacklist","custom"), label',
         {},
         function(catalog)
-            TriggerClientEvent('blacklist:receiveFreeroamVehicles', source, catalog or {})
+            if not catalog then
+                print('[FreeRoam] ^1DB error fetching vehicle catalog^0')
+                return
+            end
+            TriggerClientEvent('blacklist:receiveFreeroamVehicles', source, catalog)
         end
     )
 end)
@@ -77,13 +81,8 @@ exports('IsInFreeRoam', function(source)
     return freeroamPlayers[source] == true
 end)
 
-function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
 end
 
 print('[FreeRoam] ^2Server-side loaded^0')

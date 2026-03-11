@@ -60,13 +60,8 @@ AddEventHandler('blacklist:requestChatHistory', function()
     end
 end)
 
-function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
 end
 
 print('[Chat] ^2Server-side loaded^0')

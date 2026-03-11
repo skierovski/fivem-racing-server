@@ -43,7 +43,11 @@ AddEventHandler('blacklist:requestBlacklist', function()
         'SELECT identifier, name, mmr, tier, wins, losses FROM players ORDER BY mmr DESC LIMIT 20',
         {},
         function(result)
-            TriggerClientEvent('blacklist:receiveBlacklist', source, result or {})
+            if not result then
+                print('[Menu] ^1DB error fetching blacklist leaderboard^0')
+                return
+            end
+            TriggerClientEvent('blacklist:receiveBlacklist', source, result)
         end
     )
 end)
@@ -88,11 +92,19 @@ AddEventHandler('blacklist:requestVehicles', function()
                 'SELECT * FROM vehicle_catalog WHERE tier IN (' .. table.concat(placeholders, ',') .. ') ORDER BY tier, label',
                 availableTiers,
                 function(catalog)
+                    if not catalog then
+                        print('[Menu] ^1DB error fetching vehicle catalog^0')
+                        return
+                    end
                     exports.oxmysql:execute(
                         'SELECT * FROM player_vehicles WHERE identifier = ?',
                         { identifier },
                         function(owned)
-                            TriggerClientEvent('blacklist:receiveVehicles', source, catalog or {}, owned or {})
+                            if not owned then
+                                print('[Menu] ^1DB error fetching owned vehicles^0')
+                                return
+                            end
+                            TriggerClientEvent('blacklist:receiveVehicles', source, catalog, owned)
                         end
                     )
                 end
@@ -154,23 +166,12 @@ AddEventHandler('playerDropped', function()
     end
 end)
 
--- Utility: get FiveM license identifier
-function getIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'license:') then
-            return id
-        end
-    end
-    return nil
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
 end
 
-function getDiscordIdentifier(source)
-    for _, id in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(id, 'discord:') then
-            return string.gsub(id, 'discord:', '')
-        end
-    end
-    return nil
+local function getDiscordIdentifier(source)
+    return exports.lib:GetDiscordIdentifier(source)
 end
 
 print('[Menu] ^2Server-side loaded^0')

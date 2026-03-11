@@ -2,13 +2,11 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'BlackList Racing'
-description 'Full-screen NUI menu - main hub for all game modes'
+description 'Engine sound picker — browse and apply DLEngine170 sounds on the fly'
 version '1.0.0'
 
 client_script 'client.lua'
 server_script 'server.lua'
-
-dependency 'lib'
 
 ui_page 'html/index.html'
 

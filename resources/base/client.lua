@@ -1,4 +1,5 @@
 local hasSpawned = false
+--- Intentionally global: read by multiple resources via exports.base:GetPlayerState()
 PlayerState = 'menu' -- 'menu', 'freeroam', 'in_match'
 
 exports.spawnmanager:setAutoSpawn(true)
@@ -306,27 +307,8 @@ AddEventHandler('blacklist:teleport', function(x, y, z, heading)
         SetEntityHeading(ped, heading)
     end
 
-    -- Request collision and wait for it to load
-    RequestCollisionAtCoord(x, y, z)
-
-    local timeout = GetGameTimer() + 8000
-    while not HasCollisionLoadedAroundEntity(ped) do
-        Citizen.Wait(100)
-        RequestCollisionAtCoord(x, y, z)
-        if GetGameTimer() > timeout then break end
-    end
-
-    -- Double-check with ground Z probe
-    local found, groundZ = false, z
-    for attempt = 1, 20 do
-        found, groundZ = GetGroundZFor_3dCoord(x, y, z + 100.0, false)
-        if found then break end
-        Citizen.Wait(100)
-    end
-
-    if found then
-        SetEntityCoords(ped, x, y, groundZ + 1.0, false, false, false, true)
-    end
+    local groundZ = exports.lib:ResolveGroundZ(ped, x, y, z, 100.0, 20)
+    SetEntityCoords(ped, x, y, groundZ, false, false, false, true)
 
     FreezeEntityPosition(ped, false)
     DoScreenFadeIn(500)

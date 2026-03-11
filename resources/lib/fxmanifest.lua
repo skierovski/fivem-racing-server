@@ -2,10 +2,8 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'BlackList Racing'
-description 'Vehicle management - tier-locked cars, tuning, spawning'
+description 'Shared utility library - common helpers used across resources'
 version '1.0.0'
 
 server_script 'server.lua'
 client_script 'client.lua'
-
-dependencies { 'oxmysql', 'lib' }

@@ -4,12 +4,7 @@ local requiredRoleId = GetConvar('discord_required_role_id', '')
 local inviteUrl = GetConvar('discord_invite_url', 'https://discord.gg/blacklistracing')
 
 local function getDiscordId(source)
-    for _, identifier in ipairs(GetPlayerIdentifiers(source)) do
-        if string.find(identifier, 'discord:') then
-            return string.gsub(identifier, 'discord:', '')
-        end
-    end
-    return nil
+    return exports.lib:GetDiscordIdentifier(source)
 end
 
 local function checkDiscordRole(discordId, callback)

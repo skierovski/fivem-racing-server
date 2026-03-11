@@ -125,14 +125,12 @@ AddEventHandler('blacklist:enterGarage', function(model)
         Citizen.Wait(0)
     end
 
-    -- Wait for model (was loading in parallel with everything above)
-    local timeout = GetGameTimer() + 8000
+    -- Wait for model (was loading in parallel); fall back to sultan on timeout
+    local deadline = GetGameTimer() + 8000
     while not HasModelLoaded(hash) do
         Citizen.Wait(0)
-        if GetGameTimer() > timeout then
-            hash = GetHashKey('sultan')
-            RequestModel(hash)
-            while not HasModelLoaded(hash) do Citizen.Wait(0) end
+        if GetGameTimer() > deadline then
+            hash = exports.lib:LoadModelWithFallback('sultan')
             break
         end
     end
@@ -611,73 +609,10 @@ function exitGarage()
     DoScreenFadeIn(300)
 end
 
--- ========================
--- Apply full tuning to a vehicle (used on initial load)
--- ========================
-
-function applyFullTuning(vehicle, t)
+-- Delegate to the canonical ApplyTuning from vehicles resource
+local function applyFullTuning(vehicle, t)
     if not t or not vehicle then return end
-
-    SetVehicleModKit(vehicle, 0)
-
-    if t.paintType1 then
-        SetVehicleModColor_1(vehicle, t.paintType1, 0, 0)
-    end
-    if t.paintType2 then
-        SetVehicleModColor_2(vehicle, t.paintType2, 0)
-    end
-    if t.color1 then
-        SetVehicleCustomPrimaryColour(vehicle, t.color1.r or 0, t.color1.g or 0, t.color1.b or 0)
-    end
-    if t.color2 then
-        SetVehicleCustomSecondaryColour(vehicle, t.color2.r or 0, t.color2.g or 0, t.color2.b or 0)
-    end
-
-    local slots = { spoiler = 0, frontBumper = 1, rearBumper = 2, sideSkirts = 3, hood = 7,
-                    engine = 11, brakes = 12, transmission = 13, suspension = 15 }
-    for key, slot in pairs(slots) do
-        if t[key] and t[key] >= 0 then
-            SetVehicleMod(vehicle, slot, t[key], false)
-        end
-    end
-
-    if t.wheelType then
-        SetVehicleWheelType(vehicle, t.wheelType)
-    end
-    if t.wheelIndex and t.wheelIndex >= 0 then
-        SetVehicleMod(vehicle, 23, t.wheelIndex, false)
-    end
-    if t.wheelColor then
-        local pearl, _ = GetVehicleExtraColours(vehicle)
-        SetVehicleExtraColours(vehicle, pearl, t.wheelColor)
-    end
-
-    if t.livery and t.livery >= 0 then
-        SetVehicleLivery(vehicle, t.livery)
-        SetVehicleMod(vehicle, 48, t.livery, false)
-    end
-
-    if t.windowTint then
-        SetVehicleWindowTint(vehicle, t.windowTint)
-    end
-
-    ToggleVehicleMod(vehicle, 18, t.turbo == true)
-
-    if t.neon then
-        for i = 0, 3 do SetVehicleNeonLightEnabled(vehicle, i, true) end
-        if t.neonColor then
-            SetVehicleNeonLightsColour(vehicle, t.neonColor.r or 0, t.neonColor.g or 150, t.neonColor.b or 255)
-        end
-    end
-
-    if t.extras then
-        for idStr, enabled in pairs(t.extras) do
-            local id = tonumber(idStr)
-            if id and DoesExtraExist(vehicle, id) then
-                SetVehicleExtra(vehicle, id, not enabled)
-            end
-        end
-    end
+    exports.vehicles:ApplyTuning(vehicle, t)
 end
 
 -- Keep BBC Showcase interior pinned — re-pin every 10s if the game unloads it

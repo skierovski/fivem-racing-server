@@ -105,6 +105,33 @@
                         <span class="mode-desc">Ghosted driving. Learn the streets of LS.</span>
                         <div class="mode-badge">SOLO</div>
                     </div>
+                    <div class="mode-card mode-solo-test" id="btnSoloTest">
+                        <div class="mode-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48"><path fill="currentColor" d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                        </div>
+                        <h2>SOLO TEST</h2>
+                        <p>Dev / Practice</p>
+                        <span class="mode-desc">Test chase matches alone. Pick your role.</span>
+                        <div class="mode-badge">DEV</div>
+                    </div>
+                </div>
+                <!-- Solo test config (hidden until Solo Test card is clicked) -->
+                <div class="solo-test-config hidden" id="soloTestConfig">
+                    <div class="solo-test-row">
+                        <span class="solo-test-label">MODE</span>
+                        <div class="solo-test-btns">
+                            <button class="solo-opt-btn active" data-solo-mode="ranked">RANKED</button>
+                            <button class="solo-opt-btn" data-solo-mode="normal">CHASE</button>
+                        </div>
+                    </div>
+                    <div class="solo-test-row">
+                        <span class="solo-test-label">ROLE</span>
+                        <div class="solo-test-btns">
+                            <button class="solo-opt-btn active" data-solo-role="runner">RUNNER</button>
+                            <button class="solo-opt-btn" data-solo-role="chaser">CHASER</button>
+                        </div>
+                    </div>
+                    <button class="solo-start-btn" id="btnSoloStart">START SOLO TEST</button>
                 </div>
                 <!-- Cross-tier toggle -->
                 <div class="cross-tier-option" id="crossTierOption">
