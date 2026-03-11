@@ -2,6 +2,10 @@
 -- Free roam: spawn player in LS with their car, ghosted
 -- ============================================================
 
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
 local freeroamPlayers = {} -- source -> true
 
 RegisterNetEvent('blacklist:enterFreeRoam')
@@ -80,9 +84,5 @@ end)
 exports('IsInFreeRoam', function(source)
     return freeroamPlayers[source] == true
 end)
-
-local function getIdentifier(source)
-    return exports.lib:GetIdentifier(source)
-end
 
 print('[FreeRoam] ^2Server-side loaded^0')

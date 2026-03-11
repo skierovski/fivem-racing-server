@@ -1,3 +1,7 @@
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
 local MAX_MESSAGE_LENGTH = 256
 local recentMessages = {}
 local MAX_HISTORY = 50
@@ -59,9 +63,5 @@ AddEventHandler('blacklist:requestChatHistory', function()
         TriggerClientEvent('blacklist:chatMessage', source, msg)
     end
 end)
-
-local function getIdentifier(source)
-    return exports.lib:GetIdentifier(source)
-end
 
 print('[Chat] ^2Server-side loaded^0')

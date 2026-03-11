@@ -2,6 +2,10 @@
 -- Matchmaking: ranked 1v1 queue + normal chase queue
 -- ============================================================
 
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
 local Config = {
     RANKED_MMR_RANGE_INITIAL = 100,
     RANKED_MMR_RANGE_EXPAND = 50,
@@ -700,10 +704,6 @@ function removeFromAllQueues(source)
     removeFromQueue(rankedQueue, source)
     removeFromQueue(testRankedQueue, source)
     removeFromQueue(normalQueue, source)
-end
-
-local function getIdentifier(source)
-    return exports.lib:GetIdentifier(source)
 end
 
 exports('GetPlayerState', function(source)
