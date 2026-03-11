@@ -9,6 +9,7 @@ local sirenState = 'off' -- 'off', 'code2', 'code3'
 RegisterNetEvent('blacklist:enterFreeRoamClient')
 AddEventHandler('blacklist:enterFreeRoamClient', function(spawn)
     isFreeroamMenuOpen = false
+    TriggerEvent('blacklist:clearChaseUI')
 
     local ped = PlayerPedId()
     local x, y, z, heading = spawn.x, spawn.y, spawn.z, spawn.heading

@@ -317,6 +317,7 @@ end)
 RegisterNetEvent('blacklist:returnToMenu')
 AddEventHandler('blacklist:returnToMenu', function()
     DoScreenFadeOut(0)
+    TriggerEvent('blacklist:clearChaseUI')
 
     local ped = PlayerPedId()
 
