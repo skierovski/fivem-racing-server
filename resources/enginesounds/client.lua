@@ -59,7 +59,27 @@ local ENGINE_SOUNDS = {
     'veyronsound', 'w211',
 }
 
+local CAR_SOUNDS = {
+    [GetHashKey('tailgater2')] = 'taaud40v8',
+}
+
 local isOpen = false
+
+Citizen.CreateThread(function()
+    local lastVeh = 0
+    while true do
+        Citizen.Wait(500)
+        local ped = PlayerPedId()
+        local veh = GetVehiclePedIsIn(ped, false)
+        if veh ~= 0 and veh ~= lastVeh and GetPedInVehicleSeat(veh, -1) == ped then
+            local sound = CAR_SOUNDS[GetEntityModel(veh)]
+            if sound then
+                ForceVehicleEngineAudio(veh, sound)
+            end
+        end
+        lastVeh = veh
+    end
+end)
 
 RegisterCommand('enginesound', function()
     local ped = PlayerPedId()
