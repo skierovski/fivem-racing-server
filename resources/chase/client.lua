@@ -94,6 +94,7 @@ local soloDummyPed = 0
 local soloDummyVehicle = 0
 local ghostedChaserIds = {}
 local heliModel = nil
+local visionCircleBlip = nil
 
 -- Street light + traffic light models: indestructible in ranked
 local STREET_LIGHT_HASHES = {}
@@ -359,8 +360,35 @@ AddEventHandler('blacklist:returnToMenu', function()
     isSoloTest = false
     runnerServerId = nil
     ghostedChaserIds = {}
+    if visionCircleBlip and DoesBlipExist(visionCircleBlip) then
+        RemoveBlip(visionCircleBlip)
+    end
+    visionCircleBlip = nil
     cleanupPdBlips()
     SendNUIMessage({ action = 'hideAll' })
+end)
+
+-- ========================
+-- Vision circle (last known runner position) for chasers
+-- ========================
+
+RegisterNetEvent('blacklist:visionCircle')
+AddEventHandler('blacklist:visionCircle', function(x, y, z)
+    if visionCircleBlip and DoesBlipExist(visionCircleBlip) then
+        RemoveBlip(visionCircleBlip)
+    end
+    visionCircleBlip = AddBlipForRadius(x, y, z, 200.0)
+    SetBlipColour(visionCircleBlip, 1)
+    SetBlipAlpha(visionCircleBlip, 100)
+    SetBlipRotation(visionCircleBlip, 0)
+end)
+
+RegisterNetEvent('blacklist:clearVisionCircle')
+AddEventHandler('blacklist:clearVisionCircle', function()
+    if visionCircleBlip and DoesBlipExist(visionCircleBlip) then
+        RemoveBlip(visionCircleBlip)
+    end
+    visionCircleBlip = nil
 end)
 
 -- ========================
@@ -444,7 +472,7 @@ Citizen.CreateThread(function()
                                 local blip = AddBlipForEntity(otherPed)
                                 SetBlipSprite(blip, 1)
                                 SetBlipColour(blip, 3)
-                                SetBlipScale(blip, 0.8)
+                                SetBlipScale(blip, 1.2)
                                 SetBlipAsShortRange(blip, false)
                                 BeginTextCommandSetBlipName('STRING')
                                 AddTextComponentSubstringPlayerName('PD')

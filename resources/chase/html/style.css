@@ -193,26 +193,6 @@ body {
     color: rgba(255, 255, 255, 0.7);
 }
 
-.hud-distance {
-    margin-top: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 8px 20px;
-    border-radius: 6px;
-    text-align: center;
-}
-
-.distance-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: #0096ff;
-}
-
-.distance-unit {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-left: 4px;
-}
 
 /* ========================
    Catch / Escape progress bar

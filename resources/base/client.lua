@@ -226,21 +226,29 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(200)
 
-        NetworkSetTalkerProximity(VOICE_MAX_RANGE)
+        if PlayerState == 'menu' then
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    MumbleSetVolumeOverrideByServerId(GetPlayerServerId(playerId), 0.0)
+                end
+            end
+        else
+            NetworkSetTalkerProximity(VOICE_MAX_RANGE)
 
-        local myCoords = GetEntityCoords(PlayerPedId())
-        for _, playerId in ipairs(GetActivePlayers()) do
-            if playerId ~= PlayerId() then
-                local otherPed = GetPlayerPed(playerId)
-                if otherPed ~= 0 then
-                    local dist = #(myCoords - GetEntityCoords(otherPed))
-                    local vol = 0.0
-                    if dist <= VOICE_FULL_RANGE then
-                        vol = 1.0
-                    elseif dist < VOICE_MAX_RANGE then
-                        vol = 1.0 - ((dist - VOICE_FULL_RANGE) / (VOICE_MAX_RANGE - VOICE_FULL_RANGE))
+            local myCoords = GetEntityCoords(PlayerPedId())
+            for _, playerId in ipairs(GetActivePlayers()) do
+                if playerId ~= PlayerId() then
+                    local otherPed = GetPlayerPed(playerId)
+                    if otherPed ~= 0 then
+                        local dist = #(myCoords - GetEntityCoords(otherPed))
+                        local vol = 0.0
+                        if dist <= VOICE_FULL_RANGE then
+                            vol = 1.0
+                        elseif dist < VOICE_MAX_RANGE then
+                            vol = 1.0 - ((dist - VOICE_FULL_RANGE) / (VOICE_MAX_RANGE - VOICE_FULL_RANGE))
+                        end
+                        MumbleSetVolumeOverrideByServerId(GetPlayerServerId(playerId), vol)
                     end
-                    MumbleSetVolumeOverrideByServerId(GetPlayerServerId(playerId), vol)
                 end
             end
         end

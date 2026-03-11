@@ -377,6 +377,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         brakeCheckStrikes = {},
         friendlyFireStrikes = {},
         ghostedChasers = {},
+        runnerEscaping = false,
         result = nil,
 
         policeCode = isNormal and 'green' or nil,
@@ -518,12 +519,30 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, 
 
     if allFar then
         match.escapeTimer = match.escapeTimer + 0.5
+
+        if not match.runnerEscaping then
+            match.runnerEscaping = true
+            local runnerPed = GetPlayerPed(match.runner.source)
+            if runnerPed ~= 0 then
+                local rc = GetEntityCoords(runnerPed)
+                for _, c in ipairs(match.chasers) do
+                    TriggerClientEvent('blacklist:visionCircle', c.source, rc.x, rc.y, rc.z)
+                end
+            end
+        end
+
         if match.escapeTimer >= match.escapeTime then
             endMatch(matchId, 'runner', 'escaped')
             return
         end
     else
         match.escapeTimer = 0
+        if match.runnerEscaping then
+            match.runnerEscaping = false
+            for _, c in ipairs(match.chasers) do
+                TriggerClientEvent('blacklist:clearVisionCircle', c.source)
+            end
+        end
     end
 
     -- Boxing detection (normal mode only): runner barely moving + multiple chasers close

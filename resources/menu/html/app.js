@@ -178,6 +178,10 @@
         hideQueue();
     });
 
+    document.getElementById('btnLeaveServer').addEventListener('click', () => {
+        fetch('https://menu/leaveServer', { method: 'POST', body: '{}' });
+    });
+
     function showQueue(text) {
         isQueuing = true;
         queueStatus.classList.remove('hidden');

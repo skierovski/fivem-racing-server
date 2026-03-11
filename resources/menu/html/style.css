@@ -911,6 +911,33 @@ body {
     width: 18px; height: 18px;
 }
 
+.setting-leave {
+    text-align: center;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.leave-server-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    padding: 14px 48px;
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.08);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.leave-server-btn:hover {
+    background: rgba(255, 68, 68, 0.2);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.25);
+}
+
 /* ========================
    Chat panel
    ======================== */

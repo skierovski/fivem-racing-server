@@ -141,6 +141,12 @@ RegisterNUICallback('leaveQueue', function(data, cb)
     cb({})
 end)
 
+RegisterNUICallback('leaveServer', function(data, cb)
+    cb({})
+    Citizen.Wait(100)
+    ExecuteCommand('quit')
+end)
+
 RegisterNUICallback('selectVehicle', function(data, cb)
     TriggerServerEvent('blacklist:selectVehicle', data.model)
     cb({})

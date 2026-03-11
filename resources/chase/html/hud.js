@@ -11,7 +11,6 @@
     const chaseHud = document.getElementById('chaseHud');
     const hudTimer = document.getElementById('hudTimer');
     const hudRole = document.getElementById('hudRole');
-    const distanceValue = document.getElementById('distanceValue');
     const progressContainer = document.getElementById('progressContainer');
     const progressLabel = document.getElementById('progressLabel');
     const progressFill = document.getElementById('progressFill');
@@ -199,7 +198,6 @@
                 hudRole.textContent = data.role === 'runner' ? 'RUNNER' : 'CHASER';
                 hudRole.className = 'hud-role ' + data.role;
                 hudTimer.textContent = formatTime(data.duration);
-                distanceValue.textContent = '---';
 
                 if (data.policeCode) {
                     currentPoliceCode = data.policeCode;
@@ -227,8 +225,6 @@
             }
 
             case 'distance': {
-                distanceValue.textContent = data.distance;
-
                 const cp = data.catchProgress || 0;
                 const ep = data.escapeProgress || 0;
 
