@@ -52,7 +52,7 @@ local ENGINE_SOUNDS = {
     'ta142n54', 'ta149camv8', 'ta176m177',
     'ta178amgb', 'ta181gt3', 'ta183lt1',
     'ta185amv8', 'ta197s50', 'ta488f154',
-    'taaud40v8', 'tacumminsb', 'tagt3flat6',
+    'tacumminsb', 'tagt3flat6',
     'tamustanggt50', 'tascmustanggt50', 'tjz1eng',
     'toysupmk4', 'trumpetzr', 'ttecov6',
     'twinhuracan', 'urusv8', 'v6audiea839',

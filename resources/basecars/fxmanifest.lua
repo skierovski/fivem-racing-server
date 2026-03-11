@@ -9,6 +9,8 @@ files {
     '*.meta',
 }
 
+data_file 'VEHICLE_METADATA_FILE' 'tailgater2_vehicles.meta'
+
 -- Bronze
 data_file 'HANDLING_FILE' 'futo.meta'
 data_file 'HANDLING_FILE' 'rh4.meta'

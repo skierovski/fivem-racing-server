@@ -14,7 +14,7 @@
       <fDriveInertia value="0.750000" />
       <fClutchChangeRateScaleUpShift value="3.500000" />
       <fClutchChangeRateScaleDownShift value="3.000000" />
-      <fInitialDriveMaxFlatVel value="140.000000" />
+      <fInitialDriveMaxFlatVel value="152.500000" />
       <fBrakeForce value="0.600000" />
       <fBrakeBiasFront value="0.600000" />
       <fHandBrakeForce value="0.750000" />
