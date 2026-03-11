@@ -260,19 +260,9 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             duration = data.duration,
             isRanked = data.isRanked,
         })
-        local timeout = data.isRanked and CC.POST_MATCH_RANKED_MS or CC.POST_MATCH_NORMAL_MS
         if data.isRanked then
             SetNuiFocus(true, true)
         end
-        Citizen.SetTimeout(timeout, function()
-            if isPostMatch then
-                isPostMatch = false
-                if data.isRanked then
-                    SetNuiFocus(false, false)
-                end
-                SendNUIMessage({ action = 'hideAll' })
-            end
-        end)
     end
 end)
 
@@ -331,7 +321,6 @@ AddEventHandler('blacklist:returnToMenu', function()
     isSoloTest = false
     runnerServerId = nil
     cleanupPdBlips()
-    SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
 end)
 
@@ -1708,5 +1697,16 @@ end)
 Citizen.CreateThread(function()
     SetNuiFocus(false, false)
 end)
+
+local function clearChaseUI()
+    isInMatch = false
+    isPostMatch = false
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'hideAll' })
+end
+
+exports('ClearChaseUI', clearChaseUI)
+
+AddEventHandler('blacklist:clearChaseUI', clearChaseUI)
 
 print(('[AC-LOG] %sAnti-Cheat Telemetry v%s loaded%s'):format(CLR.G, AC_VERSION, CLR.X))
