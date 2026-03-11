@@ -51,6 +51,11 @@
     const carPickConfirm = document.getElementById('carPickConfirm');
     const carPickSelected = document.getElementById('carPickSelected');
     const carPickConfirmBtn = document.getElementById('carPickConfirmBtn');
+    const forfeitOverlay = document.getElementById('forfeitOverlay');
+    const forfeitTitle = document.getElementById('forfeitTitle');
+    const forfeitMessage = document.getElementById('forfeitMessage');
+    const forfeitYes = document.getElementById('forfeitYes');
+    const forfeitNo = document.getElementById('forfeitNo');
 
     let warningTimeout = null;
     let progressHideTimeout = null;
@@ -115,6 +120,7 @@
         codeChangePopup.classList.add('hidden');
         heliVoteOverlay.classList.add('hidden');
         carPickOverlay.classList.add('hidden');
+        forfeitOverlay.classList.add('hidden');
         rematchRequested = false;
         rematchBtn.textContent = 'REMATCH';
         rematchBtn.disabled = false;
@@ -492,7 +498,31 @@
                 }
                 break;
             }
+
+            case 'forfeitPrompt': {
+                forfeitOverlay.classList.remove('hidden');
+                forfeitTitle.textContent = data.title || 'FORFEIT?';
+                forfeitMessage.textContent = data.message || '';
+                forfeitYes.textContent = data.confirm || 'YES';
+                forfeitNo.textContent = data.cancel || 'CANCEL';
+                break;
+            }
+
+            case 'hideForfeitPrompt': {
+                forfeitOverlay.classList.add('hidden');
+                break;
+            }
         }
+    });
+
+    forfeitYes.addEventListener('click', () => {
+        forfeitOverlay.classList.add('hidden');
+        fetch('https://chase/forfeitConfirm', { method: 'POST', body: '{}' });
+    });
+
+    forfeitNo.addEventListener('click', () => {
+        forfeitOverlay.classList.add('hidden');
+        fetch('https://chase/forfeitCancel', { method: 'POST', body: '{}' });
     });
 
     function updatePoliceCodeDisplay(code) {

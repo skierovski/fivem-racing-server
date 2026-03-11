@@ -98,6 +98,18 @@
         <span id="terrainCountdown">10</span>
     </div>
 
+    <!-- Forfeit / quit confirmation prompt -->
+    <div class="forfeit-overlay hidden" id="forfeitOverlay">
+        <div class="forfeit-box">
+            <div class="forfeit-title" id="forfeitTitle">FORFEIT?</div>
+            <div class="forfeit-message" id="forfeitMessage">You will lose MMR.</div>
+            <div class="forfeit-buttons">
+                <button class="forfeit-btn forfeit-yes" id="forfeitYes">FORFEIT</button>
+                <button class="forfeit-btn forfeit-no" id="forfeitNo">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Match end overlay -->
     <div class="match-end hidden" id="matchEnd">
         <div class="end-result" id="endResult">ESCAPED!</div>

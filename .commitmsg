@@ -1,0 +1,11 @@
+Poprawki: woda, PIT, helikopter, ESC forfeit, PD ghost, syreny, skoki
+
+- DQ za wode tylko przy pelnym zanurzeniu (IsEntitySubmergedInWater)
+- Brake-check usuniety z Chase, zostawiony w Ranked
+- PIT z tylu (REAR_END) poprawnie wykrywany jako celowy (+2 intent)
+- PD vs PD: 2 ostrzezenia, potem ghost zamiast DQ
+- Helikopter: respawn po zniszczeniu dziala (zapamietany model + spawn w powietrzu)
+- Zablokowano E (domyslna syrena) - Q/Alt bez zmian
+- Ram PD: falszywe wykrycie przy PIT od tylu naprawione (heading check)
+- Skok: 15s cooldown na runner_jump (tumbling)
+- ESC: potwierdzenie forfeit/quit z UI, chaser quit w Chase nie konczy meczu

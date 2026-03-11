@@ -17,6 +17,7 @@ local ChaseConfig = {
 
     MAX_PIT_STRIKES = 3,
     MAX_BRAKE_CHECK_STRIKES = 3,
+    MAX_FRIENDLY_FIRE_STRIKES = 2,
 
     REMATCH_WINDOW = 15,
     SPAWN_DEADLINE = 20000,
@@ -374,6 +375,8 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         boxingTimer = 0,
         pitStrikes = {},
         brakeCheckStrikes = {},
+        friendlyFireStrikes = {},
+        ghostedChasers = {},
         result = nil,
 
         policeCode = isNormal and 'green' or nil,
@@ -614,13 +617,36 @@ AddEventHandler('blacklist:forfeitMatch', function()
     end
 
     local isRunner = (source == match.runner.source)
+
     if isRunner then
         endMatch(matchId, 'chaser', 'forfeit')
+        print(('[Chase] Runner %s forfeited match #%d'):format(GetPlayerName(source), matchId))
+    elseif match.mode == 'normal' then
+        for i, c in ipairs(match.chasers) do
+            if c.source == source then
+                table.remove(match.chasers, i)
+                break
+            end
+        end
+        TriggerClientEvent('blacklist:returnToMenu', source)
+        print(('[Chase] Chaser %s quit match #%d (%d chasers remain)'):format(
+            GetPlayerName(source), matchId, #match.chasers))
+
+        if #match.chasers == 0 then
+            endMatch(matchId, 'runner', 'all_chasers_quit')
+        else
+            local allSources = getAllMatchSources(match)
+            for _, src in ipairs(allSources) do
+                TriggerClientEvent('blacklist:chaseHUD', src, {
+                    action = 'warning',
+                    message = GetPlayerName(source) .. ' left the chase.',
+                })
+            end
+        end
     else
         endMatch(matchId, 'runner', 'forfeit')
+        print(('[Chase] Chaser %s forfeited ranked match #%d'):format(GetPlayerName(source), matchId))
     end
-
-    print(('[Chase] %s forfeited match #%d'):format(GetPlayerName(source), matchId))
 end)
 
 -- ========================
@@ -685,6 +711,32 @@ AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
             endMatch(matchId, 'runner', 'chaser_disqualified_pit')
         end
 
+    elseif violationType == 'chaser_friendly_fire' then
+        match.friendlyFireStrikes[source] = (match.friendlyFireStrikes[source] or 0) + 1
+        local count = match.friendlyFireStrikes[source]
+
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'warning',
+                message = playerName .. ': Ramming PD! (' .. count .. '/' .. ChaseConfig.MAX_FRIENDLY_FIRE_STRIKES .. ')',
+            })
+        end
+
+        print(('[Chase] Match #%d: %s friendly fire strike %d/%d'):format(
+            matchId, playerName, count, ChaseConfig.MAX_FRIENDLY_FIRE_STRIKES))
+
+        if count >= ChaseConfig.MAX_FRIENDLY_FIRE_STRIKES and not match.ghostedChasers[source] then
+            match.ghostedChasers[source] = true
+            for _, src in ipairs(allSources) do
+                TriggerClientEvent('blacklist:chaseHUD', src, {
+                    action = 'warning',
+                    message = playerName .. ': GHOSTED for ramming PD!',
+                })
+                TriggerClientEvent('blacklist:ghostChaser', src, source)
+            end
+            print(('[Chase] Match #%d: %s ghosted for friendly fire'):format(matchId, playerName))
+        end
+
     elseif violationType == 'runner_brake_check' then
         local runnerSource = match.runner.source
         match.brakeCheckStrikes[runnerSource] = (match.brakeCheckStrikes[runnerSource] or 0) + 1
@@ -707,7 +759,7 @@ AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
         for _, src in ipairs(allSources) do
             TriggerClientEvent('blacklist:chaseHUD', src, {
                 action = 'warning',
-                message = playerName .. ': Drove into water — DISQUALIFIED!',
+                message = playerName .. ': Submerged in water — DISQUALIFIED!',
             })
         end
         print(('[Chase] Match #%d: %s DQ — runner in water'):format(matchId, playerName))
