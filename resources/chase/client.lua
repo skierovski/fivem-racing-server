@@ -107,8 +107,6 @@ for _, m in ipairs({
     'prop_streetlight_15a', 'prop_streetlight_16a',
     'prop_floodlight_01',
     'prop_traffic_01a', 'prop_traffic_01b', 'prop_traffic_01d',
-    'prop_traffic_02a', 'prop_traffic_02b',
-    'prop_traffic_03a', 'prop_traffic_03b',
 }) do STREET_LIGHT_HASHES[GetHashKey(m)] = true end
 
 local HYDRANT_HASHES = {}
