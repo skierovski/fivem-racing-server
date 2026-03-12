@@ -299,10 +299,17 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         if data.policeCode == 'red' and myRole == 'chaser' and not hasGunBeenGiven then
             hasGunBeenGiven = true
             exports.base:SetAllowWeapons(true)
-            Citizen.SetTimeout(500, function()
+            Citizen.CreateThread(function()
+                RequestWeaponAsset(GUN_HASH)
+                local t = 0
+                while not HasWeaponAssetLoaded(GUN_HASH) and t < 5000 do
+                    Citizen.Wait(100)
+                    t = t + 100
+                end
                 local ped = PlayerPedId()
                 GiveWeaponToPed(ped, GUN_HASH, 2, false, true)
                 SetPedAmmo(ped, GUN_HASH, 2)
+                SetCurrentPedWeapon(ped, GUN_HASH, true)
                 local rVeh = getRunnerVehicle()
                 if rVeh and rVeh ~= 0 then
                     for _, w in ipairs(WHEEL_TIRE_MAP) do
@@ -1893,15 +1900,38 @@ Citizen.CreateThread(function()
                                 local pitNow = GetGameTimer()
                                 if pitNow - telem.lastPitReport >= CC.PIT_REPORT_COOLDOWN then
                                     telem.lastPitReport = pitNow
+
+                                    local isBoxing = (vd.speedKmh < 30 and opp.speedKmh < 30)
                                     local isRunnerContact = (opp.serverId == runnerServerId)
-                                    if isRunnerContact then
+                                    if isRunnerContact and isBoxing then
+                                        acLog('INFO', ('  > PIT suppressed — boxing speeds (me=%d opp=%d km/h, score=%d)'):format(
+                                            vd.speedKmh, opp.speedKmh, analysis.intentScore))
+                                    elseif isRunnerContact then
                                         acLog('CRIT', ('  > PIT STRIKE — intentional contact on RUNNER (score=%d)'):format(analysis.intentScore))
                                         local pitSpeedMph = vd.speedKmh * CC.KMH_TO_MPH
                                         TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
                                         TriggerServerEvent('blacklist:requestRepair', 'opponent')
                                     else
-                                        acLog('CRIT', ('  > FRIENDLY FIRE — intentional contact on PD (score=%d)'):format(analysis.intentScore))
-                                        TriggerServerEvent('blacklist:reportViolation', 'chaser_friendly_fire')
+                                        local suppressFF = false
+                                        if runnerServerId then
+                                            local rPlayer = GetPlayerFromServerId(runnerServerId)
+                                            if rPlayer and rPlayer ~= -1 then
+                                                local rPed = GetPlayerPed(rPlayer)
+                                                if rPed ~= 0 and DoesEntityExist(rPed) then
+                                                    local myCoords = GetEntityCoords(PlayerPedId())
+                                                    local rCoords = GetEntityCoords(rPed)
+                                                    if #(myCoords - rCoords) <= 25.0 then
+                                                        suppressFF = true
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if suppressFF then
+                                            acLog('INFO', ('  > FRIENDLY FIRE suppressed — boxing/catching proximity (score=%d)'):format(analysis.intentScore))
+                                        else
+                                            acLog('CRIT', ('  > FRIENDLY FIRE — intentional contact on PD (score=%d)'):format(analysis.intentScore))
+                                            TriggerServerEvent('blacklist:reportViolation', 'chaser_friendly_fire')
+                                        end
                                     end
                                 end
                             end

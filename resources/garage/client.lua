@@ -6,6 +6,7 @@ local isInGarage = false
 local garageVehicle = nil
 local garageCam = nil
 local garageModel = nil
+local tuningReceived = false
 
 -- Tracked state (reading these back from natives is unreliable)
 local trackedNeonEnabled = false
@@ -158,10 +159,22 @@ AddEventHandler('blacklist:enterGarage', function(model)
 
     ClearFocus()
 
-    -- Request tuning data from server (fires while camera transition plays)
+    -- Request tuning data from server; wait for it before fading in
+    tuningReceived = false
     TriggerServerEvent('blacklist:requestTuningData', model)
 
-    Citizen.Wait(350)
+    -- Wait up to 5s for tuning data; fade in regardless after timeout
+    local waitStart = GetGameTimer()
+    while not tuningReceived and (GetGameTimer() - waitStart) < 5000 do
+        Citizen.Wait(50)
+    end
+
+    -- If server never responded, open NUI with empty tuning so player isn't stuck
+    if not tuningReceived and isInGarage and garageVehicle then
+        TriggerEvent('blacklist:receiveTuningData', {}, nil)
+    end
+
+    Citizen.Wait(200)
     DoScreenFadeIn(300)
 end)
 
@@ -173,9 +186,12 @@ RegisterNetEvent('blacklist:receiveTuningData')
 AddEventHandler('blacklist:receiveTuningData', function(tuning, savedTuning)
     if not isInGarage or not garageVehicle then return end
 
-    -- Apply saved tuning to the vehicle first
+    -- Apply saved tuning then re-place on ground
+    -- (suspension mods change ride height which can push SUVs into the floor)
     if savedTuning then
         applyFullTuning(garageVehicle, savedTuning)
+        Citizen.Wait(100)
+        SetVehicleOnGroundProperly(garageVehicle)
     end
 
     -- Build mod counts for each slot

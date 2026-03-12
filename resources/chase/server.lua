@@ -372,6 +372,7 @@ AddEventHandler('blacklist:startChaseMatch', function(matchData)
         catchTimer = 0,
         escapeTimer = 0,
         chaserDistances = {},
+        chaserSpeeds = {},
         boxingTimer = 0,
         pitStrikes = {},
         brakeCheckStrikes = {},
@@ -493,17 +494,36 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, 
     local speed = tonumber(chaserSpeed) or 0.0
 
     match.chaserDistances[source] = distance
+    match.chaserSpeeds[source] = speed
 
     -- Catch: any single chaser close enough and slow enough
-    if distance <= ChaseConfig.CATCH_DISTANCE and speed <= ChaseConfig.ARREST_MAX_SPEED then
-        match.catchTimer = match.catchTimer + 0.5
+    local anyCatching = false
+    for _, c in ipairs(match.chasers) do
+        local d = match.chaserDistances[c.source]
+        local s = match.chaserSpeeds[c.source]
+        if d and s and d <= ChaseConfig.CATCH_DISTANCE and s <= ChaseConfig.ARREST_MAX_SPEED then
+            anyCatching = true
+            break
+        end
+    end
+
+    local now = GetGameTimer() / 1000.0
+    if anyCatching then
+        if not match.catchStart then
+            match.catchStart = now
+        end
+        match.escapeStart = nil
         match.escapeTimer = 0
+        match.boxingStart = nil
         match.boxingTimer = 0
-        if match.catchTimer >= ChaseConfig.CATCH_TIME then
+        local elapsed = now - match.catchStart
+        match.catchTimer = elapsed
+        if elapsed >= ChaseConfig.CATCH_TIME then
             endMatch(matchId, 'chaser', 'caught')
             return
         end
     else
+        match.catchStart = nil
         match.catchTimer = 0
     end
 
@@ -518,7 +538,11 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, 
     end
 
     if allFar then
-        match.escapeTimer = match.escapeTimer + 0.5
+        if not match.escapeStart then
+            match.escapeStart = now
+        end
+        local escapeElapsed = now - match.escapeStart
+        match.escapeTimer = escapeElapsed
 
         if not match.runnerEscaping then
             match.runnerEscaping = true
@@ -531,11 +555,12 @@ AddEventHandler('blacklist:reportDistance', function(distance, displayDistance, 
             end
         end
 
-        if match.escapeTimer >= match.escapeTime then
+        if escapeElapsed >= match.escapeTime then
             endMatch(matchId, 'runner', 'escaped')
             return
         end
     else
+        match.escapeStart = nil
         match.escapeTimer = 0
         if match.runnerEscaping then
             match.runnerEscaping = false
@@ -590,6 +615,7 @@ end)
 function checkBoxing(match, matchId)
     local runnerSpeed = match.runnerSpeed or 999
     if runnerSpeed > ChaseConfig.BOX_SPEED_THRESHOLD then
+        match.boxingStart = nil
         match.boxingTimer = 0
         return
     end
@@ -603,8 +629,13 @@ function checkBoxing(match, matchId)
     end
 
     if closeChasers >= ChaseConfig.BOX_MIN_CHASERS then
-        match.boxingTimer = match.boxingTimer + 0.5
-        if match.boxingTimer >= ChaseConfig.BOX_TIME then
+        local now = GetGameTimer() / 1000.0
+        if not match.boxingStart then
+            match.boxingStart = now
+        end
+        local boxElapsed = now - match.boxingStart
+        match.boxingTimer = boxElapsed
+        if boxElapsed >= ChaseConfig.BOX_TIME then
             local allSources = getAllMatchSources(match)
             for _, src in ipairs(allSources) do
                 TriggerClientEvent('blacklist:chaseHUD', src, {
@@ -615,6 +646,7 @@ function checkBoxing(match, matchId)
             endMatch(matchId, 'chaser', 'boxed')
         end
     else
+        match.boxingStart = nil
         match.boxingTimer = 0
     end
 end
