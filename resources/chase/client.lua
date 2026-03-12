@@ -146,6 +146,7 @@ local function cleanupGun()
     hasGunBeenGiven = false
     lastShotTime = 0
     runnerTiresBurst = {}
+    pcall(function() exports.base:SetAllowWeapons(false) end)
 end
 
 local function cleanupCodeFeatures()
@@ -297,6 +298,7 @@ AddEventHandler('blacklist:chaseHUD', function(data)
 
         if data.policeCode == 'red' and myRole == 'chaser' and not hasGunBeenGiven then
             hasGunBeenGiven = true
+            exports.base:SetAllowWeapons(true)
             Citizen.SetTimeout(500, function()
                 local ped = PlayerPedId()
                 GiveWeaponToPed(ped, GUN_HASH, 2, false, true)
@@ -1098,9 +1100,12 @@ Citizen.CreateThread(function()
                     while not HasModelLoaded(spikeHash) and GetGameTimer() < dl do Citizen.Wait(10) end
 
                     if HasModelLoaded(spikeHash) then
-                        spikeStripEntity = CreateObject(spikeHash, coords.x, coords.y, coords.z - 0.5, true, true, false)
-                        SetEntityHeading(spikeStripEntity, heading + 90.0)
-                        PlaceObjectOnGroundProperly(spikeStripEntity)
+                        local groundZ = coords.z
+                        local found, gz = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 2.0, false)
+                        if found then groundZ = gz end
+
+                        spikeStripEntity = CreateObject(spikeHash, coords.x, coords.y, groundZ, true, true, false)
+                        SetEntityHeading(spikeStripEntity, heading)
                         FreezeEntityPosition(spikeStripEntity, true)
                         SetModelAsNoLongerNeeded(spikeHash)
                         spikeStripCoords = GetEntityCoords(spikeStripEntity)
@@ -1115,6 +1120,7 @@ end)
 
 -- ========================
 -- Spike strip tire burst detection (per-wheel)
+-- Chaser detects proximity, server relays burst to runner's client
 -- ========================
 
 Citizen.CreateThread(function()
@@ -1122,33 +1128,38 @@ Citizen.CreateThread(function()
     while true do
         Citizen.Wait(100)
         if isInMatch and spikeStripEntity and DoesEntityExist(spikeStripEntity) and spikeStripCoords then
-            local handle, veh = FindFirstVehicle()
-            local success = true
-            while success do
-                if DoesEntityExist(veh) and veh ~= (chaserVehSaved or 0) then
-                    local vCoords = GetEntityCoords(veh)
-                    if #(vCoords - spikeStripCoords) < 12.0 then
-                        for _, w in ipairs(WHEEL_TIRE_MAP) do
-                            local bIdx = GetEntityBoneIndexByName(veh, w.bone)
-                            if bIdx ~= -1 then
-                                local wPos = GetWorldPositionOfEntityBone(veh, bIdx)
-                                local key = veh * 10 + w.tire
-                                if #(wPos - spikeStripCoords) < SPIKE_TIRE_RADIUS
-                                    and not burstLog[key]
-                                    and not IsVehicleTyreBurst(veh, w.tire, false) then
-                                    SetVehicleTyreBurst(veh, w.tire, true, 1000.0)
-                                    burstLog[key] = true
-                                end
+            local rVeh = getRunnerVehicle()
+            if rVeh and rVeh ~= 0 and DoesEntityExist(rVeh) then
+                local vCoords = GetEntityCoords(rVeh)
+                if #(vCoords - spikeStripCoords) < 12.0 then
+                    for _, w in ipairs(WHEEL_TIRE_MAP) do
+                        local bIdx = GetEntityBoneIndexByName(rVeh, w.bone)
+                        if bIdx ~= -1 then
+                            local wPos = GetWorldPositionOfEntityBone(rVeh, bIdx)
+                            local key = w.tire
+                            if #(wPos - spikeStripCoords) < SPIKE_TIRE_RADIUS
+                                and not burstLog[key]
+                                and not IsVehicleTyreBurst(rVeh, w.tire, false) then
+                                burstLog[key] = true
+                                local netId = NetworkGetNetworkIdFromEntity(rVeh)
+                                TriggerServerEvent('blacklist:spikeTireBurst', netId, w.tire)
                             end
                         end
                     end
                 end
-                success, veh = FindNextVehicle(handle)
             end
-            EndFindVehicle(handle)
         else
             burstLog = {}
         end
+    end
+end)
+
+-- Runner receives tire burst from server (spike strip hit)
+RegisterNetEvent('blacklist:applyTireBurst')
+AddEventHandler('blacklist:applyTireBurst', function(netId, tireIndex)
+    local veh = NetworkGetEntityFromNetworkId(netId)
+    if veh and veh ~= 0 and DoesEntityExist(veh) then
+        SetVehicleTyreBurst(veh, tireIndex, true, 1000.0)
     end
 end)
 

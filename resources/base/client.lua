@@ -2,6 +2,9 @@ local hasSpawned = false
 --- Intentionally global: read by multiple resources via exports.base:GetPlayerState()
 PlayerState = 'menu' -- 'menu', 'freeroam', 'in_match'
 
+local allowWeapons = false
+exports('SetAllowWeapons', function(allow) allowWeapons = allow end)
+
 exports.spawnmanager:setAutoSpawn(true)
 exports.spawnmanager:setAutoSpawnCallback(function()
     if hasSpawned then return end
@@ -77,18 +80,20 @@ Citizen.CreateThread(function()
         Citizen.Wait(0)
 
         HideHudComponentThisFrame(1)  -- WANTED_STARS
-        HideHudComponentThisFrame(2)  -- WEAPON_ICON
         HideHudComponentThisFrame(3)  -- CASH
         HideHudComponentThisFrame(4)  -- MP_CASH
         HideHudComponentThisFrame(6)  -- VEHICLE_NAME
         HideHudComponentThisFrame(7)  -- AREA_NAME
         HideHudComponentThisFrame(9)  -- STREET_NAME
         HideHudComponentThisFrame(13) -- CASH_CHANGE
-        HideHudComponentThisFrame(19) -- WEAPON_WHEEL
-        HideHudComponentThisFrame(20) -- WEAPON_WHEEL_STATS
-        HideHudComponentThisFrame(22) -- HUD_WEAPONS
 
-        DisableControlAction(0, 37, true)
+        if not allowWeapons then
+            HideHudComponentThisFrame(2)  -- WEAPON_ICON
+            HideHudComponentThisFrame(19) -- WEAPON_WHEEL
+            HideHudComponentThisFrame(20) -- WEAPON_WHEEL_STATS
+            HideHudComponentThisFrame(22) -- HUD_WEAPONS
+            DisableControlAction(0, 37, true)
+        end
 
         DisableControlAction(0, 85, true)
         DisableControlAction(0, 81, true)

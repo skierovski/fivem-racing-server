@@ -1212,4 +1212,19 @@ AddEventHandler('blacklist:chaseLog', function(logData)
     end
 end)
 
+-- ========================
+-- Spike strip tire burst relay: chaser → server → runner
+-- ========================
+
+RegisterNetEvent('blacklist:spikeTireBurst')
+AddEventHandler('blacklist:spikeTireBurst', function(runnerNetId, tireIndex)
+    local source = source
+    local matchId = playerMatchMap[source]
+    if not matchId then return end
+    local match = activeMatches[matchId]
+    if not match then return end
+
+    TriggerClientEvent('blacklist:applyTireBurst', match.runner.source, runnerNetId, tireIndex)
+end)
+
 print('[Chase] ^2Game mode loaded  |  AC Telemetry relay active^0')
