@@ -463,4 +463,112 @@ RegisterNUICallback('backToMainMenu', function(data, cb)
     cb({})
 end)
 
+-- ========================
+-- Speed timer (/timer) — 0-62, 0-124, 62-124 MPH
+-- ========================
+
+local speedTimerActive = false
+local speedTimer = { startTime = nil, hit62 = false, hit124 = false, t62 = nil, t124 = nil, t62_124 = nil, stamp62 = nil }
+
+local function resetSpeedTimer()
+    speedTimer = { startTime = nil, hit62 = false, hit124 = false, t62 = nil, t124 = nil, t62_124 = nil, stamp62 = nil }
+end
+
+local function drawCenterText(x, y, text, scale)
+    SetTextFont(4)
+    SetTextScale(scale, scale)
+    SetTextColour(255, 255, 255, 230)
+    SetTextDropshadow(0, 0, 0, 0, 255)
+    SetTextEdge(2, 0, 0, 0, 200)
+    SetTextOutline()
+    SetTextCentre(true)
+    SetTextEntry('STRING')
+    AddTextComponentString(text)
+    DrawText(x, y)
+end
+
+RegisterCommand('timer', function()
+    if not isInFreeRoam then return end
+    speedTimerActive = not speedTimerActive
+    if speedTimerActive then resetSpeedTimer() end
+end, false)
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+
+        if speedTimerActive and isInFreeRoam then
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+
+            if veh ~= 0 then
+                local mph = GetEntitySpeed(veh) * 2.236936
+                local now = GetGameTimer()
+
+                if speedTimer.startTime and mph < 1.0 and (speedTimer.t62 or speedTimer.t124) then
+                    Citizen.Wait(2000)
+                    resetSpeedTimer()
+                end
+
+                if not speedTimer.startTime and mph > 1.0 then
+                    speedTimer.startTime = now
+                end
+
+                if speedTimer.startTime then
+                    local elapsed = (now - speedTimer.startTime) / 1000.0
+
+                    if not speedTimer.hit62 and mph >= 62.0 then
+                        speedTimer.hit62 = true
+                        speedTimer.t62 = elapsed
+                        speedTimer.stamp62 = now
+                    end
+
+                    if not speedTimer.hit124 and mph >= 124.0 then
+                        speedTimer.hit124 = true
+                        speedTimer.t124 = elapsed
+                        if speedTimer.stamp62 then
+                            speedTimer.t62_124 = (now - speedTimer.stamp62) / 1000.0
+                        end
+                    end
+                end
+
+                local y = 0.85
+                local function row(label, t)
+                    drawCenterText(0.5, y, label .. ': ' .. (t and string.format('%.2fs', t) or '--'), 0.42)
+                    y = y + 0.03
+                end
+
+                row('0 - 62 MPH', speedTimer.t62)
+                row('0 - 124 MPH', speedTimer.t124)
+                row('62 - 124 MPH', speedTimer.t62_124)
+                drawCenterText(0.5, y, string.format('%.0f MPH', mph), 0.5)
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Max tune + spoiler (/maxtune)
+-- ========================
+
+RegisterCommand('maxtune', function()
+    if not isInFreeRoam then return end
+    local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped, false)
+    if veh == 0 then return end
+
+    SetVehicleModKit(veh, 0)
+
+    SetVehicleMod(veh, 11, GetNumVehicleMods(veh, 11) - 1, false)  -- engine
+    SetVehicleMod(veh, 12, GetNumVehicleMods(veh, 12) - 1, false)  -- brakes
+    SetVehicleMod(veh, 13, GetNumVehicleMods(veh, 13) - 1, false)  -- transmission
+    SetVehicleMod(veh, 15, GetNumVehicleMods(veh, 15) - 1, false)  -- suspension
+    ToggleVehicleMod(veh, 18, true)                                  -- turbo
+
+    local numSpoilers = GetNumVehicleMods(veh, 0)
+    if numSpoilers > 0 then
+        SetVehicleMod(veh, 0, numSpoilers - 1, false)
+    end
+end, false)
+
 print('[FreeRoam] ^2Client-side loaded^0')
