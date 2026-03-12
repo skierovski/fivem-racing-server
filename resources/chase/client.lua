@@ -1763,179 +1763,180 @@ end
 -- ============================================================
 
 Citizen.CreateThread(function()
+    TriggerServerEvent('blacklist:chaseLog', { message = '[DIAG] Thread1 STARTED' })
+
     while true do
         Citizen.Wait(100)
 
         if not isInMatch then
             telem.wasAirborne = false
             telem.airborneStart = 0
-            goto continue
-        end
+        else
+            local ok, err = pcall(function()
+                local ped     = PlayerPedId()
+                local vehicle = GetVehiclePedIsIn(ped, false)
+                if vehicle == 0 then return end
 
-        local ped     = PlayerPedId()
-        local vehicle = GetVehiclePedIsIn(ped, false)
-        if vehicle == 0 then goto continue end
+                local vd = getVehicleData(vehicle)
+                if not vd then return end
 
-        local vd = getVehicleData(vehicle)
-        if not vd then goto continue end
+                updateInputState(vd)
+                detectWaterContact(vehicle)
+                telem.preContactHealth = snapshotVehicleHealth(vehicle)
+                processAirborne(vd)
 
-        updateInputState(vd)
-        detectWaterContact(vehicle)
-        telem.preContactHealth = snapshotVehicleHealth(vehicle)
-        processAirborne(vd)
+                -- ======== COLLISION DETECTION ========
 
-        -- ======== COLLISION DETECTION ========
+                if HasEntityCollidedWithAnything(vehicle) then
+                    local now = GetGameTimer()
+                    if now - telem.lastCollisionTime < CC.COLLISION_COOLDOWN_MS then return end
+                    telem.lastCollisionTime = now
+                    telem.totalCollisions   = telem.totalCollisions + 1
 
-        if HasEntityCollidedWithAnything(vehicle) then
-            local now = GetGameTimer()
-            if now - telem.lastCollisionTime < CC.COLLISION_COOLDOWN_MS then goto continue end
-            telem.lastCollisionTime = now
-            telem.totalCollisions   = telem.totalCollisions + 1
+                    local opp = getOpponentData()
+                    local isPlayerContact = opp.dist < CC.PLAYER_CONTACT_DIST
 
-            local opp = getOpponentData()
-            local isPlayerContact = opp.dist < CC.PLAYER_CONTACT_DIST
+                    if isPlayerContact then
+                        telem.playerContacts = telem.playerContacts + 1
 
-            if isPlayerContact then
-                -- ---------- PLAYER CONTACT ----------
-                telem.playerContacts = telem.playerContacts + 1
+                        local analysis = analyzePitManeuver(vd, opp)
 
-                local analysis = analyzePitManeuver(vd, opp)
-
-                local spinInfo = ''
-                if opp.yawRate > 45 then
-                    spinInfo = (' | OPP_SPIN=YES %.0f°/s'):format(opp.yawRate)
-                    telem.spinOuts = telem.spinOuts + 1
-                end
-
-                local brakeInfo = 'NO'
-                if telem.isBraking then
-                    local brakeDur = (GetGameTimer() - telem.brakeStartTime) / 1000.0
-                    brakeInfo = ('YES %.1fs'):format(brakeDur)
-                end
-
-                local trend, _ = getSpeedTrend()
-
-                local level = 'INFO'
-                if analysis.intent == 'LIKELY_INTENTIONAL' then level = 'WARN' end
-
-                acLog(level, ('CONTACT PLAYER | type=%s | intent=%s (score=%d) | my_spd=%d | opp_spd=%d km/h | dist=%.1fm'):format(
-                    analysis.contactType, analysis.intent, analysis.intentScore, vd.speedKmh, opp.speedKmh, opp.dist))
-
-                acLog(level, ('  > approach=%.0f° | hdg_diff=%.0f° | spd_diff=%+d | steer=%.0f° | brake=%s | trend=%s%s'):format(
-                    analysis.approachAngle, analysis.headingDiff, analysis.speedDiff,
-                    vd.steering, brakeInfo, trend, spinInfo))
-
-                if #analysis.factors > 0 then
-                    acLog('ANLZ', ('  > factors: %s'):format(analysis.factors))
-                end
-
-                -- Follow-up context: runner crashed → did chaser have time to react?
-                local followUpReaction = nil
-                if telem.lastEnvCrash and myRole == 'chaser' then
-                    local gap = now - telem.lastEnvCrash.time
-                    if gap < CC.FOLLOW_UP_WINDOW then
-                        local reaction = 'NO_TIME'
-                        if gap > CC.FOLLOW_UP_HAD_TIME then
-                            reaction = 'HAD_TIME'
-                        elseif gap > CC.FOLLOW_UP_NO_TIME then
-                            reaction = telem.isBraking and 'TRIED_AVOID' or 'DID_NOT_AVOID'
+                        local spinInfo = ''
+                        if opp.yawRate > 45 then
+                            spinInfo = (' | OPP_SPIN=YES %.0f°/s'):format(opp.yawRate)
+                            telem.spinOuts = telem.spinOuts + 1
                         end
-                        followUpReaction = reaction
 
-                        acLog('ANLZ', ('  > FOLLOW-UP: runner crashed %dms ago @ %d km/h | reaction=%s | chaser_brake=%s | dist_at_crash=%.0fm'):format(
-                            gap, telem.lastEnvCrash.speed, reaction, brakeInfo, opp.dist))
-
-                        if reaction == 'NO_TIME' or reaction == 'TRIED_AVOID' then
-                            TriggerServerEvent('blacklist:requestRepair', 'self')
+                        local brakeInfo = 'NO'
+                        if telem.isBraking then
+                            local brakeDur = (GetGameTimer() - telem.brakeStartTime) / 1000.0
+                            brakeInfo = ('YES %.1fs'):format(brakeDur)
                         end
-                    end
-                end
 
-                if myRole == 'chaser' then
-                    if matchMode == 'ranked' then
-                        local wasBrakeChecked = telem.lastBrakeCheck
-                            and (now - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT
+                        local trend, _ = getSpeedTrend()
 
-                        if wasBrakeChecked then
-                            local bcGap = now - telem.lastBrakeCheck.time
-                            acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
-                                bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+                        local level = 'INFO'
+                        if analysis.intent == 'LIKELY_INTENTIONAL' then level = 'WARN' end
 
-                            local oppOnHill = false
-                            if opp.vehicle ~= 0 then
-                                local oppPitch = GetEntityPitch(opp.vehicle)
-                                if math.abs(oppPitch) > 10 then oppOnHill = true end
-                            end
-                            local wasEnvCrash = telem.lastEnvCrash and (now - telem.lastEnvCrash.time) < CC.FOLLOW_UP_WINDOW
+                        acLog(level, ('CONTACT PLAYER | type=%s | intent=%s (score=%d) | my_spd=%d | opp_spd=%d km/h | dist=%.1fm'):format(
+                            analysis.contactType, analysis.intent, analysis.intentScore, vd.speedKmh, opp.speedKmh, opp.dist))
 
-                            if not oppOnHill and not wasEnvCrash then
-                                acLog('CRIT', '  > DELIBERATE BRAKE-CHECK — runner penalized')
-                                TriggerServerEvent('blacklist:reportViolation', 'runner_brake_check')
-                            else
-                                acLog('ANLZ', '  > brake-check likely caused by terrain/crash — no runner penalty')
-                            end
+                        acLog(level, ('  > approach=%.0f° | hdg_diff=%.0f° | spd_diff=%+d | steer=%.0f° | brake=%s | trend=%s%s'):format(
+                            analysis.approachAngle, analysis.headingDiff, analysis.speedDiff,
+                            vd.steering, brakeInfo, trend, spinInfo))
 
-                            TriggerServerEvent('blacklist:requestRepair', 'self')
+                        if #analysis.factors > 0 then
+                            acLog('ANLZ', ('  > factors: %s'):format(analysis.factors))
                         end
-                    end
 
-                    if analysis.intent == 'LIKELY_INTENTIONAL' then
-                        local now = GetGameTimer()
-                        if now - telem.lastPitReport >= CC.PIT_REPORT_COOLDOWN then
-                            telem.lastPitReport = now
-                            local isRunnerContact = (opp.serverId == runnerServerId)
-                            if isRunnerContact then
-                                acLog('CRIT', ('  > PIT STRIKE — intentional contact on RUNNER (score=%d)'):format(analysis.intentScore))
-                                local pitSpeedMph = vd.speedKmh * CC.KMH_TO_MPH
-                                TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
-                                TriggerServerEvent('blacklist:requestRepair', 'opponent')
-                            else
-                                acLog('CRIT', ('  > FRIENDLY FIRE — intentional contact on PD (score=%d)'):format(analysis.intentScore))
-                                TriggerServerEvent('blacklist:reportViolation', 'chaser_friendly_fire')
+                        local followUpReaction = nil
+                        if telem.lastEnvCrash and myRole == 'chaser' then
+                            local gap = now - telem.lastEnvCrash.time
+                            if gap < CC.FOLLOW_UP_WINDOW then
+                                local reaction = 'NO_TIME'
+                                if gap > CC.FOLLOW_UP_HAD_TIME then
+                                    reaction = 'HAD_TIME'
+                                elseif gap > CC.FOLLOW_UP_NO_TIME then
+                                    reaction = telem.isBraking and 'TRIED_AVOID' or 'DID_NOT_AVOID'
+                                end
+                                followUpReaction = reaction
+
+                                acLog('ANLZ', ('  > FOLLOW-UP: runner crashed %dms ago @ %d km/h | reaction=%s | chaser_brake=%s | dist_at_crash=%.0fm'):format(
+                                    gap, telem.lastEnvCrash.speed, reaction, brakeInfo, opp.dist))
+
+                                if reaction == 'NO_TIME' or reaction == 'TRIED_AVOID' then
+                                    TriggerServerEvent('blacklist:requestRepair', 'self')
+                                end
                             end
                         end
+
+                        if myRole == 'chaser' then
+                            if matchMode == 'ranked' then
+                                local wasBrakeChecked = telem.lastBrakeCheck
+                                    and (now - telem.lastBrakeCheck.time) < CC.BRAKE_CHECK_CONTEXT
+
+                                if wasBrakeChecked then
+                                    local bcGap = now - telem.lastBrakeCheck.time
+                                    acLog('CRIT', ('  > !! BRAKE-CHECK → RAM !! runner braked %dms before contact (%d→%d km/h) | chaser NOT penalized'):format(
+                                        bcGap, telem.lastBrakeCheck.oppSpeedBefore, telem.lastBrakeCheck.oppSpeedAfter))
+
+                                    local oppOnHill = false
+                                    if opp.vehicle ~= 0 then
+                                        local oppPitch = GetEntityPitch(opp.vehicle)
+                                        if math.abs(oppPitch) > 10 then oppOnHill = true end
+                                    end
+                                    local wasEnvCrash = telem.lastEnvCrash and (now - telem.lastEnvCrash.time) < CC.FOLLOW_UP_WINDOW
+
+                                    if not oppOnHill and not wasEnvCrash then
+                                        acLog('CRIT', '  > DELIBERATE BRAKE-CHECK — runner penalized')
+                                        TriggerServerEvent('blacklist:reportViolation', 'runner_brake_check')
+                                    else
+                                        acLog('ANLZ', '  > brake-check likely caused by terrain/crash — no runner penalty')
+                                    end
+
+                                    TriggerServerEvent('blacklist:requestRepair', 'self')
+                                end
+                            end
+
+                            if analysis.intent == 'LIKELY_INTENTIONAL' then
+                                local pitNow = GetGameTimer()
+                                if pitNow - telem.lastPitReport >= CC.PIT_REPORT_COOLDOWN then
+                                    telem.lastPitReport = pitNow
+                                    local isRunnerContact = (opp.serverId == runnerServerId)
+                                    if isRunnerContact then
+                                        acLog('CRIT', ('  > PIT STRIKE — intentional contact on RUNNER (score=%d)'):format(analysis.intentScore))
+                                        local pitSpeedMph = vd.speedKmh * CC.KMH_TO_MPH
+                                        TriggerServerEvent('blacklist:reportViolation', 'chaser_pit', pitSpeedMph)
+                                        TriggerServerEvent('blacklist:requestRepair', 'opponent')
+                                    else
+                                        acLog('CRIT', ('  > FRIENDLY FIRE — intentional contact on PD (score=%d)'):format(analysis.intentScore))
+                                        TriggerServerEvent('blacklist:reportViolation', 'chaser_friendly_fire')
+                                    end
+                                end
+                            end
+                        end
+
+                    else
+                        telem.envCollisions = telem.envCollisions + 1
+
+                        local prevSpd   = #telem.speedSamples > 2 and telem.speedSamples[#telem.speedSamples - 2] or vd.speedKmh
+                        local speedLoss = prevSpd - vd.speedKmh
+
+                        local severity = 'LIGHT'
+                        if speedLoss > 50 then severity = 'HEAVY'
+                        elseif speedLoss > 20 then severity = 'MEDIUM' end
+
+                        telem.lastWallHitTime  = now
+                        telem.lastWallHitSpeed = vd.speedKmh
+
+                        local level = severity == 'HEAVY' and 'WARN' or 'INFO'
+
+                        acLog(level, ('COLLISION ENV | severity=%s | spd=%d km/h | lost=%d km/h | pitch=%.1f° | roll=%.1f° | opp_dist=%.0fm'):format(
+                            severity, vd.speedKmh, speedLoss, vd.pitch, vd.roll, opp.dist))
+
+                        if myRole == 'runner' then
+                            telem.lastEnvCrash = { time = now, speed = vd.speedKmh }
+                            TriggerServerEvent('blacklist:chaseLog', {
+                                message = ('RUNNER_ENV_CRASH | speed=%d km/h | severity=%s'):format(vd.speedKmh, severity),
+                            })
+                        end
+
+                        if vd.inAir or vd.height > 1.5 then
+                            telem.wallBounces = telem.wallBounces + 1
+                            acLog('WARN', ('  > WALL BOUNCE | hgt=%.1fm | upright=%s | spd=%d km/h'):format(
+                                vd.height, vd.upright and 'YES' or 'NO', vd.speedKmh))
+                        end
                     end
+
+                    telem.oppPrevSpeed = opp.speedKmh
+                    telem.oppPrevDist  = opp.dist
                 end
+            end)
 
-            else
-                -- ---------- ENVIRONMENT COLLISION ----------
-                telem.envCollisions = telem.envCollisions + 1
-
-                local prevSpd   = #telem.speedSamples > 2 and telem.speedSamples[#telem.speedSamples - 2] or vd.speedKmh
-                local speedLoss = prevSpd - vd.speedKmh
-
-                local severity = 'LIGHT'
-                if speedLoss > 50 then severity = 'HEAVY'
-                elseif speedLoss > 20 then severity = 'MEDIUM' end
-
-                telem.lastWallHitTime  = now
-                telem.lastWallHitSpeed = vd.speedKmh
-
-                local level = severity == 'HEAVY' and 'WARN' or 'INFO'
-
-                acLog(level, ('COLLISION ENV | severity=%s | spd=%d km/h | lost=%d km/h | pitch=%.1f° | roll=%.1f° | opp_dist=%.0fm'):format(
-                    severity, vd.speedKmh, speedLoss, vd.pitch, vd.roll, opp.dist))
-
-                if myRole == 'runner' then
-                    telem.lastEnvCrash = { time = now, speed = vd.speedKmh }
-                    TriggerServerEvent('blacklist:chaseLog', {
-                        message = ('RUNNER_ENV_CRASH | speed=%d km/h | severity=%s'):format(vd.speedKmh, severity),
-                    })
-                end
-
-                if vd.inAir or vd.height > 1.5 then
-                    telem.wallBounces = telem.wallBounces + 1
-                    acLog('WARN', ('  > WALL BOUNCE | hgt=%.1fm | upright=%s | spd=%d km/h'):format(
-                        vd.height, vd.upright and 'YES' or 'NO', vd.speedKmh))
-                end
+            if not ok then
+                TriggerServerEvent('blacklist:chaseLog', { message = '[DIAG] Thread1 ERROR: ' .. tostring(err) })
             end
-
-            -- Track opponent speed for brake-check detection
-            telem.oppPrevSpeed = opp.speedKmh
-            telem.oppPrevDist  = opp.dist
         end
-
-        ::continue::
     end
 end)
 
