@@ -793,6 +793,17 @@ AddEventHandler('blacklist:reportViolation', function(violationType, extraData)
         end
         print(('[Chase] Match #%d: Runner died'):format(matchId))
         endMatch(matchId, 'chaser', 'runner_died')
+
+    elseif violationType == 'chaser_illegal_shot' then
+        local runnerSpeedMph = math.floor(tonumber(extraData) or 0)
+        for _, src in ipairs(allSources) do
+            TriggerClientEvent('blacklist:chaseHUD', src, {
+                action = 'warning',
+                message = playerName .. ': Illegal shot — runner above 50 MPH — DISQUALIFIED!',
+            })
+        end
+        print(('[Chase] Match #%d: %s DQ — illegal shot (runner at %d mph)'):format(matchId, playerName, runnerSpeedMph))
+        endMatch(matchId, 'runner', 'chaser_disqualified_shot')
     end
 end)
 

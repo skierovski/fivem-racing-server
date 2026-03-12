@@ -96,6 +96,64 @@ local ghostedChaserIds = {}
 local heliModel = nil
 local visionCircleBlip = nil
 
+-- Spike strip + Gun state (Code Orange / Red)
+local spikeStripEntity = nil
+local hasPlacedSpike = false
+local spikeStripCoords = nil
+local chaserVehSaved = nil
+local hasGunBeenGiven = false
+local lastShotTime = 0
+local runnerTiresBurst = {}
+
+local SPIKE_ANIM_DICT = 'amb@world_human_gardener_plant@male@base'
+local SPIKE_ANIM_NAME = 'base'
+local SPIKE_MODEL = 'p_ld_stinger_s'
+local SPIKE_DESPAWN_DIST = 100.0
+local SPIKE_TIRE_RADIUS = 3.5
+local GUN_HASH = GetHashKey('WEAPON_COMBATPISTOL')
+local GUN_DQ_SPEED_MPH = 50.0
+local GUN_DQ_WINDOW_MS = 1500
+
+local WHEEL_TIRE_MAP = {
+    { bone = 'wheel_lf', tire = 0 },
+    { bone = 'wheel_rf', tire = 1 },
+    { bone = 'wheel_lr', tire = 4 },
+    { bone = 'wheel_rr', tire = 5 },
+}
+
+local function getRunnerVehicle()
+    if not runnerServerId then return nil end
+    local rPlayer = GetPlayerFromServerId(runnerServerId)
+    if not rPlayer or rPlayer == -1 then return nil end
+    local rPed = GetPlayerPed(rPlayer)
+    if rPed == 0 then return nil end
+    return GetVehiclePedIsIn(rPed, false)
+end
+
+local function cleanupSpikeStrip()
+    if spikeStripEntity and DoesEntityExist(spikeStripEntity) then
+        SetEntityAsMissionEntity(spikeStripEntity, true, true)
+        DeleteObject(spikeStripEntity)
+    end
+    spikeStripEntity = nil
+    hasPlacedSpike = false
+    spikeStripCoords = nil
+end
+
+local function cleanupGun()
+    local ped = PlayerPedId()
+    RemoveWeaponFromPed(ped, GUN_HASH)
+    hasGunBeenGiven = false
+    lastShotTime = 0
+    runnerTiresBurst = {}
+end
+
+local function cleanupCodeFeatures()
+    cleanupSpikeStrip()
+    cleanupGun()
+    chaserVehSaved = nil
+end
+
 -- Street light + traffic light models: indestructible in ranked
 local STREET_LIGHT_HASHES = {}
 for _, m in ipairs({
@@ -237,6 +295,21 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             reason = data.reason,
         })
 
+        if data.policeCode == 'red' and myRole == 'chaser' and not hasGunBeenGiven then
+            hasGunBeenGiven = true
+            Citizen.SetTimeout(500, function()
+                local ped = PlayerPedId()
+                GiveWeaponToPed(ped, GUN_HASH, 2, false, true)
+                SetPedAmmo(ped, GUN_HASH, 2)
+                local rVeh = getRunnerVehicle()
+                if rVeh and rVeh ~= 0 then
+                    for _, w in ipairs(WHEEL_TIRE_MAP) do
+                        runnerTiresBurst[w.tire] = IsVehicleTyreBurst(rVeh, w.tire, false)
+                    end
+                end
+            end)
+        end
+
     elseif data.action == 'distance' then
         SendNUIMessage({
             action = 'distance',
@@ -256,6 +329,7 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         isInMatch = false
         isPostMatch = true
         myRole = nil
+        cleanupCodeFeatures()
         SendNUIMessage({
             action = 'matchEnd',
             won = data.won,
@@ -360,6 +434,7 @@ AddEventHandler('blacklist:returnToMenu', function()
     isSoloTest = false
     runnerServerId = nil
     ghostedChaserIds = {}
+    cleanupCodeFeatures()
     if visionCircleBlip and DoesBlipExist(visionCircleBlip) then
         RemoveBlip(visionCircleBlip)
     end
@@ -529,8 +604,11 @@ Citizen.CreateThread(function()
                 EnableDispatchService(i, false)
             end
 
-            DisableControlAction(0, 75, true)  -- F (exit vehicle)
-            DisableControlAction(0, 23, true)  -- F (enter vehicle)
+            local canExitVeh = myRole == 'chaser' and (currentPoliceCode == 'orange' or currentPoliceCode == 'red')
+            if not canExitVeh then
+                DisableControlAction(0, 75, true)  -- F (exit vehicle)
+                DisableControlAction(0, 23, true)  -- F (enter vehicle)
+            end
 
             forceFullVisibility()
         end
@@ -707,7 +785,7 @@ Citizen.CreateThread(function()
                 local vHandle, veh = FindFirstVehicle()
                 success = true
                 while success do
-                    if veh ~= myVeh and DoesEntityExist(veh) then
+                    if veh ~= myVeh and veh ~= (chaserVehSaved or 0) and DoesEntityExist(veh) then
                         local driver = GetPedInVehicleSeat(veh, -1)
                         if driver == 0 or not IsPedAPlayer(driver) then
                             DeleteEntity(veh)
@@ -948,6 +1026,185 @@ Citizen.CreateThread(function()
 
                 isRespawning = false
                 ::continue::
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Spike strip: preserve chaser vehicle when on foot (Code Orange+)
+-- ========================
+
+Citizen.CreateThread(function()
+    local lastVeh = 0
+    while true do
+        Citizen.Wait(300)
+        if isInMatch and myRole == 'chaser' and (currentPoliceCode == 'orange' or currentPoliceCode == 'red') then
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+            if veh ~= 0 then
+                lastVeh = veh
+                chaserVehSaved = veh
+            elseif lastVeh ~= 0 then
+                if chaserVehSaved and DoesEntityExist(chaserVehSaved) then
+                    SetEntityAsMissionEntity(chaserVehSaved, true, true)
+                end
+                lastVeh = 0
+            end
+        else
+            lastVeh = 0
+        end
+    end
+end)
+
+-- ========================
+-- Spike strip placement (G key on foot, Code Orange+)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if isInMatch and myRole == 'chaser' and not hasPlacedSpike
+            and (currentPoliceCode == 'orange' or currentPoliceCode == 'red') then
+            local ped = PlayerPedId()
+            local veh = GetVehiclePedIsIn(ped, false)
+
+            if veh == 0 and not IsEntityDead(ped) then
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentSubstringPlayerName('Press ~INPUT_DETONATE~ to place spike strip')
+                EndTextCommandDisplayHelp(0, false, true, -1)
+
+                if IsControlJustPressed(0, 47) then
+                    hasPlacedSpike = true
+
+                    RequestAnimDict(SPIKE_ANIM_DICT)
+                    local dl = GetGameTimer() + 5000
+                    while not HasAnimDictLoaded(SPIKE_ANIM_DICT) and GetGameTimer() < dl do Citizen.Wait(10) end
+
+                    FreezeEntityPosition(ped, true)
+                    TaskPlayAnim(ped, SPIKE_ANIM_DICT, SPIKE_ANIM_NAME, 8.0, -8.0, 2000, 1, 0, false, false, false)
+                    Citizen.Wait(2000)
+                    FreezeEntityPosition(ped, false)
+                    ClearPedTasks(ped)
+
+                    if not isInMatch then goto skipSpawn end
+
+                    local coords = GetEntityCoords(ped)
+                    local heading = GetEntityHeading(ped)
+
+                    local spikeHash = GetHashKey(SPIKE_MODEL)
+                    RequestModel(spikeHash)
+                    dl = GetGameTimer() + 5000
+                    while not HasModelLoaded(spikeHash) and GetGameTimer() < dl do Citizen.Wait(10) end
+
+                    if HasModelLoaded(spikeHash) then
+                        spikeStripEntity = CreateObject(spikeHash, coords.x, coords.y, coords.z - 0.5, true, true, false)
+                        SetEntityHeading(spikeStripEntity, heading + 90.0)
+                        PlaceObjectOnGroundProperly(spikeStripEntity)
+                        FreezeEntityPosition(spikeStripEntity, true)
+                        SetModelAsNoLongerNeeded(spikeHash)
+                        spikeStripCoords = GetEntityCoords(spikeStripEntity)
+                    end
+
+                    ::skipSpawn::
+                end
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Spike strip tire burst detection (per-wheel)
+-- ========================
+
+Citizen.CreateThread(function()
+    local burstLog = {}
+    while true do
+        Citizen.Wait(100)
+        if isInMatch and spikeStripEntity and DoesEntityExist(spikeStripEntity) and spikeStripCoords then
+            local handle, veh = FindFirstVehicle()
+            local success = true
+            while success do
+                if DoesEntityExist(veh) and veh ~= (chaserVehSaved or 0) then
+                    local vCoords = GetEntityCoords(veh)
+                    if #(vCoords - spikeStripCoords) < 12.0 then
+                        for _, w in ipairs(WHEEL_TIRE_MAP) do
+                            local bIdx = GetEntityBoneIndexByName(veh, w.bone)
+                            if bIdx ~= -1 then
+                                local wPos = GetWorldPositionOfEntityBone(veh, bIdx)
+                                local key = veh * 10 + w.tire
+                                if #(wPos - spikeStripCoords) < SPIKE_TIRE_RADIUS
+                                    and not burstLog[key]
+                                    and not IsVehicleTyreBurst(veh, w.tire, false) then
+                                    SetVehicleTyreBurst(veh, w.tire, true, 1000.0)
+                                    burstLog[key] = true
+                                end
+                            end
+                        end
+                    end
+                end
+                success, veh = FindNextVehicle(handle)
+            end
+            EndFindVehicle(handle)
+        else
+            burstLog = {}
+        end
+    end
+end)
+
+-- ========================
+-- Spike strip auto-despawn at 100 m
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(1000)
+        if isInMatch and spikeStripEntity and DoesEntityExist(spikeStripEntity) and spikeStripCoords then
+            local myCoords = GetEntityCoords(PlayerPedId())
+            if #(myCoords - spikeStripCoords) > SPIKE_DESPAWN_DIST then
+                cleanupSpikeStrip()
+            end
+        end
+    end
+end)
+
+-- ========================
+-- Gun ammo cap + DQ monitoring (Code Red)
+-- ========================
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(100)
+        if isInMatch and myRole == 'chaser' and hasGunBeenGiven then
+            local ped = PlayerPedId()
+
+            if GetAmmoInPedWeapon(ped, GUN_HASH) > 2 then
+                SetPedAmmo(ped, GUN_HASH, 2)
+            end
+
+            if IsPedShooting(ped) then
+                lastShotTime = GetGameTimer()
+            end
+
+            local rVeh = getRunnerVehicle()
+            if rVeh and rVeh ~= 0 then
+                if lastShotTime > 0 and (GetGameTimer() - lastShotTime) < GUN_DQ_WINDOW_MS then
+                    local rSpeedMph = GetEntitySpeed(rVeh) * CC.MS_TO_MPH
+                    for _, w in ipairs(WHEEL_TIRE_MAP) do
+                        local isBurst = IsVehicleTyreBurst(rVeh, w.tire, false)
+                        if isBurst and not runnerTiresBurst[w.tire] then
+                            if rSpeedMph > GUN_DQ_SPEED_MPH then
+                                TriggerServerEvent('blacklist:reportViolation', 'chaser_illegal_shot', rSpeedMph)
+                                lastShotTime = 0
+                                break
+                            end
+                        end
+                    end
+                end
+
+                for _, w in ipairs(WHEEL_TIRE_MAP) do
+                    runnerTiresBurst[w.tire] = IsVehicleTyreBurst(rVeh, w.tire, false)
+                end
             end
         end
     end
@@ -1917,6 +2174,7 @@ local function clearChaseUI()
     SetNuiFocus(false, false)
     SendNUIMessage({ action = 'hideAll' })
     cleanupSoloDummy()
+    cleanupCodeFeatures()
 end
 
 exports('ClearChaseUI', clearChaseUI)
