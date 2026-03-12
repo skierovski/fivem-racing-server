@@ -59,29 +59,32 @@ local ENGINE_SOUNDS = {
     'veyronsound', 'w211',
 }
 
-local CAR_SOUNDS = {
-    tailgater2      = 'taaud40v8',
-    gbdominatorgsx  = 'tamustanggt50',
+local CAR_SOUND_LIST = {
+    { model = 'tailgater2', sound = 'taaud40v8' },
 }
 
+local carSoundHashes = {}
+Citizen.CreateThread(function()
+    for _, entry in ipairs(CAR_SOUND_LIST) do
+        carSoundHashes[GetHashKey(entry.model)] = entry.sound
+    end
+end)
+
 local isOpen = false
-local appliedVeh = 0
 
 Citizen.CreateThread(function()
+    local appliedVeh = 0
     while true do
-        Citizen.Wait(500)
+        Citizen.Wait(1000)
         local ped = PlayerPedId()
         local veh = GetVehiclePedIsIn(ped, false)
         if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped then
-            local model = GetEntityModel(veh)
-            local name = GetDisplayNameFromVehicleModel(model):lower()
-            local sound = CAR_SOUNDS[name]
-            if sound then
-                if veh ~= appliedVeh then
-                    ForceVehicleEngineAudio(veh, sound)
-                    appliedVeh = veh
-                end
-            else
+            local sound = carSoundHashes[GetEntityModel(veh)]
+            if sound and veh ~= appliedVeh then
+                Citizen.Wait(500)
+                ForceVehicleEngineAudio(veh, sound)
+                appliedVeh = veh
+            elseif not sound then
                 appliedVeh = 0
             end
         else
