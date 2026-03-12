@@ -53,31 +53,40 @@ local ENGINE_SOUNDS = {
     'ta178amgb', 'ta181gt3', 'ta183lt1',
     'ta185amv8', 'ta197s50', 'ta488f154',
     'tacumminsb', 'tagt3flat6',
-    'tamustanggt50', 'tascmustanggt50', 'tjz1eng',
+    'tascmustanggt50', 'tjz1eng',
     'toysupmk4', 'trumpetzr', 'ttecov6',
     'twinhuracan', 'urusv8', 'v6audiea839',
     'veyronsound', 'w211',
 }
 
 local CAR_SOUNDS = {
-    [GetHashKey('tailgater2')] = 'taaud40v8',
+    tailgater2      = 'taaud40v8',
+    gbdominatorgsx  = 'tamustanggt50',
 }
 
 local isOpen = false
+local appliedVeh = 0
 
 Citizen.CreateThread(function()
-    local lastVeh = 0
     while true do
         Citizen.Wait(500)
         local ped = PlayerPedId()
         local veh = GetVehiclePedIsIn(ped, false)
-        if veh ~= 0 and veh ~= lastVeh and GetPedInVehicleSeat(veh, -1) == ped then
-            local sound = CAR_SOUNDS[GetEntityModel(veh)]
+        if veh ~= 0 and GetPedInVehicleSeat(veh, -1) == ped then
+            local model = GetEntityModel(veh)
+            local name = GetDisplayNameFromVehicleModel(model):lower()
+            local sound = CAR_SOUNDS[name]
             if sound then
-                ForceVehicleEngineAudio(veh, sound)
+                if veh ~= appliedVeh then
+                    ForceVehicleEngineAudio(veh, sound)
+                    appliedVeh = veh
+                end
+            else
+                appliedVeh = 0
             end
+        else
+            appliedVeh = 0
         end
-        lastVeh = veh
     end
 end)
 
