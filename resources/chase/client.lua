@@ -1705,7 +1705,7 @@ local function updateInputState(vd)
 end
 
 local function detectWaterContact(vehicle)
-    if IsEntitySubmergedInWater(vehicle) and myRole == 'runner' and not telem.waterReported then
+    if GetEntitySubmergedLevel(vehicle) > 0.7 and myRole == 'runner' and not telem.waterReported then
         telem.waterReported = true
         acLog('CRIT', 'WATER DETECTED — runner vehicle submerged')
         TriggerServerEvent('blacklist:reportViolation', 'runner_water')
