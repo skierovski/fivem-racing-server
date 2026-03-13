@@ -1,12 +1,12 @@
 local hudVisible = false
 local chatOpen = false
 
--- Auto-show when entering freeroam or match, auto-hide when in menu
+-- Auto-show when entering freeroam or match, hide when in menu (menu has its own chat)
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(500)
         local state = exports.base:GetPlayerState()
-        local shouldShow = (state == 'freeroam' or state == 'in_match' or state == 'menu')
+        local shouldShow = (state == 'freeroam' or state == 'in_match')
 
         if shouldShow ~= hudVisible then
             hudVisible = shouldShow

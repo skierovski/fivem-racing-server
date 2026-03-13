@@ -203,13 +203,14 @@ body {
 
 /* ========================
    Chat overlay (top-left)
+   Styled to match the menu chat panel
    ======================== */
 
 .chat-overlay {
     position: fixed;
     top: 20px;
     left: 20px;
-    width: 380px;
+    width: 340px;
     pointer-events: none;
     z-index: 200;
 }
@@ -217,17 +218,17 @@ body {
 .chat-messages {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    max-height: 260px;
+    gap: 6px;
+    max-height: 300px;
     overflow: hidden;
     padding-bottom: 8px;
 }
 
 .chat-msg {
-    padding: 5px 12px;
-    background: var(--bg);
-    border-left: 3px solid var(--border);
-    border-radius: 0 6px 6px 0;
+    padding: 6px 12px;
+    background: rgba(15, 15, 30, 0.88);
+    border-left: 2px solid rgba(0, 150, 255, 0.15);
+    border-radius: 0 8px 8px 0;
     font-size: 13px;
     line-height: 1.4;
     animation: chatFadeIn 0.2s ease-out;
@@ -245,13 +246,13 @@ body {
 
 .chat-msg-badge {
     display: inline-block;
-    padding: 1px 5px;
+    padding: 1px 6px;
     border-radius: 3px;
     font-family: 'Orbitron', sans-serif;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 1px;
-    margin-right: 5px;
+    margin-right: 4px;
     vertical-align: middle;
 }
 
@@ -264,17 +265,18 @@ body {
 
 .chat-msg-name {
     font-family: 'Rajdhani', sans-serif;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 13px;
-    color: var(--accent);
-    margin-right: 6px;
+    color: #fff;
+    margin-right: 4px;
 }
 
 .chat-msg-text {
     font-family: 'Rajdhani', sans-serif;
     font-weight: 500;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 2px;
 }
 
 /* Chat input */
@@ -282,15 +284,16 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
-    background: var(--bg-solid);
-    border: 1px solid var(--border);
+    padding: 10px 14px;
+    background: rgba(15, 15, 30, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
     pointer-events: auto;
+    margin-top: 4px;
 }
 
 .chat-input-wrap.active {
-    border-color: var(--accent);
+    border-color: rgba(0, 150, 255, 0.3);
 }
 
 .chat-input-label {
