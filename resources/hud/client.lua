@@ -15,16 +15,21 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Hide GTA health/armor bars every frame
+-- Hide GTA native HUD clutter every frame
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
         if hudVisible then
-            HideHudComponentThisFrame(3)  -- CASH
-            HideHudComponentThisFrame(4)  -- MP_CASH
-            HideHudComponentThisFrame(6)  -- VEHICLE_NAME
-            HideHudComponentThisFrame(7)  -- AREA_NAME
-            HideHudComponentThisFrame(9)  -- STREET_NAME
+            HideHudComponentThisFrame(3)   -- CASH
+            HideHudComponentThisFrame(4)   -- MP_CASH
+            HideHudComponentThisFrame(6)   -- VEHICLE_NAME
+            HideHudComponentThisFrame(7)   -- AREA_NAME
+            HideHudComponentThisFrame(9)   -- STREET_NAME
+
+            -- Keep health/armor bars invisible by keeping values maxed
+            local ped = PlayerPedId()
+            SetEntityHealth(ped, GetEntityMaxHealth(ped))
+            SetPedArmour(ped, 0)
         end
     end
 end)
