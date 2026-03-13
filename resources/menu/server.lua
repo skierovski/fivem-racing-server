@@ -119,6 +119,84 @@ AddEventHandler('blacklist:saveVehicleTuning', function(model, tuning)
     )
 end)
 
+-- Recent matches for a player in a specific mode
+RegisterNetEvent('blacklist:requestRecentMatches')
+AddEventHandler('blacklist:requestRecentMatches', function(mode)
+    local source = source
+    local identifier = getIdentifier(source)
+    if not identifier then return end
+
+    mode = (mode == 'normal' or mode == 'ranked') and mode or 'ranked'
+
+    exports.oxmysql:execute(
+        [[SELECT m.*, p_runner.name as runner_name
+          FROM match_history m
+          LEFT JOIN players p_runner ON p_runner.identifier = m.runner_id
+          WHERE m.runner_id = ? OR JSON_CONTAINS(m.chaser_ids, ?)
+          ORDER BY m.id DESC LIMIT 10]],
+        { identifier, json.encode(identifier) },
+        function(results)
+            if not results then
+                TriggerClientEvent('blacklist:receiveRecentMatches', source, {})
+                return
+            end
+
+            local matches = {}
+            for _, row in ipairs(results) do
+                local isRunner = row.runner_id == identifier
+                local opponent = ''
+                local mmrChange = 0
+                local isWin = (row.winner_id == identifier)
+
+                if isRunner then
+                    local chaserIds = json.decode(row.chaser_ids or '[]')
+                    if #chaserIds > 0 then
+                        local oppId = chaserIds[1]
+                        local oppResult = exports.oxmysql:executeSync(
+                            'SELECT name FROM players WHERE identifier = ? LIMIT 1',
+                            { oppId }
+                        )
+                        opponent = (oppResult and oppResult[1]) and oppResult[1].name or 'Unknown'
+                        if #chaserIds > 1 then
+                            opponent = opponent .. ' +' .. (#chaserIds - 1)
+                        end
+                    end
+                    mmrChange = row.mmr_change_runner or 0
+                else
+                    opponent = row.runner_name or 'Unknown'
+                    mmrChange = row.mmr_change_chaser or 0
+                end
+
+                table.insert(matches, {
+                    opponent = opponent,
+                    result = isWin and 'win' or 'loss',
+                    mmrChange = mmrChange,
+                    duration = row.duration_seconds or 0,
+                })
+            end
+
+            TriggerClientEvent('blacklist:receiveRecentMatches', source, matches)
+        end
+    )
+end)
+
+-- Mode leaderboard (top 10)
+RegisterNetEvent('blacklist:requestModeLeaderboard')
+AddEventHandler('blacklist:requestModeLeaderboard', function(mode)
+    local source = source
+    exports.oxmysql:execute(
+        'SELECT name, mmr, tier, wins, losses FROM players ORDER BY mmr DESC LIMIT 10',
+        {},
+        function(result)
+            if not result then
+                TriggerClientEvent('blacklist:receiveModeLeaderboard', source, {})
+                return
+            end
+            TriggerClientEvent('blacklist:receiveModeLeaderboard', source, result)
+        end
+    )
+end)
+
 -- Check if player can close menu (only in freeroam)
 RegisterNetEvent('blacklist:checkCanCloseMenu')
 AddEventHandler('blacklist:checkCanCloseMenu', function()

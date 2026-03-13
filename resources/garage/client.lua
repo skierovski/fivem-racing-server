@@ -625,6 +625,39 @@ function exitGarage()
     DoScreenFadeIn(300)
 end
 
+-- Force-exit garage when a match starts (routing bucket already changed by match system)
+RegisterNetEvent('blacklist:closeMenu')
+AddEventHandler('blacklist:closeMenu', function()
+    if not isInGarage then return end
+
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'closeTuning' })
+
+    if garageVehicle and DoesEntityExist(garageVehicle) then
+        DeleteEntity(garageVehicle)
+    end
+    garageVehicle = nil
+    garageModel = nil
+
+    if garageCam then
+        SetCamActive(garageCam, false)
+        RenderScriptCams(false, true, 0, true, true)
+        DestroyCam(garageCam, false)
+        garageCam = nil
+    end
+
+    ClearFocus()
+    local ped = PlayerPedId()
+    SetEntityVisible(ped, true, false)
+    ResetEntityAlpha(ped)
+    FreezeEntityPosition(ped, false)
+
+    isInGarage = false
+    tuningReceived = true
+
+    StopAudioScene('CHARACTER_CHANGE_IN_SKY_SCENE')
+end)
+
 -- Delegate to the canonical ApplyTuning from vehicles resource
 local function applyFullTuning(vehicle, t)
     if not t or not vehicle then return end

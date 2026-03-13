@@ -185,7 +185,8 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
-    if playerStates[source] and playerStates[source] ~= 'menu' then
+    local st = playerStates[source]
+    if st and st ~= 'menu' and st ~= 'freeroam' then
         TriggerClientEvent('blacklist:queueUpdate', source, { status = 'error', message = 'Already in queue or match' })
         return
     end
@@ -552,7 +553,8 @@ AddEventHandler('blacklist:joinSoloTest', function(mode, role, tier)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
-    if playerStates[source] and playerStates[source] ~= 'menu' then
+    local st = playerStates[source]
+    if st and st ~= 'menu' and st ~= 'freeroam' then
         TriggerClientEvent('blacklist:queueUpdate', source, { status = 'error', message = 'Already in queue or match' })
         return
     end

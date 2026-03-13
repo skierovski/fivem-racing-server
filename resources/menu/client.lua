@@ -179,3 +179,29 @@ RegisterNUICallback('requestVehicles', function(data, cb)
     cb({})
 end)
 
+RegisterNUICallback('requestRecentMatches', function(data, cb)
+    TriggerServerEvent('blacklist:requestRecentMatches', data.mode or 'ranked')
+    cb({})
+end)
+
+RegisterNUICallback('requestModeLeaderboard', function(data, cb)
+    TriggerServerEvent('blacklist:requestModeLeaderboard', data.mode or 'ranked')
+    cb({})
+end)
+
+RegisterNetEvent('blacklist:receiveRecentMatches')
+AddEventHandler('blacklist:receiveRecentMatches', function(matches)
+    SendNUIMessage({
+        action = 'recentMatchesData',
+        matches = matches
+    })
+end)
+
+RegisterNetEvent('blacklist:receiveModeLeaderboard')
+AddEventHandler('blacklist:receiveModeLeaderboard', function(players)
+    SendNUIMessage({
+        action = 'modeLeaderboardData',
+        players = players
+    })
+end)
+

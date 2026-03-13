@@ -6,6 +6,7 @@
     // ========================
     let playerData = null;
     let isQueuing = false;
+    let currentSubpageMode = null;
 
     const tierOrder = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'blacklist', 'custom'];
     const tierLabels = {
@@ -26,11 +27,36 @@
         blacklist: { min: 1101, max: 99999 }
     };
 
+    const MODE_CONFIG = {
+        ranked: {
+            title: 'RANKED',
+            subtitle: 'Competitive 1v1 Elo-rated matches',
+            icon: '<svg viewBox="0 0 24 24" width="36" height="36"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+            queueText: 'Finding ranked match...',
+            fetchEndpoint: 'joinRanked',
+            infoTags: ['1v1', 'ELO RATED', 'SAME CAR'],
+            infoText: 'Both players drive the same randomly assigned car from the matched tier. Winner gains MMR, loser loses MMR. Climb through Bronze, Silver, Gold, Platinum, Diamond and reach the Blacklist.',
+            hasOptions: true,
+            hasSolo: true,
+        },
+        normal: {
+            title: 'CHASE',
+            subtitle: 'Bank Heist Escape — 1 runner vs up to 4 chasers',
+            icon: '<svg viewBox="0 0 24 24" width="36" height="36"><path fill="currentColor" d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>',
+            queueText: 'Finding chase lobby...',
+            fetchEndpoint: 'joinNormalChase',
+            infoTags: ['1v4', 'PD vs RUNNER', 'PICK YOUR CAR'],
+            infoText: 'One runner escapes in a car of their choice while up to 4 police chasers and a helicopter try to catch them. Runner picks any unlocked car, chasers get assigned PD vehicles. Code escalation from Green to Red.',
+            hasOptions: false,
+            hasSolo: true,
+        },
+    };
+
     // ========================
     // DOM refs
     // ========================
     const app = document.getElementById('app');
-    const navButtons = document.querySelectorAll('.nav-btn');
+    const navButtons = document.querySelectorAll('.nav-btn[data-page]');
     const pages = document.querySelectorAll('.page');
 
     // Sidebar
@@ -38,13 +64,30 @@
     const sidebarPlayerName = document.getElementById('sidebarPlayerName');
     const sidebarPlayerMMR = document.getElementById('sidebarPlayerMMR');
 
-    // Play page
+    // Play page — overview
+    const modeOverview = document.getElementById('modeOverview');
     const btnRanked = document.getElementById('btnRanked');
     const btnNormalChase = document.getElementById('btnNormalChase');
     const btnFreeRoam = document.getElementById('btnFreeRoam');
-    const queueStatus = document.getElementById('queueStatus');
-    const queueText = document.getElementById('queueText');
-    const btnCancelQueue = document.getElementById('btnCancelQueue');
+
+    // Play page — subpage
+    const modeSubpage = document.getElementById('modeSubpage');
+    const btnSubpageBack = document.getElementById('btnSubpageBack');
+    const subpageModeIcon = document.getElementById('subpageModeIcon');
+    const subpageTitle = document.getElementById('subpageTitle');
+    const subpageSubtitle = document.getElementById('subpageSubtitle');
+    const btnSubpageQueue = document.getElementById('btnSubpageQueue');
+    const subpageQueueStatus = document.getElementById('subpageQueueStatus');
+    const subpageQueueText = document.getElementById('subpageQueueText');
+    const btnSubpageCancelQueue = document.getElementById('btnSubpageCancelQueue');
+    const subpageOptions = document.getElementById('subpageOptions');
+    const subpageSoloSection = document.getElementById('subpageSoloSection');
+    const btnSoloToggle = document.getElementById('btnSoloToggle');
+    const subpageSoloConfig = document.getElementById('subpageSoloConfig');
+    const btnSubpageSoloStart = document.getElementById('btnSubpageSoloStart');
+    const subpageInfo = document.getElementById('subpageInfo');
+    const subpageMatches = document.getElementById('subpageMatches');
+    const subpageLeaderboard = document.getElementById('subpageLeaderboard');
 
     // Sidebar action buttons
     const btnOpenMap = document.getElementById('btnOpenMap');
@@ -74,6 +117,9 @@
     // BlackList
     const blacklistRows = document.getElementById('blacklistRows');
 
+    // Solo test state
+    let soloRole = 'runner';
+
     // ========================
     // Navigation
     // ========================
@@ -87,6 +133,10 @@
             } else if (page === 'garage') {
                 fetch('https://menu/requestVehicles', { method: 'POST', body: '{}' });
             }
+
+            if (page === 'main') {
+                closeSubpage();
+            }
         });
     });
 
@@ -96,71 +146,176 @@
     }
 
     // ========================
-    // Mode buttons
+    // Mode card clicks → open sub-page
     // ========================
-    const crossTierToggle = document.getElementById('crossTierToggle');
-    const testRankedToggle = document.getElementById('testRankedToggle');
-
-    btnRanked.addEventListener('click', () => {
-        if (isQueuing) return;
-        const crossTier = crossTierToggle ? crossTierToggle.checked : false;
-        const testMode = testRankedToggle ? testRankedToggle.checked : false;
-        fetch('https://menu/joinRanked', {
-            method: 'POST',
-            body: JSON.stringify({ crossTier, testMode })
-        });
-        const msg = testMode ? 'Finding test ranked match...'
-            : crossTier ? 'Finding cross-tier ranked match...'
-            : 'Finding ranked match...';
-        showQueue(msg);
-    });
-
-    btnNormalChase.addEventListener('click', () => {
-        if (isQueuing) return;
-        fetch('https://menu/joinNormalChase', { method: 'POST', body: '{}' });
-        showQueue('Finding chase lobby...');
-    });
+    btnRanked.addEventListener('click', () => openSubpage('ranked'));
+    btnNormalChase.addEventListener('click', () => openSubpage('normal'));
 
     btnFreeRoam.addEventListener('click', () => {
         fetch('https://menu/joinFreeRoam', { method: 'POST', body: '{}' });
     });
 
-    // Solo test
-    const btnSoloTest = document.getElementById('btnSoloTest');
-    const soloTestConfig = document.getElementById('soloTestConfig');
-    const btnSoloStart = document.getElementById('btnSoloStart');
-    let soloMode = 'ranked';
-    let soloRole = 'runner';
+    // ========================
+    // Sub-page logic
+    // ========================
+    function openSubpage(mode) {
+        const cfg = MODE_CONFIG[mode];
+        if (!cfg) return;
 
-    btnSoloTest.addEventListener('click', () => {
-        soloTestConfig.classList.toggle('hidden');
+        currentSubpageMode = mode;
+
+        subpageModeIcon.innerHTML = cfg.icon;
+        subpageTitle.textContent = cfg.title;
+        subpageSubtitle.textContent = cfg.subtitle;
+
+        // Queue state
+        btnSubpageQueue.classList.toggle('hidden', isQueuing);
+        subpageQueueStatus.classList.toggle('hidden', !isQueuing);
+
+        // Options (ranked toggles)
+        subpageOptions.innerHTML = '';
+        if (cfg.hasOptions && mode === 'ranked') {
+            subpageOptions.innerHTML = `
+                <div class="cross-tier-option">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="subCrossTierToggle" class="toggle-input">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">CROSS-TIER QUEUE</span>
+                    </label>
+                    <span class="cross-tier-desc">Match against players one tier above or below</span>
+                </div>
+                <div class="cross-tier-option">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="subTestRankedToggle" class="toggle-input">
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-text">TEST RANKED</span>
+                    </label>
+                    <span class="cross-tier-desc">No MMR matching, random car from any tier</span>
+                </div>
+            `;
+        }
+
+        // Solo test section
+        if (cfg.hasSolo) {
+            subpageSoloSection.classList.remove('hidden');
+            subpageSoloConfig.classList.add('hidden');
+            btnSoloToggle.classList.remove('open');
+            soloRole = 'runner';
+            subpageSoloConfig.querySelectorAll('[data-sub-solo-role]').forEach(b => {
+                b.classList.toggle('active', b.dataset.subSoloRole === 'runner');
+            });
+        } else {
+            subpageSoloSection.classList.add('hidden');
+        }
+
+        // Info
+        subpageInfo.innerHTML = '';
+        const tagsHtml = cfg.infoTags.map(t => `<span class="subpage-info-tag">${t}</span>`).join('');
+        subpageInfo.innerHTML = `<div>${tagsHtml}</div><p class="subpage-info-text">${cfg.infoText}</p>`;
+
+        // Reset data sections
+        subpageMatches.innerHTML = '<div class="subpage-empty">Loading...</div>';
+        subpageLeaderboard.innerHTML = '<div class="subpage-empty">Loading...</div>';
+
+        // Show subpage, hide overview
+        modeOverview.classList.add('hidden');
+        modeSubpage.classList.remove('hidden');
+
+        // Fetch data
+        fetch('https://menu/requestRecentMatches', {
+            method: 'POST',
+            body: JSON.stringify({ mode: mode })
+        });
+        fetch('https://menu/requestModeLeaderboard', {
+            method: 'POST',
+            body: JSON.stringify({ mode: mode })
+        });
+    }
+
+    function closeSubpage() {
+        currentSubpageMode = null;
+        modeSubpage.classList.add('hidden');
+        modeOverview.classList.remove('hidden');
+    }
+
+    btnSubpageBack.addEventListener('click', closeSubpage);
+
+    // ========================
+    // Queue (inside sub-page)
+    // ========================
+    btnSubpageQueue.addEventListener('click', () => {
+        if (isQueuing || !currentSubpageMode) return;
+        const mode = currentSubpageMode;
+        const cfg = MODE_CONFIG[mode];
+
+        if (mode === 'ranked') {
+            const crossTier = document.getElementById('subCrossTierToggle');
+            const testMode = document.getElementById('subTestRankedToggle');
+            fetch('https://menu/joinRanked', {
+                method: 'POST',
+                body: JSON.stringify({
+                    crossTier: crossTier ? crossTier.checked : false,
+                    testMode: testMode ? testMode.checked : false,
+                })
+            });
+            const msg = (testMode && testMode.checked) ? 'Finding test ranked match...'
+                : (crossTier && crossTier.checked) ? 'Finding cross-tier ranked match...'
+                : 'Finding ranked match...';
+            showSubpageQueue(msg);
+        } else if (mode === 'normal') {
+            fetch('https://menu/joinNormalChase', { method: 'POST', body: '{}' });
+            showSubpageQueue(cfg.queueText);
+        }
     });
 
-    soloTestConfig.querySelectorAll('[data-solo-mode]').forEach(btn => {
+    btnSubpageCancelQueue.addEventListener('click', () => {
+        fetch('https://menu/leaveQueue', { method: 'POST', body: '{}' });
+        hideSubpageQueue();
+    });
+
+    function showSubpageQueue(text) {
+        isQueuing = true;
+        btnSubpageQueue.classList.add('hidden');
+        subpageQueueStatus.classList.remove('hidden');
+        subpageQueueText.textContent = text;
+    }
+
+    function hideSubpageQueue() {
+        isQueuing = false;
+        btnSubpageQueue.classList.remove('hidden');
+        subpageQueueStatus.classList.add('hidden');
+    }
+
+    // ========================
+    // Solo test (inside sub-page)
+    // ========================
+    btnSoloToggle.addEventListener('click', () => {
+        const isOpen = !subpageSoloConfig.classList.contains('hidden');
+        subpageSoloConfig.classList.toggle('hidden', isOpen);
+        btnSoloToggle.classList.toggle('open', !isOpen);
+    });
+
+    subpageSoloConfig.querySelectorAll('[data-sub-solo-role]').forEach(btn => {
         btn.addEventListener('click', () => {
-            soloTestConfig.querySelectorAll('[data-solo-mode]').forEach(b => b.classList.remove('active'));
+            subpageSoloConfig.querySelectorAll('[data-sub-solo-role]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            soloMode = btn.dataset.soloMode;
+            soloRole = btn.dataset.subSoloRole;
         });
     });
 
-    soloTestConfig.querySelectorAll('[data-solo-role]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            soloTestConfig.querySelectorAll('[data-solo-role]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            soloRole = btn.dataset.soloRole;
-        });
-    });
-
-    btnSoloStart.addEventListener('click', () => {
-        if (isQueuing) return;
+    btnSubpageSoloStart.addEventListener('click', () => {
+        if (isQueuing || !currentSubpageMode) return;
+        const soloMode = currentSubpageMode === 'normal' ? 'normal' : 'ranked';
         fetch('https://menu/joinSoloTest', {
             method: 'POST',
             body: JSON.stringify({ mode: soloMode, role: soloRole })
         });
-        showQueue('Starting solo test...');
+        showSubpageQueue('Starting solo test...');
     });
 
+    // ========================
+    // Sidebar actions
+    // ========================
     btnOpenMap.addEventListener('click', () => {
         fetch('https://menu/openMap', { method: 'POST', body: '{}' });
     });
@@ -173,25 +328,9 @@
         fetch('https://menu/resumeFreeRoam', { method: 'POST', body: '{}' });
     });
 
-    btnCancelQueue.addEventListener('click', () => {
-        fetch('https://menu/leaveQueue', { method: 'POST', body: '{}' });
-        hideQueue();
-    });
-
     document.getElementById('btnLeaveServer').addEventListener('click', () => {
         fetch('https://menu/leaveServer', { method: 'POST', body: '{}' });
     });
-
-    function showQueue(text) {
-        isQueuing = true;
-        queueStatus.classList.remove('hidden');
-        queueText.textContent = text;
-    }
-
-    function hideQueue() {
-        isQueuing = false;
-        queueStatus.classList.add('hidden');
-    }
 
     // ========================
     // Chat
@@ -242,13 +381,11 @@
         const mmr = data.mmr || 500;
         const name = data.name || 'Player';
 
-        // Sidebar
         sidebarTierBadge.textContent = tierLetters[tier];
         sidebarTierBadge.className = 'player-tier-badge badge-' + tier;
         sidebarPlayerName.textContent = name;
         sidebarPlayerMMR.textContent = mmr + ' MMR';
 
-        // Profile page
         const tierIcon = profileTierBadge.querySelector('.tier-icon');
         tierIcon.textContent = tierLetters[tier];
         tierIcon.className = 'tier-icon badge-' + tier;
@@ -266,7 +403,6 @@
         document.getElementById('statWinRate').textContent = winRate + '%';
         document.getElementById('statVehicle').textContent = data.selected_vehicle || '-';
 
-        // Tier progress
         const th = tierThresholds[tier];
         const tierIdx = tierOrder.indexOf(tier);
         const nextTier = tierIdx < tierOrder.length - 1 ? tierOrder[tierIdx + 1] : tier;
@@ -293,7 +429,6 @@
         const presentTiers = new Set((catalog || []).map(c => c.tier));
         const activeTiers = tierOrder.filter(t => presentTiers.has(t));
 
-        // Tier filter buttons (only tiers with cars)
         let firstTier = null;
         activeTiers.forEach((tier, idx) => {
             if (idx === 0) firstTier = tier;
@@ -327,22 +462,20 @@
             `;
 
             card.addEventListener('click', () => {
-                // Select this car
                 fetch('https://menu/selectVehicle', {
                     method: 'POST',
                     body: JSON.stringify({ model: car.model })
                 });
                 vehicleGrid.querySelectorAll('.vehicle-card').forEach(c => {
                     c.classList.remove('selected');
-                    const badge = c.querySelector('.vehicle-selected-badge');
-                    if (badge) badge.remove();
+                    const b = c.querySelector('.vehicle-selected-badge');
+                    if (b) b.remove();
                 });
                 card.classList.add('selected');
                 const badgeEl = document.createElement('div');
                 badgeEl.classList.add('vehicle-selected-badge');
                 card.appendChild(badgeEl);
 
-                // Show action bar with TUNE
                 selectedGarageModel = car.model;
                 actionBarName.textContent = car.label;
                 garageActionBar.classList.remove('hidden');
@@ -390,6 +523,63 @@
     }
 
     // ========================
+    // Recent matches renderer
+    // ========================
+    function renderRecentMatches(matches) {
+        subpageMatches.innerHTML = '';
+        if (!matches || matches.length === 0) {
+            subpageMatches.innerHTML = '<div class="subpage-empty">No recent matches</div>';
+            return;
+        }
+
+        matches.forEach(m => {
+            const row = document.createElement('div');
+            row.classList.add('match-row');
+
+            const isWin = m.result === 'win';
+            const mmrSign = m.mmrChange >= 0 ? '+' : '';
+
+            row.innerHTML = `
+                <span class="match-opponent">${m.opponent || 'Unknown'}</span>
+                <span class="match-result ${isWin ? 'win' : 'loss'}">${isWin ? 'WIN' : 'LOSS'}</span>
+                <span class="match-mmr ${m.mmrChange >= 0 ? 'positive' : 'negative'}">${mmrSign}${m.mmrChange || 0}</span>
+                <span class="match-duration">${formatDuration(m.duration || 0)}</span>
+            `;
+            subpageMatches.appendChild(row);
+        });
+    }
+
+    function formatDuration(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // ========================
+    // Mode leaderboard renderer
+    // ========================
+    function renderModeLeaderboard(players) {
+        subpageLeaderboard.innerHTML = '';
+        if (!players || players.length === 0) {
+            subpageLeaderboard.innerHTML = '<div class="subpage-empty">No data</div>';
+            return;
+        }
+
+        players.forEach((p, i) => {
+            const row = document.createElement('div');
+            row.classList.add('lb-row');
+
+            row.innerHTML = `
+                <span class="lb-pos">${i + 1}</span>
+                <span class="lb-name">${p.name}</span>
+                <span class="lb-tier tier-${p.tier}">${tierLabels[p.tier] || p.tier.toUpperCase()}</span>
+                <span class="lb-mmr">${p.mmr}</span>
+            `;
+            subpageLeaderboard.appendChild(row);
+        });
+    }
+
+    // ========================
     // NUI message handler
     // ========================
     window.addEventListener('message', (event) => {
@@ -426,22 +616,32 @@
 
             case 'queueUpdate':
                 if (data.queue) {
-                    if (data.queue.status === 'matched') {
-                        hideQueue();
+                    if (data.queue.status === 'matched' || data.queue.status === 'cancelled') {
+                        hideSubpageQueue();
                     } else if (data.queue.status === 'waiting') {
-                        showQueue(data.queue.message || 'In queue...');
-                    } else if (data.queue.status === 'cancelled') {
-                        hideQueue();
+                        showSubpageQueue(data.queue.message || 'In queue...');
                     }
                 }
+                break;
+
+            case 'recentMatchesData':
+                renderRecentMatches(data.matches);
+                break;
+
+            case 'modeLeaderboardData':
+                renderModeLeaderboard(data.players);
                 break;
         }
     });
 
-    // ESC key closes menu and resumes freeroam (NUI eats the keypress so Lua never sees it)
+    // ESC key: in freeroam resume, in subpage go back to overview
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isInFreeRoam) {
-            fetch('https://menu/resumeFreeRoam', { method: 'POST', body: '{}' });
+        if (e.key === 'Escape') {
+            if (isInFreeRoam) {
+                fetch('https://menu/resumeFreeRoam', { method: 'POST', body: '{}' });
+            } else if (currentSubpageMode && !isQueuing) {
+                closeSubpage();
+            }
         }
     });
 

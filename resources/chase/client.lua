@@ -102,6 +102,7 @@ local hasPlacedSpike = false
 local spikeStripCoords = nil
 local chaserVehSaved = nil
 local hasGunBeenGiven = false
+local gunUnlocked = false
 local lastShotTime = 0
 local runnerTiresBurst = {}
 
@@ -144,6 +145,7 @@ local function cleanupGun()
     local ped = PlayerPedId()
     RemoveWeaponFromPed(ped, GUN_HASH)
     hasGunBeenGiven = false
+    gunUnlocked = false
     lastShotTime = 0
     runnerTiresBurst = {}
     pcall(function() exports.base:SetAllowWeapons(false) end)
@@ -287,6 +289,21 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             solo = isSoloTest,
         })
 
+        if myRole == 'chaser' and not hasGunBeenGiven then
+            hasGunBeenGiven = true
+            Citizen.CreateThread(function()
+                RequestWeaponAsset(GUN_HASH)
+                local t = 0
+                while not HasWeaponAssetLoaded(GUN_HASH) and t < 5000 do
+                    Citizen.Wait(100)
+                    t = t + 100
+                end
+                local ped = PlayerPedId()
+                GiveWeaponToPed(ped, GUN_HASH, 2, false, false)
+                SetPedAmmo(ped, GUN_HASH, 2)
+            end)
+        end
+
     elseif data.action == 'codeChange' then
         currentPoliceCode = data.policeCode
         SendNUIMessage({
@@ -296,18 +313,20 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             reason = data.reason,
         })
 
-        if data.policeCode == 'red' and myRole == 'chaser' and not hasGunBeenGiven then
-            hasGunBeenGiven = true
+        if data.policeCode == 'red' and myRole == 'chaser' and not gunUnlocked then
+            gunUnlocked = true
             exports.base:SetAllowWeapons(true)
             Citizen.CreateThread(function()
-                RequestWeaponAsset(GUN_HASH)
-                local t = 0
-                while not HasWeaponAssetLoaded(GUN_HASH) and t < 5000 do
-                    Citizen.Wait(100)
-                    t = t + 100
-                end
                 local ped = PlayerPedId()
-                GiveWeaponToPed(ped, GUN_HASH, 2, false, true)
+                if not HasPedGotWeapon(ped, GUN_HASH, false) then
+                    RequestWeaponAsset(GUN_HASH)
+                    local t = 0
+                    while not HasWeaponAssetLoaded(GUN_HASH) and t < 5000 do
+                        Citizen.Wait(100)
+                        t = t + 100
+                    end
+                    GiveWeaponToPed(ped, GUN_HASH, 2, false, true)
+                end
                 SetPedAmmo(ped, GUN_HASH, 2)
                 SetCurrentPedWeapon(ped, GUN_HASH, true)
                 local rVeh = getRunnerVehicle()
@@ -1193,7 +1212,7 @@ end)
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(100)
-        if isInMatch and myRole == 'chaser' and hasGunBeenGiven then
+        if isInMatch and myRole == 'chaser' and gunUnlocked then
             local ped = PlayerPedId()
 
             if GetAmmoInPedWeapon(ped, GUN_HASH) > 2 then
@@ -1246,6 +1265,10 @@ Citizen.CreateThread(function()
                 local speed = GetEntitySpeed(vehicle) * CC.MS_TO_MPH
                 if speed < CC.RAM_SPEED_MIN_MPH then goto continue end
 
+                local rotVel = GetEntityRotationVelocity(vehicle)
+                local yawRate = math.abs(rotVel.z) * 57.2958
+                if yawRate > 45 then goto continue end
+
                 local myHeading = GetEntityHeading(vehicle)
                 local myCoords = GetEntityCoords(vehicle)
 
@@ -1258,12 +1281,6 @@ Citizen.CreateThread(function()
                                 local otherCoords = GetEntityCoords(otherVeh)
                                 local dist = #(myCoords - otherCoords)
                                 if dist < CC.RAM_DETECT_RADIUS then
-                                    local chaserHeading = GetEntityHeading(otherVeh)
-                                    local hdgDiff = math.abs(myHeading - chaserHeading)
-                                    if hdgDiff > 180 then hdgDiff = 360 - hdgDiff end
-
-                                    if hdgDiff < 90 then goto nextPlayer end
-
                                     local toOther = otherCoords - myCoords
                                     local angleToOther = math.deg(math.atan(toOther.y, toOther.x))
                                     local headingAngle = (450.0 - myHeading) % 360.0
@@ -1278,7 +1295,6 @@ Citizen.CreateThread(function()
                                         break
                                     end
                                 end
-                                ::nextPlayer::
                             end
                         end
                     end
@@ -1325,6 +1341,8 @@ local telem = {
     brakeStartTime    = 0,
     isAccelerating    = false,
     steeringAngle     = 0,
+    peakSteerAngle    = 0,
+    peakSteerTime     = 0,
 
     oppPrevSpeed      = 0,
     oppPrevDist       = 999,
@@ -1569,11 +1587,19 @@ local function analyzePitManeuver(myData, opp)
     if contactType == 'REAR_END' then
         intentScore = intentScore + 2
         table.insert(factors, 'rear_end')
+    elseif contactType == 'PIT_MANEUVER' then
+        intentScore = intentScore + 1
+        table.insert(factors, 'pit_angle')
     end
 
-    if math.abs(myData.steering) > 10 then
+    local effectiveSteer = math.abs(myData.steering)
+    local peakAge = GetGameTimer() - telem.peakSteerTime
+    if peakAge < 1500 and math.abs(telem.peakSteerAngle) > effectiveSteer then
+        effectiveSteer = math.abs(telem.peakSteerAngle)
+    end
+    if effectiveSteer > 10 then
         intentScore = intentScore + 2
-        table.insert(factors, ('steering=%.0f°'):format(myData.steering))
+        table.insert(factors, ('steering=%.0f°(peak)'):format(effectiveSteer))
     end
 
     if not telem.isBraking then
@@ -1679,6 +1705,8 @@ AddEventHandler('blacklist:chaseHUD', function(data)
         telem.lastEnvCrash    = nil
         telem.lastBrakeCheck  = nil
         telem.brakeCheckCount = 0
+        telem.peakSteerAngle  = 0
+        telem.peakSteerTime   = 0
         telem.lastSummaryTime = GetGameTimer()
         telem.lastTerrainType = 'FLAT'
         telem.preContactHealth = nil
@@ -1710,6 +1738,13 @@ local function updateInputState(vd)
     telem.isBraking     = vd.braking
     telem.isAccelerating = vd.throttle
     telem.steeringAngle = vd.steering
+
+    local absSteer = math.abs(vd.steering)
+    local now = GetGameTimer()
+    if absSteer > math.abs(telem.peakSteerAngle) or (now - telem.peakSteerTime) > 1500 then
+        telem.peakSteerAngle = vd.steering
+        telem.peakSteerTime  = now
+    end
 
     if vd.braking and not wasBraking then
         telem.brakeStartTime = GetGameTimer()
@@ -1901,7 +1936,7 @@ Citizen.CreateThread(function()
                                 if pitNow - telem.lastPitReport >= CC.PIT_REPORT_COOLDOWN then
                                     telem.lastPitReport = pitNow
 
-                                    local isBoxing = (vd.speedKmh < 30 and opp.speedKmh < 30)
+                                    local isBoxing = (vd.speedKmh < 20 and opp.speedKmh < 20)
                                     local isRunnerContact = (opp.serverId == runnerServerId)
                                     if isRunnerContact and isBoxing then
                                         acLog('INFO', ('  > PIT suppressed — boxing speeds (me=%d opp=%d km/h, score=%d)'):format(

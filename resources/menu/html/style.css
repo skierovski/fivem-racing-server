@@ -232,9 +232,9 @@ body {
 
 .mode-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 20px;
-    max-width: 1000px;
+    max-width: 800px;
 }
 
 .mode-card {
@@ -1089,6 +1089,293 @@ body {
 .badge-diamond { background: var(--tier-diamond); color: #000; }
 .badge-blacklist { background: var(--tier-blacklist); color: #fff; }
 .badge-custom { background: var(--tier-custom); color: #fff; }
+
+/* ========================
+   Mode Sub-Page
+   ======================== */
+
+#modeOverview, #modeSubpage {
+    animation: pageIn 0.3s ease-out;
+}
+
+.subpage-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.subpage-back {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.subpage-back:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.subpage-mode-icon {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.subpage-title h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 4px;
+}
+
+.subpage-title p {
+    font-size: 14px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.subpage-body {
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.subpage-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+}
+
+.subpage-section-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.subpage-queue-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.subpage-queue-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-bright));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.25s;
+}
+
+.subpage-queue-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 150, 255, 0.3);
+}
+
+.subpage-queue-status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.subpage-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.subpage-options:empty {
+    display: none;
+}
+
+.subpage-solo-section {
+    padding: 0;
+    overflow: hidden;
+}
+
+.subpage-solo-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.subpage-solo-toggle:hover {
+    color: var(--text-primary);
+}
+
+.subpage-solo-toggle svg:first-child {
+    color: #ff8800;
+    opacity: 0.7;
+}
+
+.solo-chevron {
+    margin-left: auto;
+    transition: transform 0.2s;
+    opacity: 0.4;
+}
+
+.subpage-solo-toggle.open .solo-chevron {
+    transform: rotate(180deg);
+}
+
+.subpage-solo-config {
+    padding: 0 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.subpage-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.subpage-info-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.subpage-info-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(0, 150, 255, 0.1);
+    border: 1px solid rgba(0, 150, 255, 0.15);
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--accent);
+    margin-right: 6px;
+}
+
+.subpage-matches, .subpage-leaderboard {
+    display: flex;
+    flex-direction: column;
+}
+
+.subpage-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    padding: 8px 0;
+}
+
+.match-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px 80px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    font-size: 13px;
+}
+
+.match-row:last-child { border-bottom: none; }
+
+.match-opponent { font-weight: 600; }
+
+.match-result {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.match-result.win { color: var(--success); }
+.match-result.loss { color: var(--danger); }
+
+.match-mmr {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.match-mmr.positive { color: var(--success); }
+.match-mmr.negative { color: var(--danger); }
+
+.match-duration {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.lb-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 80px 80px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    font-size: 13px;
+}
+
+.lb-row:last-child { border-bottom: none; }
+
+.lb-pos {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.lb-row:nth-child(-n+3) .lb-pos {
+    color: var(--gold);
+}
+
+.lb-name { font-weight: 600; }
+
+.lb-tier {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.lb-mmr {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    color: var(--accent);
+}
 
 /* Scrollbar */
 .main-content::-webkit-scrollbar { width: 6px; }
