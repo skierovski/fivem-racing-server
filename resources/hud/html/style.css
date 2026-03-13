@@ -34,7 +34,7 @@ body {
     position: fixed;
     left: 0px;
     bottom: 0px;
-    width: 270px;
+    width: 280px;
     height: 210px;
     pointer-events: none;
     z-index: 100;
@@ -42,7 +42,7 @@ body {
 
 .frame-left {
     position: absolute;
-    left: 27px;
+    left: 32px;
     top: 10px;
     width: 3px;
     bottom: 22px;
@@ -53,7 +53,7 @@ body {
 
 .frame-bottom {
     position: absolute;
-    left: 27px;
+    left: 32px;
     bottom: 23px;
     right: 10px;
     height: 3px;
@@ -64,7 +64,7 @@ body {
 
 .frame-corner-bl {
     position: absolute;
-    left: 23px;
+    left: 28px;
     bottom: 19px;
     width: 10px;
     height: 10px;
@@ -75,7 +75,7 @@ body {
 
 .frame-corner-tl {
     position: absolute;
-    left: 23px;
+    left: 28px;
     top: 6px;
     width: 10px;
     height: 10px;
@@ -95,84 +95,10 @@ body {
     opacity: 0.4;
 }
 
-/* Speed panel below minimap */
-.speed-panel {
-    position: fixed;
-    left: 28px;
-    bottom: 0px;
-    width: 240px;
-    padding: 6px 14px 8px;
-    background: var(--bg-solid);
-    border: 1px solid var(--border);
-    border-top: 2px solid var(--accent);
-    border-radius: 0;
-    z-index: 101;
-}
-
-.speed-row {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    margin-bottom: 4px;
-}
-
-.speed-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 32px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: 2px;
-    line-height: 1;
-}
-
-.speed-unit {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-}
-
-.gear-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.rpm-bar {
-    flex: 1;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.rpm-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--accent), #00ddff);
-    border-radius: 2px;
-    transition: width 0.1s linear;
-}
-
-.rpm-fill.redline {
-    background: linear-gradient(90deg, var(--accent), #ff4444);
-}
-
-.gear-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--accent);
-    min-width: 20px;
-    text-align: right;
-    letter-spacing: 1px;
-}
-
 /* Tier badge above minimap */
 .hud-tier {
     position: fixed;
-    left: 30px;
+    left: 35px;
     bottom: 218px;
     display: flex;
     align-items: center;

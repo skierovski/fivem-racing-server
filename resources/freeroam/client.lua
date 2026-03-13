@@ -321,20 +321,14 @@ Citizen.CreateThread(function()
 end)
 
 -- ========================
--- Freeroam mini-menu (F1 key)
+-- Freeroam mini-menu (command only, F1 disabled)
 -- ========================
 
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(0)
-
-        if isInFreeRoam and not isFreeroamMenuOpen then
-            if IsControlJustPressed(0, 288) then -- F1
-                openFreeroamMenu()
-            end
-        end
+RegisterCommand('carpicker', function()
+    if isInFreeRoam and not isFreeroamMenuOpen then
+        openFreeroamMenu()
     end
-end)
+end, false)
 
 function openFreeroamMenu()
     isFreeroamMenuOpen = true

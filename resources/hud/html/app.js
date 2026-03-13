@@ -2,9 +2,6 @@
     'use strict';
 
     const hud = document.getElementById('hud');
-    const speedValue = document.getElementById('speedValue');
-    const gearValue = document.getElementById('gearValue');
-    const rpmFill = document.getElementById('rpmFill');
     const tierLetter = document.getElementById('hudTierLetter');
 
     const chatMessages = document.getElementById('chatMessages');
@@ -27,21 +24,6 @@
         switch (data.action) {
             case 'showHud':
                 hud.classList.toggle('hidden', !data.show);
-                break;
-
-            case 'updateHud':
-                if (data.inVehicle) {
-                    speedValue.textContent = data.speed || 0;
-                    gearValue.textContent = data.gear === 0 ? 'R' : data.gear || 'N';
-                    const rpmPct = Math.min((data.rpm || 0) * 100, 100);
-                    rpmFill.style.width = rpmPct + '%';
-                    rpmFill.classList.toggle('redline', rpmPct > 85);
-                } else {
-                    speedValue.textContent = '0';
-                    gearValue.textContent = 'N';
-                    rpmFill.style.width = '0%';
-                    rpmFill.classList.remove('redline');
-                }
                 break;
 
             case 'updateTier':

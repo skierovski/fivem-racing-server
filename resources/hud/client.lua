@@ -15,26 +15,16 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Send speed/gear/rpm data to NUI
+-- Hide GTA health/armor bars every frame
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(80)
-
+        Citizen.Wait(0)
         if hudVisible then
-            local ped = PlayerPedId()
-            local veh = GetVehiclePedIsIn(ped, false)
-
-            if veh ~= 0 then
-                SendNUIMessage({
-                    action = 'updateHud',
-                    speed = math.floor(GetEntitySpeed(veh) * 3.6),
-                    gear = GetVehicleCurrentGear(veh),
-                    rpm = GetVehicleCurrentRpm(veh),
-                    inVehicle = true,
-                })
-            else
-                SendNUIMessage({ action = 'updateHud', inVehicle = false })
-            end
+            HideHudComponentThisFrame(3)  -- CASH
+            HideHudComponentThisFrame(4)  -- MP_CASH
+            HideHudComponentThisFrame(6)  -- VEHICLE_NAME
+            HideHudComponentThisFrame(7)  -- AREA_NAME
+            HideHudComponentThisFrame(9)  -- STREET_NAME
         end
     end
 end)
@@ -61,10 +51,15 @@ RegisterNUICallback('closeChat', function(data, cb)
     cb({})
 end)
 
--- NUI callback: send chat message
+-- NUI callback: send chat message (supports /commands)
 RegisterNUICallback('sendChat', function(data, cb)
     if data.message and #data.message > 0 then
-        TriggerServerEvent('blacklist:sendChat', data.message)
+        local msg = data.message
+        if string.sub(msg, 1, 1) == '/' then
+            ExecuteCommand(string.sub(msg, 2))
+        else
+            TriggerServerEvent('blacklist:sendChat', msg)
+        end
     end
     cb({})
 end)
