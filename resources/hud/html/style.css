@@ -95,6 +95,19 @@ body {
     opacity: 0.4;
 }
 
+/* Dark bar below minimap — covers GTA health/armor bars */
+.minimap-bar {
+    position: fixed;
+    left: 0px;
+    bottom: 0px;
+    width: 270px;
+    height: 22px;
+    background: rgba(5, 5, 15, 0.92);
+    border-top: 2px solid var(--accent);
+    z-index: 99;
+    pointer-events: none;
+}
+
 /* Tier badge above minimap */
 .hud-tier {
     position: fixed;
