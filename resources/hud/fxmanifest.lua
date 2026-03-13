@@ -5,6 +5,8 @@ author 'BlackList Racing'
 description 'Custom racing HUD overlay'
 version '1.0.0'
 
+dependency 'base'
+
 ui_page 'html/index.html'
 
 client_script 'client.lua'

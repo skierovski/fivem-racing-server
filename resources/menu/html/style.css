@@ -196,13 +196,10 @@ body {
     overflow-y: auto;
     padding: 40px;
     z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
 }
 
-.page { display: none; width: 100%; }
-.page.active { display: flex; flex-direction: column; align-items: center; animation: pageIn 0.3s ease-out; }
+.page { display: none; }
+.page.active { display: block; animation: pageIn 0.3s ease-out; }
 
 @keyframes pageIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -211,9 +208,6 @@ body {
 
 .page-header {
     margin-bottom: 40px;
-    width: 100%;
-    max-width: 800px;
-    text-align: center;
 }
 
 .page-header h1 {
@@ -240,8 +234,6 @@ body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
-    max-width: 800px;
-    width: 100%;
 }
 
 .mode-card {
@@ -334,7 +326,6 @@ body {
 /* Solo test config */
 .solo-test-config {
     margin-top: 20px;
-    max-width: 500px;
     padding: 20px 24px;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -412,8 +403,6 @@ body {
 /* Cross-tier toggle */
 .cross-tier-option {
     margin-top: 24px;
-    max-width: 400px;
-    width: 100%;
     padding: 16px 20px;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -493,8 +482,6 @@ body {
     background: var(--bg-card);
     border: 1px solid rgba(0, 150, 255, 0.2);
     border-radius: 12px;
-    max-width: 500px;
-    width: 100%;
 }
 
 .queue-spinner {
@@ -535,7 +522,7 @@ body {
    Profile page
    ======================== */
 
-.profile-content { max-width: 700px; width: 100%; }
+.profile-content { }
 
 .profile-card {
     background: var(--bg-card);
@@ -678,7 +665,7 @@ body {
    Garage page
    ======================== */
 
-.garage-content { max-width: 900px; width: 100%; }
+.garage-content { }
 
 .garage-tier-filter {
     display: flex;
@@ -818,7 +805,7 @@ body {
    BlackList page
    ======================== */
 
-.blacklist-content { max-width: 700px; width: 100%; }
+.blacklist-content { }
 
 .blacklist-table {
     background: var(--bg-card);
@@ -880,7 +867,7 @@ body {
    Settings page
    ======================== */
 
-.settings-content { max-width: 500px; width: 100%; }
+.settings-content { }
 
 .setting-group {
     background: var(--bg-card);
@@ -1105,10 +1092,6 @@ body {
 
 #modeOverview, #modeSubpage {
     animation: pageIn 0.3s ease-out;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
 }
 
 .subpage-header {
@@ -1116,8 +1099,6 @@ body {
     align-items: center;
     gap: 16px;
     margin-bottom: 32px;
-    width: 100%;
-    max-width: 700px;
 }
 
 .subpage-back {
@@ -1163,8 +1144,6 @@ body {
 }
 
 .subpage-body {
-    max-width: 700px;
-    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 20px;
