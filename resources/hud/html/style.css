@@ -33,9 +33,9 @@ body {
 .minimap-frame {
     position: fixed;
     left: 0px;
-    bottom: 0px;
+    bottom: 18px;
     width: 270px;
-    height: 210px;
+    height: 165px;
     pointer-events: none;
     z-index: 100;
 }
@@ -43,9 +43,9 @@ body {
 .frame-left {
     position: absolute;
     left: 2px;
-    top: 10px;
+    top: 5px;
     width: 3px;
-    bottom: 22px;
+    bottom: 5px;
     background: linear-gradient(to bottom, transparent, var(--accent), transparent);
     opacity: 0.7;
     border-radius: 2px;
@@ -54,7 +54,7 @@ body {
 .frame-bottom {
     position: absolute;
     left: 2px;
-    bottom: 23px;
+    bottom: 0px;
     right: 10px;
     height: 3px;
     background: linear-gradient(to right, var(--accent), transparent);
@@ -65,7 +65,7 @@ body {
 .frame-corner-bl {
     position: absolute;
     left: 0px;
-    bottom: 19px;
+    bottom: 0px;
     width: 10px;
     height: 10px;
     border-left: 3px solid var(--accent);
@@ -76,7 +76,7 @@ body {
 .frame-corner-tl {
     position: absolute;
     left: 0px;
-    top: 6px;
+    top: 0px;
     width: 10px;
     height: 10px;
     border-left: 3px solid var(--accent);
@@ -87,7 +87,7 @@ body {
 .frame-corner-br {
     position: absolute;
     right: 6px;
-    bottom: 19px;
+    bottom: 0px;
     width: 10px;
     height: 10px;
     border-right: 3px solid var(--accent);
@@ -95,24 +95,24 @@ body {
     opacity: 0.4;
 }
 
-/* Dark bar below minimap — covers GTA health/armor bars */
+/* Dark bar below minimap — fully opaque to cover GTA health/armor bars */
 .minimap-bar {
     position: fixed;
     left: 0px;
     bottom: 0px;
     width: 270px;
-    height: 22px;
-    background: rgba(5, 5, 15, 0.92);
+    height: 20px;
+    background: rgb(5, 5, 15);
     border-top: 2px solid var(--accent);
     z-index: 99;
     pointer-events: none;
 }
 
-/* Tier badge above minimap */
+/* Tier badge + player name above minimap */
 .hud-tier {
     position: fixed;
     left: 5px;
-    bottom: 218px;
+    bottom: 186px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -139,6 +139,15 @@ body {
 .hud-tier-letter.platinum { background: #e5e4e2; }
 .hud-tier-letter.diamond { background: #b9f2ff; }
 .hud-tier-letter.blacklist { background: #ff2222; color: #fff; }
+
+.hud-player-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
 
 /* ========================
    Chat overlay (top-left)

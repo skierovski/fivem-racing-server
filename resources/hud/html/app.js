@@ -3,6 +3,7 @@
 
     const hud = document.getElementById('hud');
     const tierLetter = document.getElementById('hudTierLetter');
+    const playerName = document.getElementById('hudPlayerName');
 
     const chatMessages = document.getElementById('chatMessages');
     const chatInputWrap = document.getElementById('chatInputWrap');
@@ -26,10 +27,13 @@
                 hud.classList.toggle('hidden', !data.show);
                 break;
 
-            case 'updateTier':
+            case 'updatePlayer':
                 if (data.tier) {
                     tierLetter.textContent = tierLetters[data.tier] || 'B';
                     tierLetter.className = 'hud-tier-letter ' + data.tier;
+                }
+                if (data.name) {
+                    playerName.textContent = data.name;
                 }
                 break;
 

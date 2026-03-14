@@ -75,11 +75,15 @@ AddEventHandler('blacklist:chatMessage', function(data)
     SendNUIMessage({ action = 'chatMessage', message = data })
 end)
 
--- Receive tier from player data
+-- Receive tier + name from player data
 RegisterNetEvent('blacklist:receivePlayerData')
 AddEventHandler('blacklist:receivePlayerData', function(data)
-    if data and data.tier then
-        SendNUIMessage({ action = 'updateTier', tier = data.tier })
+    if data then
+        SendNUIMessage({
+            action = 'updatePlayer',
+            tier = data.tier or 'bronze',
+            name = data.name or GetPlayerName(PlayerId()) or 'Player',
+        })
     end
 end)
 
