@@ -42,7 +42,7 @@ body {
 
 .frame-left {
     position: absolute;
-    left: 2px;
+    left: 0px;
     top: 5px;
     width: 3px;
     bottom: 5px;
@@ -53,7 +53,7 @@ body {
 
 .frame-bottom {
     position: absolute;
-    left: 2px;
+    left: 0px;
     bottom: 0px;
     right: 10px;
     height: 3px;
@@ -100,7 +100,7 @@ body {
     position: fixed;
     left: 0px;
     bottom: 0px;
-    width: 270px;
+    width: 273px;
     height: 20px;
     background: rgb(5, 5, 15);
     border-top: 2px solid var(--accent);
@@ -112,7 +112,7 @@ body {
 .hud-tier {
     position: fixed;
     left: 5px;
-    bottom: 186px;
+    bottom: 200px;
     display: flex;
     align-items: center;
     gap: 8px;
