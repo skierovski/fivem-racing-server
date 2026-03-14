@@ -55,6 +55,16 @@
     const forfeitMessage = document.getElementById('forfeitMessage');
     const forfeitYes = document.getElementById('forfeitYes');
     const forfeitNo = document.getElementById('forfeitNo');
+    const endOpponent = document.getElementById('endOpponent');
+    const endOpponentName = document.getElementById('endOpponentName');
+    const endActions = document.getElementById('endActions');
+    const reportBtn = document.getElementById('reportBtn');
+    const reportModal = document.getElementById('reportModal');
+    const reportModalName = document.getElementById('reportModalName');
+    const reportReasons = document.getElementById('reportReasons');
+    const reportCancel = document.getElementById('reportCancel');
+    const reportSubmit = document.getElementById('reportSubmit');
+    const reportSent = document.getElementById('reportSent');
 
     let warningTimeout = null;
     let progressHideTimeout = null;
@@ -68,6 +78,10 @@
     let rematchShowTimeout = null;
     let mmrShowTimeout = null;
     let rankShowTimeout = null;
+    let currentMatchId = null;
+    let currentOpponentName = null;
+    let selectedReportReason = null;
+    let reportSubmitted = false;
 
     const TIER_LABELS = {
         bronze: 'BRONZE', silver: 'SILVER', gold: 'GOLD',
@@ -120,6 +134,18 @@
         heliVoteOverlay.classList.add('hidden');
         carPickOverlay.classList.add('hidden');
         forfeitOverlay.classList.add('hidden');
+        endOpponent.classList.add('hidden');
+        endActions.classList.add('hidden');
+        reportBtn.classList.add('hidden');
+        reportBtn.textContent = 'REPORT';
+        reportBtn.disabled = false;
+        reportBtn.classList.remove('submitted');
+        reportModal.classList.add('hidden');
+        reportSent.classList.add('hidden');
+        reportSubmitted = false;
+        selectedReportReason = null;
+        currentMatchId = null;
+        currentOpponentName = null;
         rematchRequested = false;
         rematchBtn.textContent = 'REMATCH';
         rematchBtn.disabled = false;
@@ -372,6 +398,18 @@
                 endResult.textContent = data.won ? 'VICTORY!' : 'DEFEAT';
                 endResult.className = 'end-result ' + (data.won ? 'win' : 'loss');
 
+                currentMatchId = data.matchId || null;
+                currentOpponentName = data.opponentName || null;
+                selectedReportReason = null;
+                reportSubmitted = false;
+
+                if (data.opponentName) {
+                    endOpponentName.textContent = data.opponentName;
+                    endOpponent.classList.remove('hidden');
+                } else {
+                    endOpponent.classList.add('hidden');
+                }
+
                 let detail = '';
                 switch (data.reason) {
                     case 'time_expired':
@@ -420,6 +458,13 @@
                         rematchShowTimeout = null;
                         rematchArea.classList.remove('hidden');
                     }, 3000);
+                }
+
+                if (data.opponentName && !data.solo) {
+                    reportBtn.classList.remove('hidden');
+                    reportSent.classList.add('hidden');
+                    reportModal.classList.add('hidden');
+                    endActions.classList.remove('hidden');
                 }
                 break;
             }
@@ -553,5 +598,47 @@
         heliVoteOverlay.classList.add('hidden');
         if (heliVoteInterval) { clearInterval(heliVoteInterval); heliVoteInterval = null; }
         fetch('https://chase/heliVote', { method: 'POST', body: JSON.stringify({ vote: false }) });
+    });
+
+    // Report system
+    reportBtn.addEventListener('click', () => {
+        if (reportSubmitted) return;
+        reportModalName.textContent = currentOpponentName || 'Unknown';
+        selectedReportReason = null;
+        reportReasons.querySelectorAll('.report-reason-btn').forEach(b => b.classList.remove('active'));
+        reportSubmit.classList.add('disabled');
+        reportSent.classList.add('hidden');
+        reportModal.classList.remove('hidden');
+    });
+
+    reportCancel.addEventListener('click', () => {
+        reportModal.classList.add('hidden');
+    });
+
+    reportReasons.addEventListener('click', (e) => {
+        const btn = e.target.closest('.report-reason-btn');
+        if (!btn) return;
+        reportReasons.querySelectorAll('.report-reason-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedReportReason = btn.dataset.reason;
+        reportSubmit.classList.remove('disabled');
+    });
+
+    reportSubmit.addEventListener('click', () => {
+        if (!selectedReportReason || reportSubmitted) return;
+        reportSubmitted = true;
+        fetch('https://chase/reportPlayer', {
+            method: 'POST',
+            body: JSON.stringify({
+                matchId: currentMatchId,
+                opponentName: currentOpponentName,
+                reason: selectedReportReason,
+            }),
+        });
+        reportModal.classList.add('hidden');
+        reportBtn.textContent = 'REPORTED';
+        reportBtn.disabled = true;
+        reportBtn.classList.add('submitted');
+        reportSent.classList.remove('hidden');
     });
 })();

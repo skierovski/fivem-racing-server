@@ -109,6 +109,10 @@
     <!-- Match end overlay -->
     <div class="match-end hidden" id="matchEnd">
         <div class="end-result" id="endResult">ESCAPED!</div>
+        <div class="end-opponent hidden" id="endOpponent">
+            <span class="end-opponent-label">VS</span>
+            <span class="end-opponent-name" id="endOpponentName"></span>
+        </div>
         <div class="end-details" id="endDetails"></div>
 
         <div class="mmr-section hidden" id="mmrSection">
@@ -127,6 +131,30 @@
         <div class="rematch-area hidden" id="rematchArea">
             <button class="rematch-btn" id="rematchBtn">REMATCH</button>
             <div class="rematch-status hidden" id="rematchStatus"></div>
+        </div>
+
+        <div class="end-actions" id="endActions">
+            <button class="report-btn hidden" id="reportBtn">REPORT</button>
+        </div>
+
+        <!-- Report modal -->
+        <div class="report-modal hidden" id="reportModal">
+            <div class="report-modal-inner">
+                <div class="report-modal-title">REPORT PLAYER</div>
+                <div class="report-modal-name" id="reportModalName"></div>
+                <div class="report-reasons" id="reportReasons">
+                    <button class="report-reason-btn" data-reason="unfair_play">Unfair Play</button>
+                    <button class="report-reason-btn" data-reason="trolling">Trolling</button>
+                    <button class="report-reason-btn" data-reason="exploiting">Exploiting</button>
+                    <button class="report-reason-btn" data-reason="ramming">Intentional Ramming</button>
+                    <button class="report-reason-btn" data-reason="cheating">Cheating / Speed Hack</button>
+                </div>
+                <div class="report-modal-actions">
+                    <button class="report-cancel-btn" id="reportCancel">CANCEL</button>
+                    <button class="report-submit-btn disabled" id="reportSubmit">SUBMIT</button>
+                </div>
+                <div class="report-sent hidden" id="reportSent">Report submitted.</div>
+            </div>
         </div>
 
         <div class="end-returning" id="endReturning">Returning to menu...</div>

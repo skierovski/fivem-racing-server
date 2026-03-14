@@ -95,7 +95,8 @@ end)
 
 RegisterNUICallback('joinNormalChase', function(data, cb)
     TriggerEvent('blacklist:enableGhostMode', false)
-    TriggerServerEvent('blacklist:joinQueue', 'normal')
+    local roles = data.roles or { runner = true, chaser = true, heli = false }
+    TriggerServerEvent('blacklist:joinQueue', 'normal', false, false, roles)
     cb({})
 end)
 

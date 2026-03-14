@@ -180,7 +180,7 @@ Citizen.CreateThread(function()
 end)
 
 RegisterNetEvent('blacklist:joinQueue')
-AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
+AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode, rolePrefs)
     local source = source
     local identifier = getIdentifier(source)
     if not identifier then return end
@@ -236,6 +236,7 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
                     GetPlayerName(source), player.mmr, player.tier, tostring(crossTier == true)))
 
             elseif mode == 'normal' then
+                local roles = rolePrefs or { runner = true, chaser = true, heli = false }
                 table.insert(normalQueue, {
                     source = source,
                     identifier = identifier,
@@ -244,6 +245,7 @@ AddEventHandler('blacklist:joinQueue', function(mode, crossTier, testMode)
                     chases = player.chases_played or 0,
                     escapes = player.escapes_played or 0,
                     joinedAt = GetGameTimer(),
+                    rolePrefs = roles,
                 })
                 playerStates[source] = 'normal_queue'
                 TriggerClientEvent('blacklist:queueUpdate', source, {
@@ -529,6 +531,7 @@ function startNormalChaseMatch(runner, chasers)
         table.insert(matchData.chasers, {
             source = c.source,
             identifier = c.identifier,
+            rolePrefs = c.rolePrefs,
         })
     end
 

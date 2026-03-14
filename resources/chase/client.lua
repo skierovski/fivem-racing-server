@@ -365,10 +365,11 @@ AddEventHandler('blacklist:chaseHUD', function(data)
             reason = data.reason,
             duration = data.duration,
             isRanked = data.isRanked,
+            opponentName = data.opponentName,
+            matchId = data.matchId,
+            solo = data.solo,
         })
-        if data.isRanked then
-            SetNuiFocus(true, true)
-        end
+        SetNuiFocus(true, true)
     end
 end)
 
@@ -867,6 +868,11 @@ end)
 RegisterNUICallback('heliVote', function(data, cb)
     TriggerServerEvent('blacklist:heliVoteResponse', data.vote == true)
     SetNuiFocus(false, false)
+    cb({})
+end)
+
+RegisterNUICallback('reportPlayer', function(data, cb)
+    TriggerServerEvent('blacklist:reportPlayer', data.matchId, data.opponentName, data.reason)
     cb({})
 end)
 

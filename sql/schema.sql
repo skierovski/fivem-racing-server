@@ -164,3 +164,22 @@ INSERT INTO `vehicle_catalog` (`model`, `label`, `tier`, `class`, `top_speed`) V
 ('gbcomets2r', 'Comet S2R', 'blacklist', 'sports', 155.0)
 
 ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `tier` = VALUES(`tier`), `top_speed` = VALUES(`top_speed`);
+
+-- ============================================================
+-- Player reports
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `player_reports` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `match_id` INT UNSIGNED DEFAULT NULL,
+    `reporter_id` VARCHAR(64) NOT NULL,
+    `reporter_name` VARCHAR(128) NOT NULL DEFAULT '',
+    `reported_id` VARCHAR(64) NOT NULL DEFAULT '',
+    `reported_name` VARCHAR(128) NOT NULL DEFAULT '',
+    `reason` VARCHAR(64) NOT NULL,
+    `mode` VARCHAR(32) NOT NULL DEFAULT 'unknown',
+    `status` ENUM('pending', 'reviewed', 'actioned', 'dismissed') NOT NULL DEFAULT 'pending',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_reported` (`reported_id`, `created_at` DESC),
+    INDEX `idx_status` (`status`)
+) ENGINE=InnoDB;

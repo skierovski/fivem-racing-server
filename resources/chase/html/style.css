@@ -590,6 +590,200 @@ body {
 }
 
 /* ========================
+   Opponent Display
+   ======================== */
+
+.end-opponent {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 8px;
+    animation: mmrFadeIn 0.5s ease-out forwards;
+}
+
+.end-opponent-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.end-opponent-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #ffffff;
+    text-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+}
+
+/* ========================
+   Report System
+   ======================== */
+
+.end-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    animation: mmrFadeIn 0.6s ease-out forwards;
+    pointer-events: auto;
+}
+
+.report-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #ff6666;
+    background: rgba(255, 68, 68, 0.08);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    padding: 10px 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.report-btn:hover {
+    background: rgba(255, 68, 68, 0.2);
+    border-color: rgba(255, 68, 68, 0.6);
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.2);
+}
+
+.report-btn.submitted {
+    color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+    cursor: default;
+}
+
+.report-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 200;
+    pointer-events: auto;
+}
+
+.report-modal-inner {
+    background: linear-gradient(160deg, rgba(15, 15, 30, 0.98), rgba(8, 8, 20, 0.98));
+    border: 1px solid rgba(255, 68, 68, 0.2);
+    border-radius: 12px;
+    padding: 32px 40px;
+    min-width: 360px;
+    text-align: center;
+}
+
+.report-modal-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 5px;
+    color: #ff6666;
+    margin-bottom: 8px;
+}
+
+.report-modal-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ffffff;
+    margin-bottom: 24px;
+}
+
+.report-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.report-reason-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.report-reason-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.report-reason-btn.active {
+    background: rgba(255, 68, 68, 0.12);
+    border-color: rgba(255, 68, 68, 0.5);
+    color: #ff6666;
+}
+
+.report-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.report-cancel-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.report-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.report-submit-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ff6666;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.report-submit-btn:hover {
+    background: rgba(255, 68, 68, 0.25);
+}
+
+.report-submit-btn.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.report-sent {
+    margin-top: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ========================
    Police code change popup
    ======================== */
 

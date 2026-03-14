@@ -2,6 +2,10 @@
 -- Chase/Run game mode: server-side match management
 -- ============================================================
 
+local function getIdentifier(source)
+    return exports.lib:GetIdentifier(source)
+end
+
 local ChaseConfig = {
     RANKED_ROUND_DURATION = 300,
     NORMAL_ROUND_DURATION = 600,
@@ -167,10 +171,23 @@ local function runHeliVotePhase(match, matchId)
     end
 
     if yesVotes > #match.chasers / 2 then
-        local heliIdx = math.random(#match.chasers)
+        -- Prioritize players who selected the heli role preference
+        local heliCandidates = {}
+        local fallbackCandidates = {}
+        for i, chaser in ipairs(match.chasers) do
+            if chaser.rolePrefs and chaser.rolePrefs.heli then
+                table.insert(heliCandidates, i)
+            else
+                table.insert(fallbackCandidates, i)
+            end
+        end
+        local pool = #heliCandidates > 0 and heliCandidates or fallbackCandidates
+        if #pool == 0 then pool = { math.random(#match.chasers) } end
+        local heliIdx = pool[math.random(#pool)]
         match.heliPilot = match.chasers[heliIdx].source
-        print(('[Chase] Match #%d: Helicopter approved (%d/%d). Pilot: %s'):format(
-            matchId, yesVotes, #match.chasers, GetPlayerName(match.heliPilot) or match.heliPilot))
+        print(('[Chase] Match #%d: Helicopter approved (%d/%d). Pilot: %s (pref: %s)'):format(
+            matchId, yesVotes, #match.chasers, GetPlayerName(match.heliPilot) or match.heliPilot,
+            #heliCandidates > 0 and 'yes' or 'fallback'))
     else
         print(('[Chase] Match #%d: Helicopter denied (%d/%d)'):format(matchId, yesVotes, #match.chasers))
     end
@@ -1001,9 +1018,22 @@ function endMatch(matchId, winnerRole, reason)
     local allSources = getAllMatchSources(match)
     local isRanked = match.mode == 'ranked' and #match.chasers == 1
 
+    local runnerName = GetPlayerName(match.runner.source) or 'Unknown'
+    local chaserNames = {}
+    for _, c in ipairs(match.chasers) do
+        table.insert(chaserNames, GetPlayerName(c.source) or 'Unknown')
+    end
+
     for _, src in ipairs(allSources) do
         local role = src == match.runner.source and 'runner' or 'chaser'
         local won = role == winnerRole
+
+        local opponentName
+        if role == 'runner' then
+            opponentName = #chaserNames == 1 and chaserNames[1] or (chaserNames[1] .. ' +' .. (#chaserNames - 1))
+        else
+            opponentName = runnerName
+        end
 
         TriggerClientEvent('blacklist:chaseHUD', src, {
             action = 'end',
@@ -1012,6 +1042,10 @@ function endMatch(matchId, winnerRole, reason)
             reason = reason,
             duration = elapsed,
             isRanked = isRanked,
+            opponentName = opponentName,
+            opponentRole = role == 'runner' and 'chaser' or 'runner',
+            matchId = matchId,
+            solo = match.solo or false,
         })
     end
 
@@ -1257,6 +1291,48 @@ AddEventHandler('blacklist:spikeTireBurst', function(runnerNetId, tireIndex)
     if not match then return end
 
     TriggerClientEvent('blacklist:applyTireBurst', match.runner.source, runnerNetId, tireIndex)
+end)
+
+-- ========================
+-- Report system (foundation)
+-- ========================
+
+RegisterNetEvent('blacklist:reportPlayer')
+AddEventHandler('blacklist:reportPlayer', function(matchId, opponentName, reason)
+    local source = source
+    local reporterIdentifier = getIdentifier(source)
+    if not reporterIdentifier then return end
+
+    local reporterName = GetPlayerName(source) or 'Unknown'
+    local reportedName = opponentName or 'Unknown'
+
+    local match = matchId and activeMatches[matchId] or nil
+    local mode = match and match.mode or 'unknown'
+
+    local reportedIdentifier = ''
+    if match then
+        if match.runner.source ~= source then
+            reportedIdentifier = match.runner.identifier or ''
+        else
+            for _, c in ipairs(match.chasers) do
+                if c.source ~= source then
+                    reportedIdentifier = c.identifier or ''
+                    break
+                end
+            end
+        end
+    end
+
+    exports.oxmysql:execute(
+        'INSERT INTO player_reports (match_id, reporter_id, reporter_name, reported_id, reported_name, reason, mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        { matchId, reporterIdentifier, reporterName, reportedIdentifier, reportedName, reason, mode },
+        function(result)
+            if result then
+                print(('[Report] %s reported %s for "%s" (match #%s, mode: %s)'):format(
+                    reporterName, reportedName, reason, tostring(matchId), mode))
+            end
+        end
+    )
 end)
 
 print('[Chase] ^2Game mode loaded  |  AC Telemetry relay active^0')

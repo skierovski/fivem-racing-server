@@ -47,7 +47,7 @@
             fetchEndpoint: 'joinNormalChase',
             infoTags: ['1v4', 'PD vs RUNNER', 'PICK YOUR CAR'],
             infoText: 'One runner escapes in a car of their choice while up to 4 police chasers and a helicopter try to catch them. Runner picks any unlocked car, chasers get assigned PD vehicles. Code escalation from Green to Red.',
-            hasOptions: false,
+            hasOptions: true,
             hasSolo: true,
         },
     };
@@ -120,6 +120,9 @@
     // Solo test state
     let soloRole = 'runner';
 
+    // Chase role preferences (at least 2 of 3 must be selected)
+    let chaseRoles = { runner: true, chaser: true, heli: false };
+
     // ========================
     // Navigation
     // ========================
@@ -158,6 +161,13 @@
     // ========================
     // Sub-page logic
     // ========================
+    function updateChaseQueueBtn() {
+        const count = Object.values(chaseRoles).filter(Boolean).length;
+        if (btnSubpageQueue) {
+            btnSubpageQueue.classList.toggle('disabled', count < 2);
+        }
+    }
+
     function openSubpage(mode) {
         const cfg = MODE_CONFIG[mode];
         if (!cfg) return;
@@ -172,7 +182,7 @@
         btnSubpageQueue.classList.toggle('hidden', isQueuing);
         subpageQueueStatus.classList.toggle('hidden', !isQueuing);
 
-        // Options (ranked toggles)
+        // Options (ranked toggles or chase role selection)
         subpageOptions.innerHTML = '';
         if (cfg.hasOptions && mode === 'ranked') {
             subpageOptions.innerHTML = `
@@ -193,6 +203,43 @@
                     <span class="cross-tier-desc">No MMR matching, random car from any tier</span>
                 </div>
             `;
+        } else if (cfg.hasOptions && mode === 'normal') {
+            subpageOptions.innerHTML = `
+                <div class="role-select-section">
+                    <div class="role-select-title">ROLE PREFERENCE <span class="role-select-hint">Pick at least 2</span></div>
+                    <div class="role-select-grid">
+                        <button class="role-select-btn ${chaseRoles.runner ? 'active' : ''}" data-role="runner">
+                            <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                            <span>RUNNER</span>
+                        </button>
+                        <button class="role-select-btn ${chaseRoles.chaser ? 'active' : ''}" data-role="chaser">
+                            <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.5 1.1 2.5 2.5S13.4 12 12 12s-2.5-1.1-2.5-2.5S10.6 7 12 7zm5 10H7v-1.25C7 13.92 9.67 13 12 13s5 .92 5 2.75V17z"/></svg>
+                            <span>CHASER</span>
+                        </button>
+                        <button class="role-select-btn ${chaseRoles.heli ? 'active' : ''}" data-role="heli">
+                            <svg viewBox="0 0 24 24" width="28" height="28"><path fill="currentColor" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                            <span>HELI PILOT</span>
+                        </button>
+                    </div>
+                    <div class="role-select-warn hidden" id="roleSelectWarn">Select at least 2 roles to queue</div>
+                </div>
+            `;
+            subpageOptions.querySelectorAll('.role-select-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const role = btn.dataset.role;
+                    const wouldDisable = chaseRoles[role];
+                    const activeCount = Object.values(chaseRoles).filter(Boolean).length;
+                    if (wouldDisable && activeCount <= 2) {
+                        const warn = document.getElementById('roleSelectWarn');
+                        if (warn) { warn.classList.remove('hidden'); setTimeout(() => warn.classList.add('hidden'), 2000); }
+                        return;
+                    }
+                    chaseRoles[role] = !chaseRoles[role];
+                    btn.classList.toggle('active', chaseRoles[role]);
+                    updateChaseQueueBtn();
+                });
+            });
+            updateChaseQueueBtn();
         }
 
         // Solo test section
@@ -263,7 +310,12 @@
                 : 'Finding ranked match...';
             showSubpageQueue(msg);
         } else if (mode === 'normal') {
-            fetch('https://menu/joinNormalChase', { method: 'POST', body: '{}' });
+            const activeCount = Object.values(chaseRoles).filter(Boolean).length;
+            if (activeCount < 2) return;
+            fetch('https://menu/joinNormalChase', {
+                method: 'POST',
+                body: JSON.stringify({ roles: chaseRoles }),
+            });
             showSubpageQueue(cfg.queueText);
         }
     });
